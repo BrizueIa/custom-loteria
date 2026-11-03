@@ -40,31 +40,12 @@ class SoundEngine {
     }
   }
 
-  // Victorious chime for "Lotería!"
+  // Victorious applause & cheer for "Lotería!"
   playWinFanfare() {
     try {
-      this.initCtx();
-      if (!this.ctx) return;
-
-      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
-      notes.forEach((freq, i) => {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        const startTime = this.ctx.currentTime + i * 0.12;
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, startTime);
-
-        gain.gain.setValueAtTime(0.2, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(startTime);
-        osc.stop(startTime + 0.35);
-      });
+      const audio = new Audio('/audio/aplausos.mp3');
+      audio.volume = 0.9;
+      audio.play().catch(() => {});
     } catch (e) {}
   }
 }

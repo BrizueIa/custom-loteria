@@ -253,7 +253,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   // Celebrar ganador con ¡BUENAS!
   const handleBuenasWin = async () => {
     setIsPlaying(false);
-    audioCantador.playFanfare();
+    audioCantador.playApplause();
     confetti({
       particleCount: 160,
       spread: 80,

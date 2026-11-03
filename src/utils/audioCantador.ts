@@ -87,6 +87,7 @@ export function getVoicesCatalog(lang: 'es' | 'en'): VoiceProfile[] {
 
 class AudioCantador {
   private currentAudio: HTMLAudioElement | null = null;
+  private applauseAudio: HTMLAudioElement | null = null;
   private audioCtx: AudioContext | null = null;
 
   private getAudioContext(): AudioContext | null {
@@ -183,16 +184,25 @@ class AudioCantador {
   // Speak special victory/game phrases (primarily "¡Buenas!" or "Bingo!")
   async speakSpecial(specialKey: 'loteria' | 'buenas' | 'desempate' | 'comenzar', voiceId: VoiceId = 'dona_plantas', rate: number = 1.0) {
     const isEnglishVoice = voiceId.endsWith('_us') || voiceId.endsWith('_uk');
-    if (isEnglishVoice) {
-      const phrase = specialKey === 'buenas' ? 'Bingo! We have a winner!' : specialKey === 'desempate' ? 'Tie-breaker card!' : 'Lottery!';
-      const proxyUrl = `/api/tts?q=${encodeURIComponent(phrase)}&voice=${encodeURIComponent(voiceId)}`;
-      const ok = await this.playAudioUrl(proxyUrl, rate);
-      if (ok) return;
-    }
+    const phrases: Record<string, { es: string; en: string }> = {
+      'buenas': { es: '¡Buenas!', en: 'Bingo! We have a winner!' },
+      'loteria': { es: '¡Lotería!', en: 'Lottery!' },
+      'desempate': { es: '¡Carta de desempate!', en: 'Tie-breaker card!' },
+      'comenzar': { es: '¡Corre y se va corriendo!', en: 'Here we go!' }
+    };
+    const phrase = phrases[specialKey]
+      ? (isEnglishVoice ? phrases[specialKey].en : phrases[specialKey].es)
+      : (specialKey === 'buenas' ? '¡Buenas!' : '¡Lotería!');
 
-    const primaryUrl = `/audio/voices/${voiceId}/${specialKey}.mp3`;
-    const ok = await this.playAudioUrl(primaryUrl, rate);
+    // First try dynamic TTS endpoint so voice matches chosen persona
+    const proxyUrl = `/api/tts?q=${encodeURIComponent(phrase)}&voice=${encodeURIComponent(voiceId)}`;
+    const ok = await this.playAudioUrl(proxyUrl, rate);
     if (ok) return;
+
+    // Fallbacks
+    const primaryUrl = `/audio/voices/${voiceId}/${specialKey}.mp3`;
+    const okStatic = await this.playAudioUrl(primaryUrl, rate);
+    if (okStatic) return;
 
     const specialUrl = `/audio/voices/${voiceId}/special-${specialKey}.mp3`;
     const ok2 = await this.playAudioUrl(specialUrl, rate);
@@ -208,9 +218,81 @@ class AudioCantador {
       this.currentAudio.pause();
       this.currentAudio.currentTime = 0;
     }
+    this.stopApplause();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+  }
+
+  // Play celebratory crowd applause & cheer
+  playApplause(volume: number = 0.9): void {
+    try {
+      if (this.applauseAudio) {
+        this.applauseAudio.pause();
+        this.applauseAudio.currentTime = 0;
+      }
+      const audio = new Audio('/audio/aplausos.mp3');
+      audio.volume = Math.max(0, Math.min(1, volume));
+      this.applauseAudio = audio;
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          this.playProceduralApplause();
+        });
+      }
+    } catch (e) {
+      this.playProceduralApplause();
+    }
+  }
+
+  stopApplause(): void {
+    if (this.applauseAudio) {
+      try {
+        this.applauseAudio.pause();
+        this.applauseAudio.currentTime = 0;
+      } catch (e) {}
+      this.applauseAudio = null;
+    }
+  }
+
+  // Procedural Web Audio applause fallback
+  playProceduralApplause(): void {
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+
+      const duration = 3.5;
+      const bufferSize = Math.floor(ctx.sampleRate * duration);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Generate bursty noise simulating many individuals clapping
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1);
+      }
+
+      const noiseNode = ctx.createBufferSource();
+      noiseNode.buffer = buffer;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 1200;
+      filter.Q.value = 1.2;
+
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.28, now + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      noiseNode.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      noiseNode.start(now);
+      noiseNode.stop(now + duration);
+    } catch (e) {}
   }
 
   // Card bell chime
@@ -237,32 +319,9 @@ class AudioCantador {
     } catch (e) {}
   }
 
-  // Fanfare for "Lotería!"
+  // Fanfare / celebration alias
   playFanfare() {
-    try {
-      const ctx = this.getAudioContext();
-      if (!ctx) return;
-
-      const notes = [523.25, 659.25, 783.99, 1046.5];
-      notes.forEach((freq, i) => {
-        if (!ctx) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        const st = ctx.currentTime + i * 0.11;
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, st);
-
-        gain.gain.setValueAtTime(0.25, st);
-        gain.gain.exponentialRampToValueAtTime(0.001, st + 0.35);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(st);
-        osc.stop(st + 0.35);
-      });
-    } catch (e) {}
+    this.playApplause();
   }
 }
 
