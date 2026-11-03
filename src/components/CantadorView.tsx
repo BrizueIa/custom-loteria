@@ -118,6 +118,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   });
 
   const timerRef = useRef<number | null>(null);
+  const applauseTimerRef = useRef<number | null>(null);
 
   // Auto-switch voice catalog when language changes
   useEffect(() => {
@@ -209,6 +210,10 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   };
 
   const handleNextCard = () => {
+    if (applauseTimerRef.current) {
+      clearTimeout(applauseTimerRef.current);
+    }
+    audioCantador.stopApplause();
     if (currentIndex + 1 < shuffledDeck.length) {
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
@@ -220,6 +225,10 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   };
 
   const handlePrevCard = () => {
+    if (applauseTimerRef.current) {
+      clearTimeout(applauseTimerRef.current);
+    }
+    audioCantador.stopApplause();
     if (currentIndex > 0) {
       const prevIdx = currentIndex - 1;
       setCurrentIndex(prevIdx);
@@ -229,6 +238,9 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
   const handleRestart = () => {
     setIsPlaying(false);
+    if (applauseTimerRef.current) {
+      clearTimeout(applauseTimerRef.current);
+    }
     audioCantador.stop();
     setShuffledDeck(shuffleArray(cards));
     setCurrentIndex(-1);
@@ -250,16 +262,36 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     };
   }, [isPlaying, currentIndex, intervalSeconds, gameEnded, shuffledDeck]);
 
+  // Limpieza al desmontar
+  useEffect(() => {
+    return () => {
+      if (applauseTimerRef.current) {
+        clearTimeout(applauseTimerRef.current);
+      }
+      audioCantador.stop();
+    };
+  }, []);
+
   // Celebrar ganador con ¡BUENAS!
   const handleBuenasWin = async () => {
     setIsPlaying(false);
-    audioCantador.playApplause();
+    if (applauseTimerRef.current) {
+      clearTimeout(applauseTimerRef.current);
+    }
+    audioCantador.stopApplause();
+
+    // 1. Confeti y primero la voz del cantador diciendo ¡BUENAS!
     confetti({
       particleCount: 160,
       spread: 80,
       origin: { y: 0.5 }
     });
     audioCantador.speakSpecial('buenas', selectedVoiceId, speechRate);
+
+    // 2. Exactamente 1 segundo después, entran los aplausos y ovación
+    applauseTimerRef.current = window.setTimeout(() => {
+      audioCantador.playApplause();
+    }, 1000);
   };
 
   const handleDesempateCartaMayor = () => {
