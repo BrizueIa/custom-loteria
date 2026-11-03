@@ -24,7 +24,8 @@ import {
   Download,
   Upload,
   Palette,
-  Globe
+  Globe,
+  Clock
 } from 'lucide-react';
 
 interface CantadorViewProps {
@@ -57,6 +58,12 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [intervalSeconds, setIntervalSeconds] = useState<number>(4);
   const [gameEnded, setGameEnded] = useState<boolean>(false);
+  const [hasCalledBuenas, setHasCalledBuenas] = useState<boolean>(false);
+  const [timeRemaining, setTimeRemaining] = useState<number>(() => intervalSeconds * 1000);
+
+  useEffect(() => {
+    setTimeRemaining(intervalSeconds * 1000);
+  }, [intervalSeconds]);
 
   // Modals & Panels
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
@@ -116,7 +123,6 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     return false; // Por defecto: no cantar frase
   });
 
-  const timerRef = useRef<number | null>(null);
   const applauseTimerRef = useRef<number | null>(null);
 
   // Auto-switch voice catalog when language changes
@@ -208,6 +214,20 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     setIsTestingVoice(false);
   };
 
+  const handleStartRound = () => {
+    if (applauseTimerRef.current) {
+      clearTimeout(applauseTimerRef.current);
+    }
+    audioCantador.stopApplause();
+    const nextIdx = 0;
+    setCurrentIndex(nextIdx);
+    announceCard(shuffledDeck[nextIdx]);
+    setIsPlaying(true);
+    setGameEnded(false);
+    setHasCalledBuenas(false);
+    setTimeRemaining(intervalSeconds * 1000);
+  };
+
   const handleNextCard = () => {
     if (applauseTimerRef.current) {
       clearTimeout(applauseTimerRef.current);
@@ -217,6 +237,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
       announceCard(shuffledDeck[nextIdx]);
+      setTimeRemaining(intervalSeconds * 1000);
     } else {
       setIsPlaying(false);
       setGameEnded(true);
@@ -232,6 +253,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       const prevIdx = currentIndex - 1;
       setCurrentIndex(prevIdx);
       announceCard(shuffledDeck[prevIdx]);
+      setTimeRemaining(intervalSeconds * 1000);
     }
   };
 
@@ -247,22 +269,38 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     setShuffledDeck(shuffleArray(cards));
     setCurrentIndex(-1);
     setGameEnded(false);
+    setHasCalledBuenas(false);
+    setTimeRemaining(intervalSeconds * 1000);
   };
 
-  // Loop de llamada automática
+  // Loop de llamada automática con temporizador decreciente
   useEffect(() => {
-    if (isPlaying && !gameEnded) {
-      timerRef.current = window.setTimeout(() => {
-        handleNextCard();
-      }, intervalSeconds * 1000);
+    if (!isPlaying || gameEnded || currentIndex === -1) {
+      return;
     }
 
+    const tickMs = 50;
+    const intervalId = window.setInterval(() => {
+      setTimeRemaining((prev) => {
+        const next = prev - tickMs;
+        if (next <= 0) {
+          return 0;
+        }
+        return next;
+      });
+    }, tickMs);
+
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      window.clearInterval(intervalId);
     };
-  }, [isPlaying, currentIndex, intervalSeconds, gameEnded, shuffledDeck]);
+  }, [isPlaying, gameEnded, currentIndex, intervalSeconds]);
+
+  // Cuando el temporizador llega a cero, avanza automáticamente a la siguiente carta
+  useEffect(() => {
+    if (isPlaying && !gameEnded && currentIndex >= 0 && timeRemaining === 0) {
+      handleNextCard();
+    }
+  }, [timeRemaining, isPlaying, gameEnded, currentIndex]);
 
   // Limpieza al desmontar
   useEffect(() => {
@@ -277,6 +315,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   // Celebrar ganador con ¡BUENAS!
   const handleBuenasWin = async () => {
     setIsPlaying(false);
+    setHasCalledBuenas(true);
     if (applauseTimerRef.current) {
       clearTimeout(applauseTimerRef.current);
     }
@@ -338,6 +377,10 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   const currentCard = currentIndex >= 0 ? shuffledDeck[currentIndex] : null;
   const calledCards = shuffledDeck.slice(0, currentIndex + 1);
   const activeVoicesCatalog = getVoicesCatalog(language);
+
+  // Reglas de juego para evitar romper partidas en curso:
+  const isDesempateAllowed = hasCalledBuenas;
+  const isShuffleAllowed = currentIndex === -1 || hasCalledBuenas || gameEnded;
 
   return (
     <div className="w-full max-w-md mx-auto flex flex-col h-[100dvh] justify-between p-2.5 select-none bg-gradient-to-b from-[#F7F2EA] via-[#F4ECE1] to-[#EFE4D6]">
@@ -428,7 +471,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               </p>
             </div>
             <button
-              onClick={handleNextCard}
+              onClick={handleStartRound}
               className="px-6 py-3 bg-[#1B5236] hover:bg-[#14422B] text-white rounded-2xl font-black text-sm shadow-md transition-transform active:scale-95 flex items-center gap-2"
             >
               <Play className="w-4 h-4 fill-white" />
@@ -454,12 +497,44 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
         {/* BOTÓN ¡BUENAS! ACCESIBLE Y DIRECTO */}
         <button
           onClick={handleBuenasWin}
-          className="w-full py-3.5 px-4 bg-gradient-to-r from-[#D97706] via-[#DC2626] to-[#B45309] hover:brightness-105 active:scale-98 text-white rounded-2xl font-black text-base shadow-md ring-2 ring-amber-400/50 flex items-center justify-center gap-2 transition-all uppercase tracking-wider select-none"
-          title={t('buenas')}
+          disabled={currentIndex === -1}
+          className={`w-full py-3.5 px-4 rounded-2xl font-black text-base shadow-md flex items-center justify-center gap-2 transition-all uppercase tracking-wider select-none ${
+            currentIndex === -1
+              ? 'bg-stone-200 text-stone-400 border border-stone-300 opacity-50 cursor-not-allowed'
+              : 'bg-gradient-to-r from-[#D97706] via-[#DC2626] to-[#B45309] hover:brightness-105 active:scale-98 text-white ring-2 ring-amber-400/50'
+          }`}
+          title={currentIndex === -1 ? 'Inicia la ronda para poder cantar ¡BUENAS!' : t('buenas')}
         >
-          <Trophy className="w-5 h-5 fill-amber-200 text-amber-200" />
+          <Trophy className={`w-5 h-5 ${currentIndex === -1 ? 'text-stone-400' : 'fill-amber-200 text-amber-200'}`} />
           <span>{t('buenas')}</span>
         </button>
+
+        {/* Indicador de tiempo que se consume para la siguiente carta */}
+        {currentIndex >= 0 && !gameEnded && (
+          <div className="bg-[#FAF3EA] border border-[#DFC7B0] rounded-2xl px-3.5 py-2 flex flex-col gap-1.5 shadow-2xs transition-all">
+            <div className="flex items-center justify-between text-[11px] font-bold text-[#78350F]">
+              <span className="flex items-center gap-1.5">
+                <Clock className={`w-3.5 h-3.5 text-amber-700 ${isPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '4s' }} />
+                <span>{isPlaying ? t('next_card_in') : t('timer_paused')}</span>
+              </span>
+              <span className="font-mono text-xs font-black text-[#5C381E] bg-[#EFE3D3] px-2 py-0.5 rounded-md border border-[#DFC7B0]">
+                {(Math.max(0, timeRemaining) / 1000).toFixed(1)}s
+              </span>
+            </div>
+            <div className="w-full bg-[#E5D2BE] h-2.5 rounded-full overflow-hidden p-0.5 border border-[#D8C1A8]">
+              <div
+                className={`h-full rounded-full transition-all duration-75 ${
+                  isPlaying
+                    ? 'bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500'
+                    : 'bg-stone-400'
+                }`}
+                style={{
+                  width: `${Math.max(0, Math.min(100, (timeRemaining / (intervalSeconds * 1000)) * 100))}%`
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-2.5">
           {/* Carta Anterior */}
@@ -472,11 +547,14 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             <SkipBack className="w-5 h-5" />
           </button>
 
-          {/* Botón Central Play / Pause */}
+          {/* Botón Central Play / Pause / Continuar */}
           <button
             onClick={() => {
-              if (currentIndex === -1) handleNextCard();
-              setIsPlaying(!isPlaying);
+              if (currentIndex === -1) {
+                handleStartRound();
+              } else {
+                setIsPlaying(!isPlaying);
+              }
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-sm shadow-md transition-all active:scale-98 text-white ${
               isPlaying
@@ -518,22 +596,40 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             <span>{t('history')} ({calledCards.length})</span>
           </button>
 
+          {/* Desempate (Carta Mayor) */}
           <button
             onClick={() => {
+              if (!isDesempateAllowed) return;
               setShowDesempateModal(true);
               setDesempateCard(null);
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 bg-[#FBECE8] hover:bg-[#F6DCD6] text-[#991B1B] border border-[#F2C2B8] rounded-xl font-bold text-xs shadow-2xs active:scale-95 transition-all"
+            disabled={!isDesempateAllowed}
+            title={!isDesempateAllowed ? t('tie_breaker_locked_hint') : t('tie_breaker')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold text-xs shadow-2xs transition-all ${
+              isDesempateAllowed
+                ? 'bg-[#FBECE8] hover:bg-[#F6DCD6] text-[#991B1B] border border-[#F2C2B8] active:scale-95'
+                : 'bg-stone-100 text-stone-400 border border-stone-200 opacity-40 cursor-not-allowed'
+            }`}
           >
-            <Swords className="w-3.5 h-3.5 text-[#DC2626]" />
+            <Swords className={`w-3.5 h-3.5 ${isDesempateAllowed ? 'text-[#DC2626]' : 'text-stone-400'}`} />
             <span>{t('tie_breaker')}</span>
           </button>
 
+          {/* Barajear / Siguiente Ronda */}
           <button
-            onClick={handleRestart}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 bg-[#EBF3EC] hover:bg-[#DBEADF] text-[#14532D] border border-[#C5DEC9] rounded-xl font-bold text-xs shadow-2xs active:scale-95 transition-all"
+            onClick={() => {
+              if (!isShuffleAllowed) return;
+              handleRestart();
+            }}
+            disabled={!isShuffleAllowed}
+            title={!isShuffleAllowed ? t('shuffle_locked_hint') : t('shuffle')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold text-xs shadow-2xs transition-all ${
+              isShuffleAllowed
+                ? 'bg-[#EBF3EC] hover:bg-[#DBEADF] text-[#14532D] border border-[#C5DEC9] active:scale-95'
+                : 'bg-stone-100 text-stone-400 border border-stone-200 opacity-40 cursor-not-allowed'
+            }`}
           >
-            <RotateCcw className="w-3.5 h-3.5 text-[#16A34A]" />
+            <RotateCcw className={`w-3.5 h-3.5 ${isShuffleAllowed ? 'text-[#16A34A]' : 'text-stone-400'}`} />
             <span>{t('shuffle')}</span>
           </button>
         </div>

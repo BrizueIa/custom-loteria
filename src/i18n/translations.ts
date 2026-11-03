@@ -22,6 +22,10 @@ export const translations = {
     tie_breaker: 'Desempate',
     shuffle: 'Barajear',
     cards: 'Cartas',
+    next_card_in: 'Siguiente carta en',
+    timer_paused: 'Temporizador pausado',
+    tie_breaker_locked_hint: 'El desempate se habilita tras cantar ¡BUENAS!',
+    shuffle_locked_hint: 'Barajeado bloqueado hasta cantar ¡BUENAS! para no romper la partida',
 
     // Language Toggle
     language: 'Idioma',
@@ -199,6 +203,10 @@ export const translations = {
     tie_breaker: 'Tie-breaker',
     shuffle: 'Shuffle',
     cards: 'Cards',
+    next_card_in: 'Next card in',
+    timer_paused: 'Timer paused',
+    tie_breaker_locked_hint: 'Tie-breaker unlocks after calling ¡BUENAS!',
+    shuffle_locked_hint: 'Shuffling locked until ¡BUENAS! to protect the active game',
 
     // Language Toggle
     language: 'Language',
