@@ -241,6 +241,9 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       clearTimeout(applauseTimerRef.current);
     }
     audioCantador.stop();
+    if (!isMuted) {
+      audioCantador.playShuffleSound();
+    }
     setShuffledDeck(shuffleArray(cards));
     setCurrentIndex(-1);
     setGameEnded(false);
@@ -346,7 +349,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
           className="flex items-center gap-2 cursor-pointer active:opacity-80 transition-opacity"
           title={t('admin_auth')}
         >
-          <span className="font-serif font-black text-sm tracking-wider text-[#4A2E18] uppercase">
+          <span className="font-serif font-black text-base tracking-wide text-[#4A2E18] uppercase">
             {boardConfig.title || t('app_title')}
           </span>
           <span className="font-mono text-xs font-black bg-[#EFE3D3] text-[#5C381E] border border-[#DFC7B0] px-2.5 py-0.5 rounded-full">
@@ -417,10 +420,10 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               className="w-20 h-20 object-contain drop-shadow-md select-none"
             />
             <div>
-              <h3 className="font-serif text-lg font-black text-[#4A2E18]">
+              <h3 className="font-serif text-xl font-black text-[#4A2E18] tracking-tight">
                 {t('deck_ready')}
               </h3>
-              <p className="text-xs text-[#78593F] mt-1">
+              <p className="text-xs text-[#78593F] mt-1 font-medium">
                 {t('deck_ready_desc', { count: cards.length })}
               </p>
             </div>
@@ -541,7 +544,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
           <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2 border-b border-stone-100">
-              <h3 className="font-serif font-bold text-base text-stone-900">
+              <h3 className="font-serif font-black text-lg text-stone-900 tracking-tight">
                 {t('settings_title')}
               </h3>
               <button
@@ -845,8 +848,8 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       {showHistoryModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl max-h-[80dvh] flex flex-col space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-stone-100">
-              <h3 className="font-serif font-bold text-base text-stone-900">
+            <div className="flex items-center justify-between pb-2.5 border-b border-stone-100">
+              <h3 className="font-serif font-black text-lg text-stone-900 tracking-tight">
                 {t('called_cards', { count: calledCards.length })}
               </h3>
               <button
@@ -894,7 +897,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       {showDesempateModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl text-center space-y-4">
-            <h3 className="font-serif font-bold text-base text-stone-900">
+            <h3 className="font-serif font-black text-lg text-stone-900 tracking-tight">
               {t('tie_breaker_title')}
             </h3>
             <p className="text-xs text-stone-500">

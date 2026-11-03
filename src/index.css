@@ -8,11 +8,13 @@
   }
   
   .font-loteria-title {
-    font-family: 'Cinzel', serif;
+    font-family: 'Fraunces', 'Cinzel', serif;
+    font-optical-sizing: auto;
   }
 
   .font-loteria-card {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Fraunces', 'Playfair Display', serif;
+    font-optical-sizing: auto;
   }
 }
 

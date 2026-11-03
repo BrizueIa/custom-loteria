@@ -88,6 +88,7 @@ export function getVoicesCatalog(lang: 'es' | 'en'): VoiceProfile[] {
 class AudioCantador {
   private currentAudio: HTMLAudioElement | null = null;
   private applauseAudio: HTMLAudioElement | null = null;
+  private shuffleAudio: HTMLAudioElement | null = null;
   private audioCtx: AudioContext | null = null;
 
   private getAudioContext(): AudioContext | null {
@@ -219,9 +220,74 @@ class AudioCantador {
       this.currentAudio.currentTime = 0;
     }
     this.stopApplause();
+    this.stopShuffle();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+  }
+
+  // Play realistic card shuffle sound
+  playShuffleSound(volume: number = 0.85): void {
+    try {
+      this.stopShuffle();
+      const audio = new Audio('/audio/barajar.mp3');
+      audio.volume = Math.max(0, Math.min(1, volume));
+      this.shuffleAudio = audio;
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          this.playProceduralShuffle();
+        });
+      }
+    } catch (e) {
+      this.playProceduralShuffle();
+    }
+  }
+
+  stopShuffle(): void {
+    if (this.shuffleAudio) {
+      try {
+        this.shuffleAudio.pause();
+        this.shuffleAudio.currentTime = 0;
+      } catch (e) {}
+      this.shuffleAudio = null;
+    }
+  }
+
+  // Procedural Web Audio card riffle shuffle fallback
+  playProceduralShuffle(): void {
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const now = ctx.currentTime;
+      const numSnaps = 26;
+      for (let i = 0; i < numSnaps; i++) {
+        const snapTime = now + 0.04 + (i / numSnaps) * 0.45 + (Math.random() - 0.5) * 0.02;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(2000 + Math.random() * 800, snapTime);
+        osc.frequency.exponentialRampToValueAtTime(300, snapTime + 0.025);
+
+        filter.type = 'bandpass';
+        filter.frequency.value = 2400;
+
+        gain.gain.setValueAtTime(0.09 + Math.random() * 0.05, snapTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, snapTime + 0.025);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(snapTime);
+        osc.stop(snapTime + 0.025);
+      }
+    } catch (e) {}
   }
 
   // Play celebratory crowd applause & cheer

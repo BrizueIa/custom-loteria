@@ -102,6 +102,11 @@ export default defineConfig({
                   cream: '#FFF9E6',
                 },
               },
+              fontFamily: {
+                sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+                serif: ['"Fraunces"', '"Playfair Display"', 'Georgia', 'serif'],
+                loteria: ['"Fraunces"', '"Cinzel"', 'serif'],
+              },
             },
           },
           plugins: [],

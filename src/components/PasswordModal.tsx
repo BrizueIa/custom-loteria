@@ -80,7 +80,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
             <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
               {mode === 'unlock' ? <Lock className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
             </div>
-            <h3 className="font-serif font-bold text-base text-stone-900">
+            <h3 className="font-serif font-black text-lg text-stone-900 tracking-tight">
               {mode === 'unlock' ? t('admin_auth') : t('change_password')}
             </h3>
           </div>
