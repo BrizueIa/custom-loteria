@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 import https from 'https';
 import fs from 'fs';
 import { execFile } from 'child_process';
@@ -77,8 +79,32 @@ export default defineConfig({
       }
     }
   ],
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss({
+          content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+          theme: {
+            extend: {
+              colors: {
+                loteria: {
+                  pink: '#E91E63',
+                  yellow: '#FFEB3B',
+                  green: '#4CAF50',
+                  blue: '#2196F3',
+                  cream: '#FFF9E6',
+                },
+              },
+            },
+          },
+          plugins: [],
+        }),
+        autoprefixer(),
+      ],
+    },
+  },
   server: {
     host: true,
-    port: 5173
-  }
+    port: 5173,
+  },
 });

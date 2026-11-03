@@ -82,11 +82,27 @@
 
 ---
 
+## 📜 Architecture, Governance & Policies
+
+* **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**: Full system architecture, board generation algorithm, and audio caller pipeline.
+* **[SECURITY.md](.github/SECURITY.md)**: Vulnerability disclosure procedure and security policy.
+* **[CONTRIBUTING.md](.github/CONTRIBUTING.md)**: Guidelines for contributing code, custom decks, and bug reports.
+
+---
+
 ## 🎯 Project Structure
 
 ```text
 custom-loteria/
-├── public/                 # Static assets and icons
+├── .github/                # CI Quality Gates & GitHub templates
+│   ├── workflows/ci.yml    # Build & Typecheck CI pipeline
+│   ├── ISSUE_TEMPLATE/     # Bug report & Feature request templates
+│   ├── CONTRIBUTING.md     # Development & contribution guide
+│   ├── pull_request_template.md
+│   └── SECURITY.md         # Vulnerability reporting policy
+├── docs/                   # Technical documentation
+│   └── architecture/       # Architecture specification
+├── public/                 # Static assets, sounds & voice clips
 ├── src/
 │   ├── components/         # Reusable UI components
 │   │   ├── BoardGeneratorSettings.tsx  # Board layout & PDF generation
@@ -108,9 +124,8 @@ custom-loteria/
 │   └── index.css           # Tailwind base layers and font styles
 ├── index.html
 ├── package.json
-├── tailwind.config.js
 ├── tsconfig.json
-└── vite.config.ts
+└── vite.config.ts          # Consolidated Vite + Tailwind + PostCSS config
 ```
 
 ---
