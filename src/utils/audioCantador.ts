@@ -89,6 +89,7 @@ class AudioCantador {
   private currentAudio: HTMLAudioElement | null = null;
   private currentAudioResolve: ((val: boolean) => void) | null = null;
   private currentWebSpeechResolve: ((val: boolean) => void) | null = null;
+  private currentCountdownTimer: number | null = null;
   private preloadCache: Map<string, HTMLAudioElement> = new Map();
   private applauseAudio: HTMLAudioElement | null = null;
   private shuffleAudio: HTMLAudioElement | null = null;
@@ -131,13 +132,19 @@ class AudioCantador {
     }
   }
 
-  // Play an audio URL with Promise resolution when finished
-  playAudioUrl(url: string, rate: number = 1.0): Promise<boolean> {
+  // Play an audio URL with Promise resolution when finished.
+  // onCountdownReady fires when the audio enters its final 1.0s to start timer early.
+  playAudioUrl(url: string, rate: number = 1.0, onCountdownReady?: () => void): Promise<boolean> {
     return new Promise((resolve) => {
       try {
         if (this.currentAudioResolve) {
           this.currentAudioResolve(false);
           this.currentAudioResolve = null;
+        }
+
+        if (this.currentCountdownTimer) {
+          clearTimeout(this.currentCountdownTimer);
+          this.currentCountdownTimer = null;
         }
 
         if (this.currentAudio) {
@@ -150,10 +157,61 @@ class AudioCantador {
         this.currentAudio = audio;
         audio.playbackRate = rate;
 
+        let hasFiredCountdown = false;
+        const fireCountdown = () => {
+          if (hasFiredCountdown) return;
+          hasFiredCountdown = true;
+          if (this.currentCountdownTimer) {
+            clearTimeout(this.currentCountdownTimer);
+            this.currentCountdownTimer = null;
+          }
+          if (onCountdownReady) {
+            onCountdownReady();
+          }
+        };
+
+        const setupCountdownSchedule = () => {
+          const duration = audio.duration;
+          if (!duration || isNaN(duration) || duration <= 0) return;
+
+          // Entrar en cuenta regresiva en el último segundo de audio (compensando silencios de cola)
+          const leadSeconds = 1.0;
+          const triggerAtTime = Math.max(0.3, duration - leadSeconds);
+          const timeUntilTriggerSec = (triggerAtTime - audio.currentTime) / (audio.playbackRate || 1.0);
+
+          if (timeUntilTriggerSec <= 0.05) {
+            fireCountdown();
+          } else {
+            if (this.currentCountdownTimer) clearTimeout(this.currentCountdownTimer);
+            this.currentCountdownTimer = window.setTimeout(() => {
+              fireCountdown();
+            }, Math.max(0, timeUntilTriggerSec * 1000));
+          }
+        };
+
+        audio.onloadedmetadata = () => {
+          setupCountdownSchedule();
+        };
+
+        audio.ontimeupdate = () => {
+          const duration = audio.duration;
+          if (duration && !isNaN(duration) && duration > 0) {
+            const triggerAtTime = Math.max(0.3, duration - 1.0);
+            if (audio.currentTime >= triggerAtTime) {
+              fireCountdown();
+            }
+          }
+        };
+
         let hasResolved = false;
         const cleanupAndResolve = (success: boolean) => {
           if (hasResolved) return;
           hasResolved = true;
+          fireCountdown();
+          if (this.currentCountdownTimer) {
+            clearTimeout(this.currentCountdownTimer);
+            this.currentCountdownTimer = null;
+          }
           if (this.currentAudioResolve === cleanupAndResolve) {
             this.currentAudioResolve = null;
           }
@@ -167,7 +225,9 @@ class AudioCantador {
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
-          playPromise.catch(() => {
+          playPromise.then(() => {
+            setupCountdownSchedule();
+          }).catch(() => {
             cleanupAndResolve(false);
           });
         }
@@ -178,9 +238,10 @@ class AudioCantador {
   }
 
   // Speak using device Web Speech API (fallback for custom cards)
-  speakWebSpeech(text: string, voiceURI?: string, rate: number = 1.0): Promise<boolean> {
+  speakWebSpeech(text: string, voiceURI?: string, rate: number = 1.0, onCountdownReady?: () => void): Promise<boolean> {
     return new Promise((resolve) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        if (onCountdownReady) onCountdownReady();
         return resolve(false);
       }
 
@@ -190,15 +251,38 @@ class AudioCantador {
           this.currentWebSpeechResolve = null;
         }
 
+        if (this.currentCountdownTimer) {
+          clearTimeout(this.currentCountdownTimer);
+          this.currentCountdownTimer = null;
+        }
+
         window.speechSynthesis.cancel();
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
 
+        let hasFiredCountdown = false;
+        const fireCountdown = () => {
+          if (hasFiredCountdown) return;
+          hasFiredCountdown = true;
+          if (this.currentCountdownTimer) {
+            clearTimeout(this.currentCountdownTimer);
+            this.currentCountdownTimer = null;
+          }
+          if (onCountdownReady) {
+            onCountdownReady();
+          }
+        };
+
         let hasResolved = false;
         const cleanupAndResolve = (success: boolean) => {
           if (hasResolved) return;
           hasResolved = true;
+          fireCountdown();
+          if (this.currentCountdownTimer) {
+            clearTimeout(this.currentCountdownTimer);
+            this.currentCountdownTimer = null;
+          }
           if (this.currentWebSpeechResolve === cleanupAndResolve) {
             this.currentWebSpeechResolve = null;
           }
@@ -218,6 +302,13 @@ class AudioCantador {
           }
           utterance.lang = 'es-MX';
 
+          // Estimar duración para disparar en el último segundo (~15 caracteres por segundo)
+          const estimatedDurationSec = Math.max(1.0, (text.length / 15) / (rate || 1.0));
+          const triggerDelayMs = Math.max(300, (estimatedDurationSec - 1.0) * 1000);
+          this.currentCountdownTimer = window.setTimeout(() => {
+            fireCountdown();
+          }, triggerDelayMs);
+
           utterance.onend = () => cleanupAndResolve(true);
           utterance.onerror = () => cleanupAndResolve(false);
 
@@ -231,14 +322,21 @@ class AudioCantador {
 
   // Announce a card dynamically so ANY custom deck is pronounced with its real name.
   // Resolves as a Promise when the spoken audio has finished playing.
-  async announceCard(textToSpeak: string, voiceId: VoiceId = 'dona_plantas', rate: number = 1.0, systemVoiceURI?: string): Promise<boolean> {
+  // onCountdownReady fires when the audio enters its final 1.0s.
+  async announceCard(
+    textToSpeak: string,
+    voiceId: VoiceId = 'dona_plantas',
+    rate: number = 1.0,
+    systemVoiceURI?: string,
+    onCountdownReady?: () => void
+  ): Promise<boolean> {
     // 1. Try same-origin TTS proxy with the specific voiceId
     const proxyUrl = `/api/tts?q=${encodeURIComponent(textToSpeak)}&voice=${encodeURIComponent(voiceId)}`;
-    const proxyPlayed = await this.playAudioUrl(proxyUrl, rate);
+    const proxyPlayed = await this.playAudioUrl(proxyUrl, rate, onCountdownReady);
     if (proxyPlayed) return true;
 
     // 2. Fallback to Web Speech API (device voice synthesis in Spanish for any card name)
-    const webSpeechOk = await this.speakWebSpeech(textToSpeak, systemVoiceURI, rate);
+    const webSpeechOk = await this.speakWebSpeech(textToSpeak, systemVoiceURI, rate, onCountdownReady);
     if (webSpeechOk) return true;
 
     return false;
@@ -277,6 +375,10 @@ class AudioCantador {
   }
 
   stop() {
+    if (this.currentCountdownTimer) {
+      clearTimeout(this.currentCountdownTimer);
+      this.currentCountdownTimer = null;
+    }
     if (this.currentAudioResolve) {
       this.currentAudioResolve(false);
       this.currentAudioResolve = null;

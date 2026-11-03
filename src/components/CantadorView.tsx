@@ -224,8 +224,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
   // Cantar carta dinámicamente:
   // - Precarga las cartas siguientes en segundo plano
-  // - El tiempo NO corre mientras se canta (isAnnouncing = true)
-  // - Al finalizar la locución, isAnnouncing pasa a false y comienza el conteo del intervalo
+  // - El conteo del tiempo comienza en el último segundo de la locución para compensar silencios finales y dinamizar el ritmo de juego
   const announceCard = async (card: LoteriaCard, cardIndex: number) => {
     announcementTokenRef.current++;
     const currentToken = announcementTokenRef.current;
@@ -236,7 +235,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     // Chime si está habilitado
     if (playChime) audioCantador.playCardChime();
 
-    // Mantener tiempo restante completo durante la locución
+    // Mantener tiempo restante completo durante la locución inicial
     setTimeRemaining(intervalSeconds * 1000);
 
     if (isMuted) {
@@ -248,6 +247,14 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
     const speechText = buildCardSpeech(card);
 
+    // Callback activado exactamente en el último segundo del audio
+    const handleCountdownReady = () => {
+      if (announcementTokenRef.current === currentToken) {
+        setIsAnnouncing(false);
+        setTimeRemaining(intervalSeconds * 1000);
+      }
+    };
+
     // Timeout de seguridad: máximo 7 segundos para que la partida nunca quede congelada si hay fallo de red
     const safetyTimeout = new Promise<void>((resolve) => {
       window.setTimeout(resolve, 7000);
@@ -255,17 +262,16 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
     try {
       await Promise.race([
-        audioCantador.announceCard(speechText, selectedVoiceId, speechRate, selectedVoiceURI),
+        audioCantador.announceCard(speechText, selectedVoiceId, speechRate, selectedVoiceURI, handleCountdownReady),
         safetyTimeout
       ]);
     } catch (e) {
       // Ignorar errores de audio
     }
 
-    // Solo avanzar al conteo si esta carta sigue siendo la activa
+    // Al concluir por completo la locución o timeout
     if (announcementTokenRef.current === currentToken) {
       setIsAnnouncing(false);
-      setTimeRemaining(intervalSeconds * 1000);
     }
   };
 
