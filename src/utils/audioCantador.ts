@@ -87,6 +87,9 @@ export function getVoicesCatalog(lang: 'es' | 'en'): VoiceProfile[] {
 
 class AudioCantador {
   private currentAudio: HTMLAudioElement | null = null;
+  private currentAudioResolve: ((val: boolean) => void) | null = null;
+  private currentWebSpeechResolve: ((val: boolean) => void) | null = null;
+  private preloadCache: Map<string, HTMLAudioElement> = new Map();
   private applauseAudio: HTMLAudioElement | null = null;
   private shuffleAudio: HTMLAudioElement | null = null;
   private audioCtx: AudioContext | null = null;
@@ -105,28 +108,67 @@ class AudioCantador {
     return this.audioCtx;
   }
 
-  // Play an audio URL with Promise resolution
+  // Pre-fetch TTS audio in background so when card is called, playback starts with 0ms delay
+  preloadCard(textToSpeak: string, voiceId: VoiceId = 'dona_plantas'): void {
+    if (typeof window === 'undefined' || !textToSpeak.trim()) return;
+    const proxyUrl = `/api/tts?q=${encodeURIComponent(textToSpeak)}&voice=${encodeURIComponent(voiceId)}`;
+    if (this.preloadCache.has(proxyUrl)) return;
+
+    try {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = proxyUrl;
+      this.preloadCache.set(proxyUrl, audio);
+      // Keep cache bounded
+      if (this.preloadCache.size > 30) {
+        const firstKey = this.preloadCache.keys().next().value;
+        if (firstKey) this.preloadCache.delete(firstKey);
+      }
+    } catch (e) {
+      try {
+        fetch(proxyUrl).catch(() => {});
+      } catch (e2) {}
+    }
+  }
+
+  // Play an audio URL with Promise resolution when finished
   playAudioUrl(url: string, rate: number = 1.0): Promise<boolean> {
     return new Promise((resolve) => {
       try {
+        if (this.currentAudioResolve) {
+          this.currentAudioResolve(false);
+          this.currentAudioResolve = null;
+        }
+
         if (this.currentAudio) {
           this.currentAudio.pause();
           this.currentAudio.currentTime = 0;
+          this.currentAudio = null;
         }
 
         const audio = new Audio(url);
         this.currentAudio = audio;
         audio.playbackRate = rate;
 
-        audio.onended = () => resolve(true);
-        audio.onerror = () => {
-          resolve(false);
+        let hasResolved = false;
+        const cleanupAndResolve = (success: boolean) => {
+          if (hasResolved) return;
+          hasResolved = true;
+          if (this.currentAudioResolve === cleanupAndResolve) {
+            this.currentAudioResolve = null;
+          }
+          resolve(success);
         };
+
+        this.currentAudioResolve = cleanupAndResolve;
+
+        audio.onended = () => cleanupAndResolve(true);
+        audio.onerror = () => cleanupAndResolve(false);
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch(() => {
-            resolve(false);
+            cleanupAndResolve(false);
           });
         }
       } catch (e) {
@@ -143,10 +185,27 @@ class AudioCantador {
       }
 
       try {
+        if (this.currentWebSpeechResolve) {
+          this.currentWebSpeechResolve(false);
+          this.currentWebSpeechResolve = null;
+        }
+
         window.speechSynthesis.cancel();
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
+
+        let hasResolved = false;
+        const cleanupAndResolve = (success: boolean) => {
+          if (hasResolved) return;
+          hasResolved = true;
+          if (this.currentWebSpeechResolve === cleanupAndResolve) {
+            this.currentWebSpeechResolve = null;
+          }
+          resolve(success);
+        };
+
+        this.currentWebSpeechResolve = cleanupAndResolve;
 
         setTimeout(() => {
           const utterance = new SpeechSynthesisUtterance(text);
@@ -159,8 +218,8 @@ class AudioCantador {
           }
           utterance.lang = 'es-MX';
 
-          utterance.onend = () => resolve(true);
-          utterance.onerror = () => resolve(false);
+          utterance.onend = () => cleanupAndResolve(true);
+          utterance.onerror = () => cleanupAndResolve(false);
 
           window.speechSynthesis.speak(utterance);
         }, 20);
@@ -170,16 +229,19 @@ class AudioCantador {
     });
   }
 
-  // Announce a card dynamically so ANY custom deck is pronounced with its real name
-  async announceCard(textToSpeak: string, voiceId: VoiceId = 'dona_plantas', rate: number = 1.0, systemVoiceURI?: string) {
+  // Announce a card dynamically so ANY custom deck is pronounced with its real name.
+  // Resolves as a Promise when the spoken audio has finished playing.
+  async announceCard(textToSpeak: string, voiceId: VoiceId = 'dona_plantas', rate: number = 1.0, systemVoiceURI?: string): Promise<boolean> {
     // 1. Try same-origin TTS proxy with the specific voiceId
     const proxyUrl = `/api/tts?q=${encodeURIComponent(textToSpeak)}&voice=${encodeURIComponent(voiceId)}`;
     const proxyPlayed = await this.playAudioUrl(proxyUrl, rate);
-    if (proxyPlayed) return;
+    if (proxyPlayed) return true;
 
     // 2. Fallback to Web Speech API (device voice synthesis in Spanish for any card name)
     const webSpeechOk = await this.speakWebSpeech(textToSpeak, systemVoiceURI, rate);
-    if (webSpeechOk) return;
+    if (webSpeechOk) return true;
+
+    return false;
   }
 
   // Speak special victory/game phrases (primarily "¡Buenas!" or "Bingo!")
@@ -215,9 +277,18 @@ class AudioCantador {
   }
 
   stop() {
+    if (this.currentAudioResolve) {
+      this.currentAudioResolve(false);
+      this.currentAudioResolve = null;
+    }
+    if (this.currentWebSpeechResolve) {
+      this.currentWebSpeechResolve(false);
+      this.currentWebSpeechResolve = null;
+    }
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio.currentTime = 0;
+      this.currentAudio = null;
     }
     this.stopApplause();
     this.stopShuffle();

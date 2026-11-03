@@ -60,6 +60,8 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   const [gameEnded, setGameEnded] = useState<boolean>(false);
   const [hasCalledBuenas, setHasCalledBuenas] = useState<boolean>(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(() => intervalSeconds * 1000);
+  const [isAnnouncing, setIsAnnouncing] = useState<boolean>(false);
+  const announcementTokenRef = useRef<number>(0);
 
   useEffect(() => {
     setTimeRemaining(intervalSeconds * 1000);
@@ -198,13 +200,73 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     return phrase.trim();
   };
 
-  // Cantar carta dinámicamente con su nombre real (funciona para cualquier baraja personalizada)
-  const announceCard = (card: LoteriaCard) => {
-    if (playChime) audioCantador.playCardChime();
+  // Precargar las siguientes cartas en segundo plano para que el TTS responda en 1ms
+  const prefetchUpcomingCards = (startIdx: number, count: number = 3) => {
     if (isMuted) return;
+    for (let i = 1; i <= count; i++) {
+      const targetCard = shuffledDeck[startIdx + i];
+      if (targetCard) {
+        const speechText = buildCardSpeech(targetCard);
+        audioCantador.preloadCard(speechText, selectedVoiceId);
+      }
+    }
+  };
+
+  // Precargar las primeras cartas al inicializar, cambiar de voz o barajear
+  useEffect(() => {
+    if (shuffledDeck.length > 0 && currentIndex === -1 && !isMuted) {
+      for (let i = 0; i < Math.min(3, shuffledDeck.length); i++) {
+        const speechText = buildCardSpeech(shuffledDeck[i]);
+        audioCantador.preloadCard(speechText, selectedVoiceId);
+      }
+    }
+  }, [shuffledDeck, selectedVoiceId, announceNumber, announceTagline, isMuted]);
+
+  // Cantar carta dinámicamente:
+  // - Precarga las cartas siguientes en segundo plano
+  // - El tiempo NO corre mientras se canta (isAnnouncing = true)
+  // - Al finalizar la locución, isAnnouncing pasa a false y comienza el conteo del intervalo
+  const announceCard = async (card: LoteriaCard, cardIndex: number) => {
+    announcementTokenRef.current++;
+    const currentToken = announcementTokenRef.current;
+
+    // Disparar precarga en segundo plano de las siguientes cartas
+    prefetchUpcomingCards(cardIndex, 3);
+
+    // Chime si está habilitado
+    if (playChime) audioCantador.playCardChime();
+
+    // Mantener tiempo restante completo durante la locución
+    setTimeRemaining(intervalSeconds * 1000);
+
+    if (isMuted) {
+      setIsAnnouncing(false);
+      return;
+    }
+
+    setIsAnnouncing(true);
 
     const speechText = buildCardSpeech(card);
-    audioCantador.announceCard(speechText, selectedVoiceId, speechRate, selectedVoiceURI);
+
+    // Timeout de seguridad: máximo 7 segundos para que la partida nunca quede congelada si hay fallo de red
+    const safetyTimeout = new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 7000);
+    });
+
+    try {
+      await Promise.race([
+        audioCantador.announceCard(speechText, selectedVoiceId, speechRate, selectedVoiceURI),
+        safetyTimeout
+      ]);
+    } catch (e) {
+      // Ignorar errores de audio
+    }
+
+    // Solo avanzar al conteo si esta carta sigue siendo la activa
+    if (announcementTokenRef.current === currentToken) {
+      setIsAnnouncing(false);
+      setTimeRemaining(intervalSeconds * 1000);
+    }
   };
 
   // Probar voz con "¡Buenas!" o "Bingo!"
@@ -219,13 +281,13 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       clearTimeout(applauseTimerRef.current);
     }
     audioCantador.stopApplause();
+    audioCantador.stop();
     const nextIdx = 0;
     setCurrentIndex(nextIdx);
-    announceCard(shuffledDeck[nextIdx]);
     setIsPlaying(true);
     setGameEnded(false);
     setHasCalledBuenas(false);
-    setTimeRemaining(intervalSeconds * 1000);
+    announceCard(shuffledDeck[nextIdx], nextIdx);
   };
 
   const handleNextCard = () => {
@@ -233,13 +295,14 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       clearTimeout(applauseTimerRef.current);
     }
     audioCantador.stopApplause();
+    audioCantador.stop();
     if (currentIndex + 1 < shuffledDeck.length) {
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
-      announceCard(shuffledDeck[nextIdx]);
-      setTimeRemaining(intervalSeconds * 1000);
+      announceCard(shuffledDeck[nextIdx], nextIdx);
     } else {
       setIsPlaying(false);
+      setIsAnnouncing(false);
       setGameEnded(true);
     }
   };
@@ -249,16 +312,18 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
       clearTimeout(applauseTimerRef.current);
     }
     audioCantador.stopApplause();
+    audioCantador.stop();
     if (currentIndex > 0) {
       const prevIdx = currentIndex - 1;
       setCurrentIndex(prevIdx);
-      announceCard(shuffledDeck[prevIdx]);
-      setTimeRemaining(intervalSeconds * 1000);
+      announceCard(shuffledDeck[prevIdx], prevIdx);
     }
   };
 
   const handleRestart = () => {
     setIsPlaying(false);
+    setIsAnnouncing(false);
+    announcementTokenRef.current++;
     if (applauseTimerRef.current) {
       clearTimeout(applauseTimerRef.current);
     }
@@ -273,9 +338,25 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     setTimeRemaining(intervalSeconds * 1000);
   };
 
-  // Loop de llamada automática con temporizador decreciente
+  const handleTogglePlayPause = () => {
+    if (currentIndex === -1) {
+      handleStartRound();
+      return;
+    }
+
+    if (isPlaying) {
+      setIsPlaying(false);
+      setIsAnnouncing(false);
+      announcementTokenRef.current++;
+      audioCantador.stop();
+    } else {
+      setIsPlaying(true);
+    }
+  };
+
+  // Loop de llamada automática: el tiempo corre ÚNICAMENTE después de que el audio finaliza
   useEffect(() => {
-    if (!isPlaying || gameEnded || currentIndex === -1) {
+    if (!isPlaying || gameEnded || currentIndex === -1 || isAnnouncing) {
       return;
     }
 
@@ -293,14 +374,14 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [isPlaying, gameEnded, currentIndex, intervalSeconds]);
+  }, [isPlaying, gameEnded, currentIndex, isAnnouncing, intervalSeconds]);
 
-  // Cuando el temporizador llega a cero, avanza automáticamente a la siguiente carta
+  // Cuando el temporizador llega a cero (y ya terminó la locución), avanza automáticamente a la siguiente carta
   useEffect(() => {
-    if (isPlaying && !gameEnded && currentIndex >= 0 && timeRemaining === 0) {
+    if (isPlaying && !gameEnded && currentIndex >= 0 && !isAnnouncing && timeRemaining === 0) {
       handleNextCard();
     }
-  }, [timeRemaining, isPlaying, gameEnded, currentIndex]);
+  }, [timeRemaining, isPlaying, gameEnded, currentIndex, isAnnouncing]);
 
   // Limpieza al desmontar
   useEffect(() => {
@@ -315,6 +396,9 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   // Celebrar ganador con ¡BUENAS!
   const handleBuenasWin = async () => {
     setIsPlaying(false);
+    setIsAnnouncing(false);
+    announcementTokenRef.current++;
+    audioCantador.stop();
     setHasCalledBuenas(true);
     if (applauseTimerRef.current) {
       clearTimeout(applauseTimerRef.current);
@@ -483,7 +567,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
         {/* Repetir voz de la carta actual */}
         {currentCard && (
           <button
-            onClick={() => announceCard(currentCard)}
+            onClick={() => announceCard(currentCard, currentIndex)}
             className="mt-2 text-xs text-[#5C381E] hover:text-[#382110] font-bold bg-[#EFE3D3] hover:bg-[#E5D5C0] border border-[#DFC7B0] px-3.5 py-1.5 rounded-full shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all"
           >
             <Volume2 className="w-3.5 h-3.5 text-[#B45309]" />
@@ -514,22 +598,37 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
           <div className="bg-[#FAF3EA] border border-[#DFC7B0] rounded-2xl px-3.5 py-2 flex flex-col gap-1.5 shadow-2xs transition-all">
             <div className="flex items-center justify-between text-[11px] font-bold text-[#78350F]">
               <span className="flex items-center gap-1.5">
-                <Clock className={`w-3.5 h-3.5 text-amber-700 ${isPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '4s' }} />
-                <span>{isPlaying ? t('next_card_in') : t('timer_paused')}</span>
+                {isAnnouncing ? (
+                  <>
+                    <Volume2 className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                    <span className="text-rose-700 font-extrabold">{t('calling_card')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className={`w-3.5 h-3.5 text-amber-700 ${isPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '4s' }} />
+                    <span>{isPlaying ? t('next_card_in') : t('timer_paused')}</span>
+                  </>
+                )}
               </span>
-              <span className="font-mono text-xs font-black text-[#5C381E] bg-[#EFE3D3] px-2 py-0.5 rounded-md border border-[#DFC7B0]">
-                {(Math.max(0, timeRemaining) / 1000).toFixed(1)}s
+              <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-md border ${
+                isAnnouncing
+                  ? 'text-rose-700 bg-rose-50 border-rose-200 animate-pulse'
+                  : 'text-[#5C381E] bg-[#EFE3D3] border-[#DFC7B0]'
+              }`}>
+                {isAnnouncing ? '🔊' : `${(Math.max(0, timeRemaining) / 1000).toFixed(1)}s`}
               </span>
             </div>
             <div className="w-full bg-[#E5D2BE] h-2.5 rounded-full overflow-hidden p-0.5 border border-[#D8C1A8]">
               <div
                 className={`h-full rounded-full transition-all duration-75 ${
-                  isPlaying
+                  isAnnouncing
+                    ? 'w-full bg-gradient-to-r from-rose-500 via-pink-500 to-amber-400 animate-pulse'
+                    : isPlaying
                     ? 'bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500'
                     : 'bg-stone-400'
                 }`}
                 style={{
-                  width: `${Math.max(0, Math.min(100, (timeRemaining / (intervalSeconds * 1000)) * 100))}%`
+                  width: isAnnouncing ? '100%' : `${Math.max(0, Math.min(100, (timeRemaining / (intervalSeconds * 1000)) * 100))}%`
                 }}
               />
             </div>
@@ -549,13 +648,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
           {/* Botón Central Play / Pause / Continuar */}
           <button
-            onClick={() => {
-              if (currentIndex === -1) {
-                handleStartRound();
-              } else {
-                setIsPlaying(!isPlaying);
-              }
-            }}
+            onClick={handleTogglePlayPause}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-sm shadow-md transition-all active:scale-98 text-white ${
               isPlaying
                 ? 'bg-gradient-to-r from-[#C2410C] to-[#9A3412] hover:brightness-105 border border-amber-600/50'
