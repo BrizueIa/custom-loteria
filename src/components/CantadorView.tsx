@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LoteriaCard, CardStyleConfig, BoardConfig } from '../types/loteria';
 import { shuffleArray } from '../utils/loteriaEngine';
-import { audioCantador, VoiceId, VOICES_CATALOG } from '../utils/audioCantador';
+import { audioCantador, VoiceId, getVoicesCatalog } from '../utils/audioCantador';
 import { exportDeckToJson } from '../utils/deckIO';
 import { CardPreview } from './CardPreview';
+import { useLanguage } from '../i18n/LanguageContext';
 import confetti from 'canvas-confetti';
 import {
   Play,
@@ -23,7 +24,8 @@ import {
   KeyRound,
   Download,
   Upload,
-  Palette
+  Palette,
+  Globe
 } from 'lucide-react';
 
 interface CantadorViewProps {
@@ -49,6 +51,8 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   onImportDeck,
   onResetToDefault,
 }) => {
+  const { t, language, setLanguage, toggleLanguage } = useLanguage();
+
   const [shuffledDeck, setShuffledDeck] = useState<LoteriaCard[]>(() => shuffleArray(cards));
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -84,11 +88,9 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   const [selectedVoiceId, setSelectedVoiceId] = useState<VoiceId>(() => {
     try {
       const saved = localStorage.getItem('loteria_voice_id_v1');
-      if (saved && ['dona_plantas', 'don_fermin', 'sobrina', 'locutor'].includes(saved)) {
-        return saved as VoiceId;
-      }
+      if (saved) return saved as VoiceId;
     } catch (e) {}
-    return 'dona_plantas';
+    return language === 'en' ? 'jenny_us' : 'dona_plantas';
   });
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -117,6 +119,15 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
   const timerRef = useRef<number | null>(null);
 
+  // Auto-switch voice catalog when language changes
+  useEffect(() => {
+    const catalog = getVoicesCatalog(language);
+    const validIds = catalog.map((v) => v.id);
+    if (!validIds.includes(selectedVoiceId)) {
+      setSelectedVoiceId(validIds[0]);
+    }
+  }, [language]);
+
   // Sync settings to localStorage
   useEffect(() => {
     try {
@@ -144,14 +155,15 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
         const available = window.speechSynthesis.getVoices();
         if (available && available.length > 0) {
           const sorted = [...available].sort((a, b) => {
-            const aEs = a.lang.startsWith('es') ? -1 : 1;
-            const bEs = b.lang.startsWith('es') ? -1 : 1;
-            return aEs - bEs;
+            const prefix = language === 'en' ? 'en' : 'es';
+            const aMatch = a.lang.startsWith(prefix) ? -1 : 1;
+            const bMatch = b.lang.startsWith(prefix) ? -1 : 1;
+            return aMatch - bMatch;
           });
           setVoices(sorted);
           if (!selectedVoiceURI) {
-            const es = sorted.find(v => v.lang.startsWith('es'));
-            setSelectedVoiceURI(es ? es.voiceURI : sorted[0].voiceURI);
+            const match = sorted.find((v) => v.lang.startsWith(language === 'en' ? 'en' : 'es'));
+            setSelectedVoiceURI(match ? match.voiceURI : sorted[0].voiceURI);
           }
         }
       }
@@ -161,13 +173,17 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
-  }, [selectedVoiceURI]);
+  }, [selectedVoiceURI, language]);
 
   // Construir frase de dictado respetando opciones de número y frase/verso
   const buildCardSpeech = (card: LoteriaCard) => {
     let phrase = '';
     if (announceNumber) {
-      phrase += `El ${card.number}. `;
+      if (language === 'en') {
+        phrase += `Number ${card.number}. `;
+      } else {
+        phrase += `El ${card.number}. `;
+      }
     }
     phrase += card.name;
     if (announceTagline && card.tagline && card.tagline.trim()) {
@@ -185,7 +201,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     audioCantador.announceCard(speechText, selectedVoiceId, speechRate, selectedVoiceURI);
   };
 
-  // Solo usar el audio de "¡Buenas!" como ejemplo de voz neutral
+  // Probar voz con "¡Buenas!" o "Bingo!"
   const handleTestVoice = async (voiceToTest: VoiceId = selectedVoiceId) => {
     setIsTestingVoice(true);
     await audioCantador.speakSpecial('buenas', voiceToTest, speechRate);
@@ -273,12 +289,12 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             style: parsed.cardStyle || cardStyle,
             boardConfig: parsed.boardConfig || boardConfig
           });
-          alert('¡Baraja importada exitosamente!');
+          alert(t('deck_imported_success'));
         } else {
-          alert('El archivo no tiene el formato de baraja válido.');
+          alert(t('deck_import_error'));
         }
       } catch (err) {
-        alert('Error al leer el archivo JSON.');
+        alert(t('deck_import_read_error'));
       }
     };
     reader.readAsText(file);
@@ -287,35 +303,46 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
   const currentCard = currentIndex >= 0 ? shuffledDeck[currentIndex] : null;
   const calledCards = shuffledDeck.slice(0, currentIndex + 1);
+  const activeVoicesCatalog = getVoicesCatalog(language);
 
   return (
     <div className="w-full max-w-md mx-auto flex flex-col h-[100dvh] justify-between p-2.5 select-none bg-gradient-to-b from-[#F7F2EA] via-[#F4ECE1] to-[#EFE4D6]">
-      {/* 1. BARRA SUPERIOR (Cálida, minimalista, solo dice LOTERÍA) */}
+      {/* 1. BARRA SUPERIOR (Cálida, minimalista, con selector de idioma) */}
       <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#FFFDF9]/95 backdrop-blur-md rounded-2xl border border-[#DFCBB5] shadow-xs">
         {/* Título & Contador */}
         <div 
           onClick={handleTitleTap}
           className="flex items-center gap-2 cursor-pointer active:opacity-80 transition-opacity"
-          title="Toca para opciones de administración"
+          title={t('admin_auth')}
         >
           <span className="font-serif font-black text-sm tracking-wider text-[#4A2E18] uppercase">
-            LOTERÍA
+            {boardConfig.title || t('app_title')}
           </span>
           <span className="font-mono text-xs font-black bg-[#EFE3D3] text-[#5C381E] border border-[#DFC7B0] px-2.5 py-0.5 rounded-full">
             {currentIndex + 1} / {cards.length}
           </span>
         </div>
 
-        {/* Acciones superiores (Generador, Silencio y Ajustes) */}
+        {/* Acciones superiores (Idioma, Generador, Silencio y Ajustes) */}
         <div className="flex items-center gap-1.5">
+          {/* Quick Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1 px-2 py-1 text-[11px] font-black bg-[#EFE3D3] hover:bg-[#E5D5C0] text-[#5C381E] border border-[#DFC7B0] rounded-xl shadow-2xs transition-all active:scale-95"
+            title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+          >
+            <Globe className="w-3.5 h-3.5 text-[#B45309]" />
+            <span>{language.toUpperCase()}</span>
+          </button>
+
           {canAccessGenerator && (
             <button
               onClick={onGoToGenerator}
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#78350F] border border-[#FCD34D] rounded-xl shadow-2xs transition-colors"
-              title="Abrir Generador de Tablas"
+              title={t('open_generator')}
             >
               <Palette className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Generador</span>
+              <span className="hidden xs:inline">{t('generator')}</span>
             </button>
           )}
 
@@ -334,14 +361,14 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
           <button
             onClick={() => setShowSettingsModal(true)}
             className="p-2 rounded-xl text-[#5C381E] bg-[#EFE3D3] hover:bg-[#E5D5C0] border border-[#DFC7B0] shadow-2xs transition-colors"
-            title="Ajustes de tiempo, voz y opciones"
+            title={t('settings_title')}
           >
             <Sliders className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* 2. ESCENARIO CENTRAL (Carta Principal con sombra cálida artesanal) */}
+      {/* 2. ESCENARIO CENTRAL (Carta Principal) */}
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-1">
         {currentCard ? (
           <div className="h-full max-h-[460px] aspect-[3/4] flex items-center justify-center transform transition-all duration-300">
@@ -358,10 +385,10 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             </div>
             <div>
               <h3 className="font-serif text-lg font-black text-[#4A2E18]">
-                Baraja Lista
+                {t('deck_ready')}
               </h3>
               <p className="text-xs text-[#78593F] mt-1">
-                {cards.length} cartas barajadas. Toca comenzar para cantar la primera.
+                {t('deck_ready_desc', { count: cards.length })}
               </p>
             </div>
             <button
@@ -369,7 +396,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               className="px-6 py-3 bg-[#1B5236] hover:bg-[#14422B] text-white rounded-2xl font-black text-sm shadow-md transition-transform active:scale-95 flex items-center gap-2"
             >
               <Play className="w-4 h-4 fill-white" />
-              Comenzar Ronda
+              {t('start_round')}
             </button>
           </div>
         )}
@@ -381,21 +408,21 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             className="mt-2 text-xs text-[#5C381E] hover:text-[#382110] font-bold bg-[#EFE3D3] hover:bg-[#E5D5C0] border border-[#DFC7B0] px-3.5 py-1.5 rounded-full shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all"
           >
             <Volume2 className="w-3.5 h-3.5 text-[#B45309]" />
-            Repetir voz
+            {t('repeat_voice')}
           </button>
         )}
       </div>
 
-      {/* 3. CONTROLES INFERIORES (Coloridos, interactivos y táctiles) */}
+      {/* 3. CONTROLES INFERIORES */}
       <div className="bg-[#FFFDF9] rounded-3xl border border-[#DFCBB5] p-3 shadow-md space-y-2.5">
         {/* BOTÓN ¡BUENAS! ACCESIBLE Y DIRECTO */}
         <button
           onClick={handleBuenasWin}
           className="w-full py-3.5 px-4 bg-gradient-to-r from-[#D97706] via-[#DC2626] to-[#B45309] hover:brightness-105 active:scale-98 text-white rounded-2xl font-black text-base shadow-md ring-2 ring-amber-400/50 flex items-center justify-center gap-2 transition-all uppercase tracking-wider select-none"
-          title="Gritar ¡Buenas! y pausar partida"
+          title={t('buenas')}
         >
           <Trophy className="w-5 h-5 fill-amber-200 text-amber-200" />
-          <span>¡BUENAS!</span>
+          <span>{t('buenas')}</span>
         </button>
 
         <div className="flex items-center justify-between gap-2.5">
@@ -404,7 +431,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             onClick={handlePrevCard}
             disabled={currentIndex <= 0}
             className="p-3.5 bg-[#EFE3D3] hover:bg-[#E5D5C0] text-[#5C381E] border border-[#D8C1A8] rounded-2xl shadow-xs active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
-            title="Carta anterior"
+            title={t('prev_card')}
           >
             <SkipBack className="w-5 h-5" />
           </button>
@@ -424,12 +451,12 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             {isPlaying ? (
               <>
                 <Pause className="w-5 h-5 fill-white" />
-                <span>Pausar ({intervalSeconds}s)</span>
+                <span>{t('pause', { seconds: intervalSeconds })}</span>
               </>
             ) : (
               <>
                 <Play className="w-5 h-5 fill-white" />
-                <span>{currentIndex === -1 ? 'Comenzar Ronda' : 'Continuar'}</span>
+                <span>{currentIndex === -1 ? t('start_round') : t('continue')}</span>
               </>
             )}
           </button>
@@ -439,7 +466,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             onClick={handleNextCard}
             disabled={currentIndex >= shuffledDeck.length - 1}
             className="p-3.5 bg-[#EFE3D3] hover:bg-[#E5D5C0] text-[#5C381E] border border-[#D8C1A8] rounded-2xl shadow-xs active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
-            title="Siguiente carta"
+            title={t('next_card')}
           >
             <SkipForward className="w-5 h-5" />
           </button>
@@ -452,7 +479,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 bg-[#F6ECE0] hover:bg-[#EEDDCC] text-[#78350F] border border-[#E5CFBA] rounded-xl font-bold text-xs shadow-2xs active:scale-95 transition-all"
           >
             <History className="w-3.5 h-3.5 text-[#B45309]" />
-            <span>Historial ({calledCards.length})</span>
+            <span>{t('history')} ({calledCards.length})</span>
           </button>
 
           <button
@@ -463,7 +490,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 bg-[#FBECE8] hover:bg-[#F6DCD6] text-[#991B1B] border border-[#F2C2B8] rounded-xl font-bold text-xs shadow-2xs active:scale-95 transition-all"
           >
             <Swords className="w-3.5 h-3.5 text-[#DC2626]" />
-            <span>Desempate</span>
+            <span>{t('tie_breaker')}</span>
           </button>
 
           <button
@@ -471,18 +498,18 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 bg-[#EBF3EC] hover:bg-[#DBEADF] text-[#14532D] border border-[#C5DEC9] rounded-xl font-bold text-xs shadow-2xs active:scale-95 transition-all"
           >
             <RotateCcw className="w-3.5 h-3.5 text-[#16A34A]" />
-            <span>Barajear</span>
+            <span>{t('shuffle')}</span>
           </button>
         </div>
       </div>
 
-      {/* ================= MODAL: AJUSTES, TIEMPO, VOZ Y OPCIONES SUTILES ================= */}
+      {/* ================= MODAL: AJUSTES, IDIOMA, TIEMPO, VOZ Y OPCIONES SUTILES ================= */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
           <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2 border-b border-stone-100">
               <h3 className="font-serif font-bold text-base text-stone-900">
-                Ajustes y Opciones
+                {t('settings_title')}
               </h3>
               <button
                 onClick={() => setShowSettingsModal(false)}
@@ -492,16 +519,47 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               </button>
             </div>
 
-            {/* Selector de Voces con Ejemplo Únicamente de "¡Buenas!" */}
+            {/* Selector de Idioma (Español / English) */}
+            <div>
+              <label className="text-[11px] font-bold text-[#78593F] uppercase tracking-wider block mb-1.5">
+                {t('language')}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setLanguage('es')}
+                  className={`py-2 px-3 rounded-2xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
+                    language === 'es'
+                      ? 'bg-[#FEF3C7] border-amber-600 text-[#78350F] ring-2 ring-amber-500/30 shadow-xs'
+                      : 'bg-[#FAF5EE] border-[#DFCBB5] text-[#5C381E] hover:bg-[#F3ECE0]'
+                  }`}
+                >
+                  <span className="text-base">🇲🇽</span>
+                  <span>Español</span>
+                </button>
+                <button
+                  onClick={() => setLanguage('en')}
+                  className={`py-2 px-3 rounded-2xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
+                    language === 'en'
+                      ? 'bg-[#FEF3C7] border-amber-600 text-[#78350F] ring-2 ring-amber-500/30 shadow-xs'
+                      : 'bg-[#FAF5EE] border-[#DFCBB5] text-[#5C381E] hover:bg-[#F3ECE0]'
+                  }`}
+                >
+                  <span className="text-base">🇺🇸</span>
+                  <span>English</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Selector de Voces según el Idioma */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">
-                  Voz del Cantador
+                  {t('caller_voice')}
                 </label>
-                <span className="text-[10px] text-stone-400">Toca para escuchar</span>
+                <span className="text-[10px] text-stone-400">{t('tap_to_listen')}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {VOICES_CATALOG.map((v) => {
+                {activeVoicesCatalog.map((v) => {
                   const isSelected = selectedVoiceId === v.id;
                   return (
                     <button
@@ -530,21 +588,21 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               </div>
             </div>
 
-            {/* Botón de Prueba Únicamente con "¡Buenas!" */}
+            {/* Botón de Prueba */}
             <button
               onClick={() => handleTestVoice(selectedVoiceId)}
               disabled={isTestingVoice}
               className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-stone-200 transition-colors"
             >
               <Volume2 className="w-4 h-4 text-stone-600" />
-              {isTestingVoice ? 'Reproduciendo audio...' : '🔊 Escuchar ejemplo: "¡Buenas!"'}
+              {isTestingVoice ? '...' : language === 'en' ? '🔊 Listen sample: "Bingo!"' : '🔊 Escuchar ejemplo: "¡Buenas!"'}
             </button>
 
             {/* Voz del sistema si está disponible */}
             {voices.length > 0 && (
               <div>
                 <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  Voz del Dispositivo ({voices.length} disponibles)
+                  {t('device_voice', { count: voices.length })}
                 </label>
                 <select
                   value={selectedVoiceURI}
@@ -564,7 +622,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             <div className="space-y-3 pt-1">
               <div>
                 <div className="flex justify-between text-xs font-semibold text-stone-700 mb-1">
-                  <span>Tiempo automático por carta</span>
+                  <span>{t('auto_time_per_card')}</span>
                   <span className="font-mono font-bold text-stone-900">{intervalSeconds}s</span>
                 </div>
                 <input
@@ -579,7 +637,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
               <div>
                 <div className="flex justify-between text-xs font-semibold text-stone-700 mb-1">
-                  <span>Velocidad de narración</span>
+                  <span>{t('speech_rate')}</span>
                   <span className="font-mono font-bold text-stone-900">{speechRate.toFixed(1)}x</span>
                 </div>
                 <input
@@ -597,13 +655,13 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             {/* Opciones de Narración: Número, Frase y Campana */}
             <div className="pt-2 border-t border-[#EFE3D3] space-y-2 text-xs">
               <label className="text-[11px] font-bold text-[#78593F] uppercase tracking-wider block">
-                Opciones del Cantado
+                {t('calling_options')}
               </label>
 
               <label className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF5EE] border border-[#E5CFBA] cursor-pointer hover:bg-[#F5ECE0] transition-colors">
                 <div>
-                  <span className="text-[#4A2E18] font-bold block">Cantar número de carta</span>
-                  <span className="text-[10px] text-[#8C6D53]">Ej: "El 54..." o "El 10..."</span>
+                  <span className="text-[#4A2E18] font-bold block">{t('announce_number')}</span>
+                  <span className="text-[10px] text-[#8C6D53]">{t('announce_number_desc')}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -615,8 +673,8 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
               <label className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF5EE] border border-[#E5CFBA] cursor-pointer hover:bg-[#F5ECE0] transition-colors">
                 <div>
-                  <span className="text-[#4A2E18] font-bold block">Cantar frase o verso de la carta</span>
-                  <span className="text-[10px] text-[#8C6D53]">Dicta la frase cómica o verso tradicional</span>
+                  <span className="text-[#4A2E18] font-bold block">{t('announce_tagline')}</span>
+                  <span className="text-[10px] text-[#8C6D53]">{t('announce_tagline_desc')}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -627,7 +685,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               </label>
 
               <label className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF5EE] border border-[#E5CFBA] cursor-pointer hover:bg-[#F5ECE0] transition-colors">
-                <span className="text-[#4A2E18] font-medium">Sonido de campana al salir carta</span>
+                <span className="text-[#4A2E18] font-medium">{t('bell_chime')}</span>
                 <input
                   type="checkbox"
                   checked={playChime}
@@ -642,17 +700,17 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               {!canAccessGenerator ? (
                 /* En modo cliente/bloqueado: completamente sutil y no notorio */
                 <div className="flex items-center justify-between text-xs text-stone-400">
-                  <span className="text-[11px] font-mono">Lotería v1.0</span>
+                  <span className="text-[11px] font-mono">v1.0</span>
                   <button
                     onClick={() => {
                       setShowSettingsModal(false);
                       onOpenPasswordModal('unlock');
                     }}
                     className="flex items-center gap-1.5 text-stone-400 hover:text-stone-700 text-xs px-2 py-1 rounded-lg transition-colors"
-                    title="Acceso Administrador"
+                    title={t('admin_access')}
                   >
                     <Lock className="w-3.5 h-3.5 text-stone-400" />
-                    <span>Acceso Admin</span>
+                    <span>{t('admin_access')}</span>
                   </button>
                 </div>
               ) : (
@@ -660,10 +718,10 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
-                      Herramientas de Baraja
+                      {t('deck_tools')}
                     </p>
                     <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
-                      Admin Activo
+                      {t('admin_active')}
                     </span>
                   </div>
 
@@ -675,7 +733,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                     className="w-full py-2.5 px-3 bg-amber-400 hover:bg-amber-500 text-stone-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
                   >
                     <Palette className="w-4 h-4" />
-                    <span>Ir al Generador de Cartas y Tablas</span>
+                    <span>{t('open_generator')}</span>
                   </button>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
@@ -687,7 +745,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                       className="py-2 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl font-bold flex items-center justify-center gap-1.5"
                     >
                       <Lock className="w-3.5 h-3.5 text-amber-700" />
-                      <span>Bloquear Cliente</span>
+                      <span>{t('lock_client')}</span>
                     </button>
 
                     <button
@@ -698,7 +756,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                       className="py-2 px-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl font-medium flex items-center justify-center gap-1.5"
                     >
                       <KeyRound className="w-3.5 h-3.5 text-stone-600" />
-                      <span>Cambiar PIN</span>
+                      <span>{t('change_pin')}</span>
                     </button>
                   </div>
 
@@ -711,7 +769,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                       className="py-1.5 px-2 bg-stone-50 hover:bg-stone-100 text-stone-700 rounded-lg border border-stone-200 flex items-center justify-center gap-1.5 text-[11px]"
                     >
                       <Download className="w-3 h-3 text-stone-500" />
-                      <span>Exportar Baraja (.json)</span>
+                      <span>{t('export_deck')}</span>
                     </button>
 
                     <button
@@ -722,7 +780,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                       className="py-1.5 px-2 bg-stone-50 hover:bg-stone-100 text-stone-700 rounded-lg border border-stone-200 flex items-center justify-center gap-1.5 text-[11px]"
                     >
                       <Upload className="w-3 h-3 text-stone-500" />
-                      <span>Importar Baraja (.json)</span>
+                      <span>{t('import_deck')}</span>
                     </button>
                   </div>
 
@@ -734,7 +792,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                     className="w-full py-1.5 text-rose-600 hover:bg-rose-50 text-[11px] font-medium rounded-lg flex items-center justify-center gap-1 transition-colors"
                   >
                     <RotateCcw className="w-3 h-3" />
-                    <span>Restaurar Baraja Original</span>
+                    <span>{t('restore_original')}</span>
                   </button>
                 </div>
               )}
@@ -744,7 +802,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               onClick={() => setShowSettingsModal(false)}
               className="w-full py-2.5 bg-stone-900 text-white rounded-xl text-xs font-bold mt-2"
             >
-              Listo
+              {t('done')}
             </button>
           </div>
         </div>
@@ -756,7 +814,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
           <div className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl max-h-[80dvh] flex flex-col space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-stone-100">
               <h3 className="font-serif font-bold text-base text-stone-900">
-                Cartas Cantadas ({calledCards.length})
+                {t('called_cards', { count: calledCards.length })}
               </h3>
               <button
                 onClick={() => setShowHistoryModal(false)}
@@ -769,7 +827,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             <div className="flex-1 overflow-y-auto">
               {calledCards.length === 0 ? (
                 <p className="text-xs text-stone-400 italic text-center py-8">
-                  Aún no se ha cantado ninguna carta en esta ronda.
+                  {t('no_cards_called')}
                 </p>
               ) : (
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
@@ -793,7 +851,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               onClick={() => setShowHistoryModal(false)}
               className="w-full py-2 bg-stone-900 text-white rounded-xl text-xs font-bold"
             >
-              Cerrar
+              {t('close')}
             </button>
           </div>
         </div>
@@ -804,10 +862,10 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl text-center space-y-4">
             <h3 className="font-serif font-bold text-base text-stone-900">
-              Desempate: Carta Mayor
+              {t('tie_breaker_title')}
             </h3>
             <p className="text-xs text-stone-500">
-              Saca una carta al azar para desempatar la jugada entre los ganadores.
+              {t('tie_breaker_desc')}
             </p>
 
             {desempateCard ? (
@@ -826,14 +884,14 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                 className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
                 <Swords className="w-4 h-4" />
-                {desempateCard ? 'Sacar Otra Carta' : 'Sacar Carta de Desempate'}
+                {desempateCard ? t('draw_another_card') : t('draw_tie_card')}
               </button>
 
               <button
                 onClick={() => setShowDesempateModal(false)}
                 className="w-full py-2 text-stone-500 hover:text-stone-800 text-xs font-semibold"
               >
-                Cerrar
+                {t('close')}
               </button>
             </div>
           </div>

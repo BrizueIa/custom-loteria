@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { LoteriaCard, CardStyleConfig } from '../types/loteria';
 import { CardPreview } from './CardPreview';
 import { ChevronLeft, ChevronRight, Upload, LayoutGrid, ArrowLeftRight } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface SwipeCardEditorProps {
   cards: LoteriaCard[];
@@ -22,6 +23,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
   onSwapNumber,
   onOpenGrid,
 }) => {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentCard = cards[currentIndex] || cards[0];
 
@@ -61,11 +63,11 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
           className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold transition-colors"
         >
           <LayoutGrid className="w-3.5 h-3.5 text-stone-600" />
-          Ver Cuadrícula (54)
+          {t('view_grid_btn', { count: cards.length })}
         </button>
 
         <span className="text-xs font-mono text-stone-500 bg-white border border-stone-200 px-2.5 py-0.5 rounded-md">
-          Carta {currentIndex + 1} de {cards.length}
+          {t('card_n_of_54', { num: currentIndex + 1 })}
         </span>
       </div>
 
@@ -73,7 +75,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
       <div className="relative w-full flex items-center justify-center gap-3 py-2">
         <button
           onClick={handlePrev}
-          aria-label="Anterior"
+          aria-label={t('previous')}
           className="p-2.5 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 rounded-full shadow-2xs transition-transform active:scale-95"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -90,7 +92,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             className="absolute bottom-3 right-3 bg-stone-900 hover:bg-black text-white p-2 rounded-full shadow-sm transition-transform active:scale-95 flex items-center justify-center"
-            title="Cambiar imagen de esta carta"
+            title={t('change_card_image')}
           >
             <Upload className="w-3.5 h-3.5" />
           </button>
@@ -105,7 +107,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
 
         <button
           onClick={handleNext}
-          aria-label="Siguiente"
+          aria-label={t('next')}
           className="p-2.5 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 rounded-full shadow-2xs transition-transform active:scale-95"
         >
           <ChevronRight className="w-5 h-5" />
@@ -117,28 +119,28 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
         {/* Name input */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">
-            Nombre de la Carta
+            {t('card_name')}
           </label>
           <input
             type="text"
             value={currentCard.name}
             onChange={(e) => onUpdateCard({ ...currentCard, name: e.target.value })}
             className="w-full px-3.5 py-2 rounded-xl border border-stone-300 font-loteria-card text-base font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-            placeholder="Nombre de la carta..."
+            placeholder={t('card_name_placeholder')}
           />
         </div>
 
         {/* Tagline / Frase */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">
-            Frase o Dicho Opcional
+            {t('card_tagline')}
           </label>
           <input
             type="text"
             value={currentCard.tagline || ''}
             onChange={(e) => onUpdateCard({ ...currentCard, tagline: e.target.value })}
             className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-900"
-            placeholder="Ej. ¡La que decora la sala con orgullo!"
+            placeholder={t('card_tagline_placeholder')}
           />
         </div>
 
@@ -146,7 +148,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
         <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5 text-stone-600">
             <ArrowLeftRight className="w-3.5 h-3.5 text-stone-400" />
-            <span className="font-semibold">Intercambiar número:</span>
+            <span className="font-semibold">{t('swap_number_with')}</span>
           </div>
 
           <select

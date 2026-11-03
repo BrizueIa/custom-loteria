@@ -5,7 +5,8 @@ import { CardsGridView } from './CardsGridView';
 import { CardStyleSelector } from './CardStyleSelector';
 import { BoardGeneratorSettings } from './BoardGeneratorSettings';
 import { swapCardNumbers } from '../utils/loteriaEngine';
-import { Images, LayoutGrid, Volume2, Lock } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
+import { Images, LayoutGrid, Volume2, Lock, Globe } from 'lucide-react';
 
 interface GeneratorViewProps {
   cards: LoteriaCard[];
@@ -28,6 +29,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   onGoToGame,
   onLockGenerator,
 }) => {
+  const { t, language, toggleLanguage } = useLanguage();
   const [currentStep, setCurrentStep] = useState<GeneratorStep>('cards_input');
   const [subView, setSubView] = useState<'grid' | 'swipe'>('grid');
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
@@ -72,9 +74,9 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   };
 
   const steps = [
-    { id: 'cards_input', label: '1. Baraja (54)' },
-    { id: 'card_style', label: '2. Marcos' },
-    { id: 'board_config', label: '3. Tablas PDF' }
+    { id: 'cards_input', label: t('step_cards') },
+    { id: 'card_style', label: t('step_frames') },
+    { id: 'board_config', label: t('step_boards') }
   ];
 
   return (
@@ -84,24 +86,34 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
         <button
           onClick={onGoToGame}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
-          title="Ir al Cantador de Partida"
+          title={t('go_to_game')}
         >
           <Volume2 className="w-3.5 h-3.5" />
-          <span>Ir a Jugar</span>
+          <span>{t('go_to_game')}</span>
         </button>
 
-        <span className="font-serif font-black text-xs text-stone-800 uppercase tracking-wider">
-          Generador
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-serif font-black text-xs text-stone-800 uppercase tracking-wider">
+            {t('generator')}
+          </span>
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-black bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg transition-colors"
+            title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+          >
+            <Globe className="w-3 h-3 text-[#B45309]" />
+            <span>{language.toUpperCase()}</span>
+          </button>
+        </div>
 
         {onLockGenerator && (
           <button
             onClick={onLockGenerator}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-all"
-            title="Bloquear modo cliente"
+            title={t('lock_client')}
           >
             <Lock className="w-3.5 h-3.5 text-amber-700" />
-            <span className="hidden xs:inline">Bloquear</span>
+            <span className="hidden xs:inline">{t('lock_client')}</span>
           </button>
         )}
       </div>
@@ -140,7 +152,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
               }`}
             >
               <LayoutGrid className="w-3 h-3" />
-              Cuadrícula
+              <span>{t('view_grid')}</span>
             </button>
             <button
               onClick={() => setSubView('swipe')}
@@ -151,7 +163,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
               }`}
             >
               <Images className="w-3 h-3" />
-              Una por una
+              <span>{t('view_swipe')}</span>
             </button>
           </div>
 

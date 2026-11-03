@@ -4,6 +4,7 @@ import { DEFAULT_PLANTAS_CARDS } from './data/plantasDefault';
 import { GeneratorView } from './components/GeneratorView';
 import { CantadorView } from './components/CantadorView';
 import { PasswordModal } from './components/PasswordModal';
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 
 const STORAGE_KEY_CARDS = 'loteria_cards_v3';
 const STORAGE_KEY_STYLE = 'loteria_style_v3';
@@ -30,7 +31,9 @@ const DEFAULT_BOARD_CONFIG: BoardConfig = {
   title: 'LOTERÍA'
 };
 
-export function App() {
+function MainApp() {
+  const { t } = useLanguage();
+
   // Security State
   const [isLocked, setIsLocked] = useState<boolean>(() => {
     try {
@@ -134,7 +137,7 @@ export function App() {
   }, [adminPassword]);
 
   const handleResetToDefault = () => {
-    if (window.confirm('¿Deseas restaurar la baraja inicial? Se reemplazarán los cambios actuales.')) {
+    if (window.confirm(t('restore_confirm'))) {
       setCards(DEFAULT_PLANTAS_CARDS);
       setCardStyle(DEFAULT_STYLE);
       setBoardConfig(DEFAULT_BOARD_CONFIG);
@@ -155,7 +158,7 @@ export function App() {
     setIsLocked(true);
     setIsSessionUnlocked(false);
     setActiveTab('game');
-    alert('🔒 Generador bloqueado y oculto. La app ahora está en Modo Solo Juego para el cliente.');
+    alert(t('client_locked_alert'));
   };
 
   // Unlock generator
@@ -214,6 +217,14 @@ export function App() {
         setMode={setPasswordModalMode}
       />
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <LanguageProvider>
+      <MainApp />
+    </LanguageProvider>
   );
 }
 

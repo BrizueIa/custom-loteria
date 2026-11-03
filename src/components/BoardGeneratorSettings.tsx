@@ -4,6 +4,7 @@ import { generateBoards } from '../utils/loteriaEngine';
 import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
 import { CardPreview } from './CardPreview';
 import { FileDown, Play, RefreshCw, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface BoardGeneratorSettingsProps {
   cards: LoteriaCard[];
@@ -22,6 +23,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   onBack,
   onGoToGame,
 }) => {
+  const { t, language } = useLanguage();
   const [generatedBoards, setGeneratedBoards] = useState<GeneratedBoard[]>(() => {
     return generateBoards(cards, config);
   });
@@ -32,10 +34,10 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   const [pdfProgress, setPdfProgress] = useState(0);
 
   const presets = [
-    { label: '3 × 3 (9 cartas)', rows: 3, cols: 3 },
-    { label: '4 × 4 (16 cartas - Estándar)', rows: 4, cols: 4 },
-    { label: '4 × 5 (20 cartas)', rows: 4, cols: 5 },
-    { label: '5 × 5 (25 cartas)', rows: 5, cols: 5 },
+    { label: `3 × 3 (9 ${t('cards').toLowerCase()})`, rows: 3, cols: 3 },
+    { label: `4 × 4 (16 ${t('cards').toLowerCase()} - ${language === 'en' ? 'Standard' : 'Estándar'})`, rows: 4, cols: 4 },
+    { label: `4 × 5 (20 ${t('cards').toLowerCase()})`, rows: 4, cols: 5 },
+    { label: `5 × 5 (25 ${t('cards').toLowerCase()})`, rows: 5, cols: 5 },
   ];
 
   const handleRegenerate = () => {
@@ -44,7 +46,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
       setGeneratedBoards(boards);
       setPreviewBoardIndex(0);
     } catch (e: any) {
-      alert(e.message || 'Error al generar tablas');
+      alert(e.message || 'Error');
     }
   };
 
@@ -56,12 +58,12 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `baraja-54-cartas-${cardsPerPage}-por-hoja.pdf`;
+      a.download = `deck-54-cards-${cardsPerPage}-per-sheet.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert('Error al generar el PDF de las cartas.');
+      alert('Error generating cards PDF.');
     } finally {
       setIsGeneratingCardsPDF(false);
     }
@@ -75,12 +77,12 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `tablas-loteria-${generatedBoards.length}-tablas.pdf`;
+      a.download = `loteria-boards-${generatedBoards.length}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert('Error al generar el PDF de las tablas.');
+      alert('Error generating boards PDF.');
     } finally {
       setIsGeneratingBoardsPDF(false);
     }
@@ -94,10 +96,10 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
       <div className="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
         <div>
           <h3 className="text-base font-bold text-stone-900">
-            Formato de Tablas y Descarga de PDFs
+            {t('board_format_and_pdf')}
           </h3>
           <p className="text-xs text-stone-500 mt-0.5">
-            Configura las casillas por tabla, reglas de duplicación y genera los archivos de impresión.
+            {t('board_format_desc')}
           </p>
         </div>
 
@@ -107,14 +109,14 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Volver
+            {t('back')}
           </button>
           <button
             onClick={onGoToGame}
             className="flex items-center gap-2 px-4 py-2 bg-stone-900 hover:bg-black text-white rounded-xl font-bold text-xs shadow-xs transition-colors"
           >
             <Play className="w-3.5 h-3.5 fill-white" />
-            Ir al Cantador
+            {t('go_to_game')}
           </button>
         </div>
       </div>
@@ -125,21 +127,21 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           {/* Title */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1.5">
-              Título en el encabezado de las tablas
+              {t('board_title_label')}
             </label>
             <input
               type="text"
               value={config.title}
               onChange={(e) => onChangeConfig({ ...config, title: e.target.value })}
               className="w-full px-3 py-2 rounded-xl border border-stone-300 font-loteria-title text-sm font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-              placeholder="LOTERÍA MEXICANA"
+              placeholder={t('board_title_placeholder')}
             />
           </div>
 
           {/* Grid Presets */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
-              Tamaño de Cuadrícula
+              {t('board_dimensions')}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {presets.map((p) => {
@@ -173,10 +175,10 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           <div className="p-3.5 rounded-xl border border-stone-200 bg-stone-50/60 flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-stone-900">
-                Permitir cartas repetidas dentro de la tabla
+                {t('allow_duplicates')}
               </p>
               <p className="text-[11px] text-stone-500 mt-0.5">
-                {config.allowDuplicates ? 'Permitido (pueden repetirse)' : 'No permitido (todas las cartas son únicas)'}
+                {config.allowDuplicates ? t('duplicates_allowed') : t('duplicates_not_allowed')}
               </p>
             </div>
             <input
@@ -194,9 +196,9 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           {/* Quantity of Boards Slider */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-stone-600 uppercase tracking-wider">Cantidad de Tablas</span>
+              <span className="font-bold text-stone-600 uppercase tracking-wider">{t('board_quantity')}</span>
               <span className="font-mono font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
-                {config.quantity} tablas
+                {config.quantity} {t('boards_count')}
               </span>
             </div>
             <input
@@ -220,27 +222,27 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-semibold text-xs transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            Regenerar combinaciones
+            {t('regenerate_boards')}
           </button>
 
           {/* PDF Downloads */}
           <div className="pt-4 border-t border-stone-100 space-y-3">
             <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
-              Archivos de Impresión (PDF)
+              {t('print_pdf_section')}
             </p>
 
             {/* PDF 1 */}
             <div className="p-3 rounded-xl border border-stone-200 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-stone-900">1. Baraja (54 cartas)</span>
+                <span className="font-bold text-stone-900">{t('pdf_deck_title')}</span>
                 <select
                   value={cardsPerPage}
                   onChange={(e) => setCardsPerPage(parseInt(e.target.value, 10) as any)}
                   className="bg-white border border-stone-300 rounded px-1.5 py-0.5 text-xs text-stone-700"
                 >
-                  <option value={2}>2 por hoja (grandes)</option>
-                  <option value={4}>4 por hoja (estándar)</option>
-                  <option value={9}>9 por hoja (póker)</option>
+                  <option value={2}>{t('cards_2_per_sheet')}</option>
+                  <option value={4}>{t('cards_4_per_sheet')}</option>
+                  <option value={9}>{t('cards_9_per_sheet')}</option>
                 </select>
               </div>
               <button
@@ -249,15 +251,15 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
               >
                 <FileDown className="w-3.5 h-3.5" />
-                {isGeneratingCardsPDF ? `Generando ${pdfProgress}%...` : 'Descargar PDF de Baraja'}
+                {isGeneratingCardsPDF ? t('generating_pdf', { progress: pdfProgress }) : t('download_deck_pdf')}
               </button>
             </div>
 
             {/* PDF 2 */}
             <div className="p-3 rounded-xl border border-stone-200 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-stone-900">2. Tablas ({generatedBoards.length} tablas)</span>
-                <span className="text-[11px] text-stone-500">1 tabla por hoja</span>
+                <span className="font-bold text-stone-900">{t('pdf_boards_title', { count: generatedBoards.length })}</span>
+                <span className="text-[11px] text-stone-500">{t('one_board_per_sheet')}</span>
               </div>
               <button
                 disabled={isGeneratingBoardsPDF}
@@ -265,7 +267,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
               >
                 <FileDown className="w-3.5 h-3.5" />
-                {isGeneratingBoardsPDF ? `Generando ${pdfProgress}%...` : `Descargar PDF de ${generatedBoards.length} Tablas`}
+                {isGeneratingBoardsPDF ? t('generating_pdf', { progress: pdfProgress }) : t('download_boards_pdf', { count: generatedBoards.length })}
               </button>
             </div>
           </div>
@@ -275,7 +277,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
         <div className="lg:col-span-7 flex flex-col items-center">
           <div className="w-full flex items-center justify-between mb-3 px-1 text-xs">
             <span className="font-mono text-stone-500 uppercase tracking-widest">
-              Vista Previa de Impresión
+              {t('board_preview')}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -286,7 +288,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <span className="font-semibold text-stone-700">
-                Tabla {previewBoardIndex + 1} de {generatedBoards.length}
+                {t('board_index_of', { current: previewBoardIndex + 1, total: generatedBoards.length })}
               </span>
               <button
                 disabled={previewBoardIndex >= generatedBoards.length - 1}
@@ -303,10 +305,10 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             <div className="w-full max-w-md bg-white rounded-2xl border border-stone-300 p-4 shadow-sm">
               <div className="text-center pb-2 mb-3 border-b border-stone-200">
                 <h2 className="font-loteria-title text-sm sm:text-base font-black text-stone-900 uppercase tracking-wider">
-                  {config.title || 'LOTERÍA MEXICANA'}
+                  {config.title || t('board_title_placeholder')}
                 </h2>
                 <span className="font-mono text-[10px] text-stone-500 uppercase tracking-widest">
-                  TABLA #{currentPreviewBoard.index}
+                  {t('board_prefix')} #{currentPreviewBoard.index}
                 </span>
               </div>
 

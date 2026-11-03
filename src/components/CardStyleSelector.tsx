@@ -2,6 +2,7 @@ import React from 'react';
 import { CardStyleConfig, FrameStyle, NumberPosition, NamePosition, LoteriaCard } from '../types/loteria';
 import { CardPreview } from './CardPreview';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface CardStyleSelectorProps {
   config: CardStyleConfig;
@@ -18,44 +19,46 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   onBack,
   onNext,
 }) => {
+  const { t } = useLanguage();
+
   const frameOptions: Array<{ id: FrameStyle; label: string; desc: string }> = [
     {
       id: 'botanical_litho',
-      label: 'Litografía Botánica',
-      desc: 'Herbario con rosetas ornamentales'
+      label: t('frame_litho'),
+      desc: t('frame_litho_desc')
     },
     {
       id: 'talavera',
-      label: 'Talavera Colonial',
-      desc: 'Azulejo artesanal mexicano y doble filo'
+      label: t('frame_talavera'),
+      desc: t('frame_talavera_desc')
     },
     {
       id: 'classic_loteria',
-      label: 'Lotería Tradicional',
-      desc: 'Marco sólido con rombos de imprenta'
+      label: t('frame_classic'),
+      desc: t('frame_classic_desc')
     },
     {
       id: 'editorial_luxury',
-      label: 'Galería Minimalista',
-      desc: 'Líneas finas con marcas de registro'
+      label: t('frame_editorial'),
+      desc: t('frame_editorial_desc')
     },
     {
       id: 'organic_floral',
-      label: 'Filigrana Floral',
-      desc: 'Remates botánicos en las esquinas'
+      label: t('frame_floral'),
+      desc: t('frame_floral_desc')
     }
   ];
 
   const numberPositions: Array<{ id: NumberPosition; label: string }> = [
-    { id: 'top-left', label: 'Arr. Izq' },
-    { id: 'top-right', label: 'Arr. Der' },
-    { id: 'bottom-left', label: 'Ab. Izq' },
-    { id: 'bottom-right', label: 'Ab. Der' }
+    { id: 'top-left', label: t('pos_top_left') },
+    { id: 'top-right', label: t('pos_top_right') },
+    { id: 'bottom-left', label: t('pos_bottom_left') },
+    { id: 'bottom-right', label: t('pos_bottom_right') }
   ];
 
   const namePositions: Array<{ id: NamePosition; label: string }> = [
-    { id: 'bottom', label: 'Abajo (Clásico)' },
-    { id: 'top', label: 'Arriba' }
+    { id: 'bottom', label: t('pos_bottom') },
+    { id: 'top', label: t('pos_top') }
   ];
 
   return (
@@ -70,15 +73,15 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
           />
         </div>
         <div className="text-center sm:text-left text-xs text-stone-500">
-          <p className="font-bold text-stone-800 text-sm">Vista Previa de Tarjeta</p>
-          <p className="mt-0.5">Toca cualquier marco abajo para previsualizar el cambio.</p>
+          <p className="font-bold text-stone-800 text-sm">{t('card_preview_title')}</p>
+          <p className="mt-0.5">{t('card_preview_hint')}</p>
         </div>
       </div>
 
       {/* Frame Style Grid (Compact 2 columns) */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs space-y-3">
         <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
-          1. Estilo de Marco
+          1. {t('frame_style')}
         </label>
         <div className="grid grid-cols-2 gap-2">
           {frameOptions.map((f) => (
@@ -103,7 +106,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         {/* Number position */}
         <div className="bg-white rounded-2xl border border-stone-200 p-3.5 space-y-2">
           <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
-            2. Número
+            2. {t('number_pos')}
           </label>
           <div className="grid grid-cols-4 gap-1.5">
             {numberPositions.map((pos) => (
@@ -125,7 +128,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         {/* Name position */}
         <div className="bg-white rounded-2xl border border-stone-200 p-3.5 space-y-2">
           <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
-            3. Nombre
+            3. {t('name_pos')}
           </label>
           <div className="grid grid-cols-2 gap-2">
             {namePositions.map((nPos) => (
@@ -149,10 +152,10 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
       <div className="bg-white rounded-2xl border border-stone-200 p-3.5 flex items-center justify-between">
         <div>
           <p className="text-xs font-bold text-stone-900">
-            Incluir dicho/frase en la tarjeta
+            {t('show_tagline_card')}
           </p>
           <p className="text-[11px] text-stone-500">
-            Desactívalo para que la carta se vea más limpia y minimalista.
+            {t('show_tagline_hint')}
           </p>
         </div>
         <input
@@ -171,13 +174,13 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
             className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 rounded-xl"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Volver
+            {t('back')}
           </button>
           <button
             onClick={onNext}
             className="flex-1 max-w-xs flex items-center justify-center gap-1.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-sm transition-transform active:scale-95"
           >
-            <span>Configurar Tablas</span>
+            <span>{t('next_boards')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

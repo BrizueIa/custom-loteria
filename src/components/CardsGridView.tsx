@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { LoteriaCard, CardStyleConfig } from '../types/loteria';
 import { CardPreview } from './CardPreview';
+import { useLanguage } from '../i18n/LanguageContext';
 import { Upload, ArrowRight, HelpCircle, X } from 'lucide-react';
 
 interface CardsGridViewProps {
@@ -20,6 +21,7 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
   onSwapNumber,
   onContinue
 }) => {
+  const { t } = useLanguage();
   const [showHelp, setShowHelp] = useState(false);
   const batchInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,11 +36,11 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
       {/* Super Compact Action Bar */}
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-stone-800">54 Cartas</span>
+          <span className="text-xs font-bold text-stone-800">54 {t('cards')}</span>
           <button
             onClick={() => setShowHelp(!showHelp)}
             className="text-stone-400 hover:text-emerald-800 p-0.5"
-            title="Instrucciones"
+            title={t('instructions_title')}
           >
             <HelpCircle className="w-4 h-4" />
           </button>
@@ -50,7 +52,7 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
             className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
           >
             <Upload className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Cargar Fotos</span>
+            <span>{t('batch_upload_photos')}</span>
           </button>
           <input
             ref={batchInputRef}
@@ -67,7 +69,7 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
       {showHelp && (
         <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-950 flex items-start justify-between gap-2 animate-in fade-in">
           <p>
-            Toca cualquier carta para editar su foto o nombre. Si cambias el número, se intercambiará automáticamente con el que ocupaba ese lugar.
+            {t('instructions_text')}
           </p>
           <button
             onClick={() => setShowHelp(false)}
@@ -121,13 +123,13 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-stone-200 z-20 flex justify-center">
         <div className="w-full max-w-md flex items-center justify-between gap-3">
           <span className="text-xs text-stone-500 font-medium">
-            54 cartas preparadas
+            54 {t('cards')}
           </span>
           <button
             onClick={onContinue}
             className="flex-1 max-w-xs flex items-center justify-center gap-1.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-sm transition-transform active:scale-95"
           >
-            <span>Siguiente: Formato</span>
+            <span>{t('continue_to_frames')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

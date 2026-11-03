@@ -8,10 +8,16 @@ import { execFile } from 'child_process';
 import crypto from 'crypto';
 
 const VOICE_MAP: Record<string, string> = {
+  // Spanish
   'dona_plantas': 'es-MX-DaliaNeural',
   'don_fermin': 'es-MX-JorgeNeural',
   'sobrina': 'es-ES-ElviraNeural',
   'locutor': 'es-CO-GonzaloNeural',
+  // English
+  'jenny_us': 'en-US-JennyNeural',
+  'guy_us': 'en-US-GuyNeural',
+  'sonia_uk': 'en-GB-SoniaNeural',
+  'ryan_uk': 'en-GB-RyanNeural',
 };
 
 // https://vitejs.dev/config/
@@ -60,7 +66,8 @@ export default defineConfig({
           }
 
           function fallbackGoogle() {
-            const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=${encodeURIComponent(text)}`;
+            const tl = (voiceKey.endsWith('_us') || voiceKey.endsWith('_uk')) ? 'en' : 'es';
+            const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${encodeURIComponent(text)}`;
             https.get(googleUrl, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, KeyRound, Eye, EyeOff, X, Check } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface PasswordModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
   mode,
   setMode,
 }) => {
+  const { t } = useLanguage();
   const [inputPass, setInputPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
@@ -37,27 +39,27 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
       onSuccessUnlock();
       onClose();
     } else {
-      setErrorMsg('Contraseña incorrecta. Intenta nuevamente.');
+      setErrorMsg(t('wrong_pin'));
     }
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputPass !== currentPassword) {
-      setErrorMsg('La contraseña actual es incorrecta.');
+      setErrorMsg(t('current_pin_wrong'));
       return;
     }
     if (!newPass || newPass.trim().length < 3) {
-      setErrorMsg('La nueva contraseña debe tener al menos 3 caracteres.');
+      setErrorMsg(t('pin_min_length'));
       return;
     }
     if (newPass !== confirmPass) {
-      setErrorMsg('Las contraseñas no coinciden.');
+      setErrorMsg(t('pins_dont_match'));
       return;
     }
 
     onUpdatePassword(newPass.trim());
-    setSuccessMsg('¡Contraseña actualizada con éxito!');
+    setSuccessMsg(t('pin_updated_success'));
     setErrorMsg('');
     setTimeout(() => {
       setSuccessMsg('');
@@ -79,7 +81,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
               {mode === 'unlock' ? <Lock className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
             </div>
             <h3 className="font-serif font-bold text-base text-stone-900">
-              {mode === 'unlock' ? 'Acceso Administrador' : 'Cambiar Contraseña'}
+              {mode === 'unlock' ? t('admin_auth') : t('change_password')}
             </h3>
           </div>
           <button
@@ -94,12 +96,12 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
         {mode === 'unlock' ? (
           <form onSubmit={handleUnlock} className="space-y-4">
             <p className="text-xs text-stone-500">
-              Ingresa tu contraseña para desbloquear el generador de cartas y tablas.
+              {t('enter_pin_desc')}
             </p>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                Contraseña o PIN
+                {t('pin_label')}
               </label>
               <div className="relative">
                 <input
@@ -110,7 +112,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
                     setErrorMsg('');
                   }}
                   autoFocus
-                  placeholder="Ej. 1234"
+                  placeholder={t('pin_placeholder')}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 font-mono tracking-wider"
                 />
                 <button
@@ -132,12 +134,12 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
               type="submit"
               className="w-full py-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-sm transition-transform active:scale-95"
             >
-              Desbloquear Generador
+              {t('unlock_btn')}
             </button>
 
             <div className="text-center pt-1">
               <span className="text-[11px] text-stone-400">
-                (Por defecto la clave inicial es: <strong className="text-stone-600 font-mono">1234</strong>)
+                {t('pin_default_hint')}
               </span>
             </div>
           </form>
@@ -152,40 +154,40 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
               <>
                 <div>
                   <label className="block text-xs font-semibold text-stone-600 mb-1">
-                    Contraseña Actual
+                    {t('current_pin_label')}
                   </label>
                   <input
                     type="password"
                     value={inputPass}
                     onChange={(e) => setInputPass(e.target.value)}
-                    placeholder="Contraseña actual..."
-                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-1 focus:ring-emerald-700"
+                    placeholder="••••"
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-1 focus:ring-emerald-700 font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-600 mb-1">
-                    Nueva Contraseña
+                    {t('new_pin_label')}
                   </label>
                   <input
                     type="password"
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
-                    placeholder="Nueva clave o PIN..."
-                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-1 focus:ring-emerald-700"
+                    placeholder="••••"
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-1 focus:ring-emerald-700 font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-600 mb-1">
-                    Confirmar Nueva Contraseña
+                    {t('confirm_pin_label')}
                   </label>
                   <input
                     type="password"
                     value={confirmPass}
                     onChange={(e) => setConfirmPass(e.target.value)}
-                    placeholder="Repite la nueva clave..."
-                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-1 focus:ring-emerald-700"
+                    placeholder="••••"
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-1 focus:ring-emerald-700 font-mono"
                   />
                 </div>
 
@@ -204,13 +206,13 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
                     }}
                     className="flex-1 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold"
                   >
-                    Cancelar
+                    {t('cancel')}
                   </button>
                   <button
                     type="submit"
                     className="flex-1 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-xs"
                   >
-                    Guardar
+                    {t('save_pin_btn')}
                   </button>
                 </div>
               </>

@@ -5,7 +5,9 @@
 // 3. "sobrina"      - Voz Femenina Juvenil y Alegre
 // 4. "locutor"      - Voz Masculina Radiofónica / Posada
 
-export type VoiceId = 'dona_plantas' | 'don_fermin' | 'sobrina' | 'locutor';
+export type VoiceId = 
+  | 'dona_plantas' | 'don_fermin' | 'sobrina' | 'locutor'
+  | 'jenny_us' | 'guy_us' | 'sonia_uk' | 'ryan_uk';
 
 export interface VoiceProfile {
   id: VoiceId;
@@ -15,7 +17,7 @@ export interface VoiceProfile {
   badge: string;
 }
 
-export const VOICES_CATALOG: VoiceProfile[] = [
+export const SPANISH_VOICES: VoiceProfile[] = [
   {
     id: 'dona_plantas',
     name: 'Dalia (México)',
@@ -27,7 +29,7 @@ export const VOICES_CATALOG: VoiceProfile[] = [
     id: 'don_fermin',
     name: 'Jorge (México)',
     gender: 'Masculina',
-    desc: 'Hombre mexicano, cantador varonil y clásico',
+    desc: 'Hombre mexicano, cantador tradicional',
     badge: '🇲🇽 México • Hombre'
   },
   {
@@ -41,10 +43,47 @@ export const VOICES_CATALOG: VoiceProfile[] = [
     id: 'locutor',
     name: 'Gonzalo (Colombia)',
     gender: 'Masculina',
-    desc: 'Hombre colombiano, timbre y cadencia sudamericana',
+    desc: 'Hombre colombiano, timbre y cadencia clara',
     badge: '🇨🇴 Colombia • Hombre'
   }
 ];
+
+export const ENGLISH_VOICES: VoiceProfile[] = [
+  {
+    id: 'jenny_us',
+    name: 'Jenny (US)',
+    gender: 'Female',
+    desc: 'American female, clear, lively and welcoming tone',
+    badge: '🇺🇸 US • Female'
+  },
+  {
+    id: 'guy_us',
+    name: 'Guy (US)',
+    gender: 'Male',
+    desc: 'American male, enthusiastic bingo/lottery caller',
+    badge: '🇺🇸 US • Male'
+  },
+  {
+    id: 'sonia_uk',
+    name: 'Sonia (UK)',
+    gender: 'Female',
+    desc: 'British female, crisp and friendly accent',
+    badge: '🇬🇧 UK • Female'
+  },
+  {
+    id: 'ryan_uk',
+    name: 'Ryan (UK)',
+    gender: 'Male',
+    desc: 'British male, engaging and polite lottery caller',
+    badge: '🇬🇧 UK • Male'
+  }
+];
+
+export const VOICES_CATALOG: VoiceProfile[] = SPANISH_VOICES;
+
+export function getVoicesCatalog(lang: 'es' | 'en'): VoiceProfile[] {
+  return lang === 'en' ? ENGLISH_VOICES : SPANISH_VOICES;
+}
 
 class AudioCantador {
   private currentAudio: HTMLAudioElement | null = null;
@@ -141,8 +180,16 @@ class AudioCantador {
     if (webSpeechOk) return;
   }
 
-  // Speak special victory/game phrases (primarily "¡Buenas!")
+  // Speak special victory/game phrases (primarily "¡Buenas!" or "Bingo!")
   async speakSpecial(specialKey: 'loteria' | 'buenas' | 'desempate' | 'comenzar', voiceId: VoiceId = 'dona_plantas', rate: number = 1.0) {
+    const isEnglishVoice = voiceId.endsWith('_us') || voiceId.endsWith('_uk');
+    if (isEnglishVoice) {
+      const phrase = specialKey === 'buenas' ? 'Bingo! We have a winner!' : specialKey === 'desempate' ? 'Tie-breaker card!' : 'Lottery!';
+      const proxyUrl = `/api/tts?q=${encodeURIComponent(phrase)}&voice=${encodeURIComponent(voiceId)}`;
+      const ok = await this.playAudioUrl(proxyUrl, rate);
+      if (ok) return;
+    }
+
     const primaryUrl = `/audio/voices/${voiceId}/${specialKey}.mp3`;
     const ok = await this.playAudioUrl(primaryUrl, rate);
     if (ok) return;
