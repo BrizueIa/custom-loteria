@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.png" alt="Custom Lotería Logo" width="140" style="border-radius: 28px;" />
+  <img src="public/logo.png" alt="Custom Lotería Logo" width="140" />
 </p>
 
 <p align="center">

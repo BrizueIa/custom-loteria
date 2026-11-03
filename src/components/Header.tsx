@@ -111,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
           <img
             src="/logo.png"
             alt="Custom Lotería"
-            className="w-8 h-8 rounded-lg shadow-sm border border-white/10 object-cover"
+            className="w-8 h-8 object-contain drop-shadow-sm select-none"
           />
           <div>
             <h1 className="font-serif text-xs sm:text-sm font-black tracking-wider leading-tight text-amber-100 flex items-center gap-1.5">

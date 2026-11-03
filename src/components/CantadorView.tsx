@@ -414,7 +414,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             <img
               src="/logo.png"
               alt="Custom Lotería"
-              className="w-16 h-16 rounded-2xl shadow-md border border-amber-200/80 object-cover"
+              className="w-20 h-20 object-contain drop-shadow-md select-none"
             />
             <div>
               <h3 className="font-serif text-lg font-black text-[#4A2E18]">
