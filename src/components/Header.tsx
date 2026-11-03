@@ -105,15 +105,17 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Brand / Logo (with secret tap support) */}
         <div
           onClick={handleLogoTap}
-          className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
+          className="flex items-center gap-2.5 cursor-pointer select-none active:scale-95 transition-transform"
           title={isLocked && !isSessionUnlocked ? 'Toca varias veces para desbloquear' : 'Lotería'}
         >
-          <div className="w-7 h-7 rounded-lg bg-emerald-700/80 border border-emerald-500/30 flex items-center justify-center font-serif font-black text-amber-300 text-sm">
-            🌿
-          </div>
+          <img
+            src="/logo.png"
+            alt="Custom Lotería"
+            className="w-8 h-8 rounded-lg shadow-sm border border-white/10 object-cover"
+          />
           <div>
-            <h1 className="font-serif text-xs sm:text-sm font-black tracking-wide leading-tight text-amber-100 flex items-center gap-1.5">
-              SEÑORA DE LAS PLANTAS
+            <h1 className="font-serif text-xs sm:text-sm font-black tracking-wider leading-tight text-amber-100 flex items-center gap-1.5">
+              CUSTOM LOTERÍA
               {isSessionUnlocked && (
                 <span className="text-[9px] font-sans font-bold bg-amber-400 text-stone-900 px-1.5 py-0.2 rounded-full uppercase tracking-normal">
                   Admin
@@ -121,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </h1>
             <p className="text-[10px] text-emerald-300/80 hidden sm:block">
-              Lotería Mexicana Personalizada
+              Generador y Cantador Mexicano
             </p>
           </div>
         </div>

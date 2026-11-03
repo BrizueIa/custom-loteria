@@ -169,7 +169,7 @@ class AudioCantador {
     });
   }
 
-  // Announce a card dynamically so ANY custom deck (not just plants) is pronounced with its real name
+  // Announce a card dynamically so ANY custom deck is pronounced with its real name
   async announceCard(textToSpeak: string, voiceId: VoiceId = 'dona_plantas', rate: number = 1.0, systemVoiceURI?: string) {
     // 1. Try same-origin TTS proxy with the specific voiceId
     const proxyUrl = `/api/tts?q=${encodeURIComponent(textToSpeak)}&voice=${encodeURIComponent(voiceId)}`;

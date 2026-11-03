@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LoteriaCard, CardStyleConfig, BoardConfig, AppTab } from './types/loteria';
-import { DEFAULT_PLANTAS_CARDS } from './data/plantasDefault';
+import { DEFAULT_CARDS } from './data/defaultCards';
 import { GeneratorView } from './components/GeneratorView';
 import { CantadorView } from './components/CantadorView';
 import { PasswordModal } from './components/PasswordModal';
@@ -67,7 +67,7 @@ function MainApp() {
     } catch (e) {
       console.error(e);
     }
-    return DEFAULT_PLANTAS_CARDS;
+    return DEFAULT_CARDS;
   });
 
   const [cardStyle, setCardStyle] = useState<CardStyleConfig>(() => {
@@ -138,7 +138,7 @@ function MainApp() {
 
   const handleResetToDefault = () => {
     if (window.confirm(t('restore_confirm'))) {
-      setCards(DEFAULT_PLANTAS_CARDS);
+      setCards(DEFAULT_CARDS);
       setCardStyle(DEFAULT_STYLE);
       setBoardConfig(DEFAULT_BOARD_CONFIG);
       localStorage.removeItem(STORAGE_KEY_CARDS);

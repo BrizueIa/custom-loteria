@@ -18,7 +18,6 @@ import {
   Trophy,
   Sliders,
   X,
-  Sparkles,
   Swords,
   Lock,
   KeyRound,
@@ -412,9 +411,11 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
           </div>
         ) : (
           <div className="h-full max-h-[380px] aspect-[3/4] bg-[#FFFDF9] rounded-3xl border-2 border-dashed border-[#DFCBB5] flex flex-col items-center justify-center p-6 text-center space-y-4 shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-[#FEF3C7] border border-[#FDE68A] flex items-center justify-center text-[#92400E]">
-              <Sparkles className="w-8 h-8 animate-pulse" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Custom Lotería"
+              className="w-16 h-16 rounded-2xl shadow-md border border-amber-200/80 object-cover"
+            />
             <div>
               <h3 className="font-serif text-lg font-black text-[#4A2E18]">
                 {t('deck_ready')}

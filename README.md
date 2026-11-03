@@ -1,5 +1,9 @@
 <p align="center">
-  <h1 align="center">🌱 Custom Lotería</h1>
+  <img src="public/logo.png" alt="Custom Lotería Logo" width="140" style="border-radius: 28px;" />
+</p>
+
+<p align="center">
+  <h1 align="center">Custom Lotería</h1>
   <p align="center">
     <em>Customizable Mexican Lotería board game generator and digital caller built for web and print.</em>
   </p>
@@ -18,17 +22,17 @@
 ## ⚡ Highlights
 
 * **🎙️ Interactive Digital Caller (*El Cantador*):** 
-  Fully featured caller engine with auto-shuffle, adjustable timer intervals, voice narration, Mexican lottery rhymes/taglines, live history of called cards, and confetti celebrations.
+  Fully featured caller engine with auto-shuffle, adjustable timer intervals, voice narration, traditional Mexican lottery rhymes/taglines, live history of called cards, and celebration confetti.
 * **🖨️ Printable Board Generator (*Tablas a PDF*):** 
-  Algorithmic generation of randomized, unique game boards (4x4 grids or custom sizes) with duplication prevention. Export directly to print-ready high-resolution PDFs using `jsPDF` and `html2canvas`.
+  Algorithmic generation of randomized, unique game boards (4x4 grids or custom dimensions) with duplicate card prevention. Export directly to print-ready high-resolution PDFs using `jsPDF` and `html2canvas`.
 * **🎨 Visual Customization Studio:** 
-  Fine-tune frame styles (Botanical Lithography, Classic), card background colors, borders, typography (Serif, Sans, Display), and text positioning.
+  Fine-tune frame styles (Classic Lithography, Ornate Borders), card background colors, border styles, typography (Serif, Sans, Display), and text positioning.
 * **🃏 Card Editor & Deck Manager:** 
   Inspect, tweak, and edit card details including numbers, names, subtitles, and traditional rhymes/sayings with both grid and swipe-based editors.
 * **🔒 Host Lock & PIN Security:** 
   Lock down the generator and settings with an admin PIN, leaving an uncluttered, tamper-proof standalone interface for game hosts and players.
-* **🌿 Preloaded Botanical Edition (*Señora de las Plantas*):** 
-  Comes out-of-the-box with a complete 54-card deck themed around indoor plants, botanical illustrations, and plant-care humor.
+* **✨ Ready-to-Play Starter Deck:** 
+  Comes out-of-the-box with a complete 54-card sample starter deck, ready for immediate play or full customization with your own themes.
 
 ---
 
@@ -115,7 +119,7 @@ custom-loteria/
 │   │   ├── PasswordModal.tsx           # Host PIN verification modal
 │   │   └── SwipeCardEditor.tsx         # Card-by-card inspector
 │   ├── data/
-│   │   └── plantasDefault.ts           # 54-card "Señora de las Plantas" dataset
+│   │   └── defaultCards.ts             # 54-card default starter deck dataset
 │   ├── types/
 │   │   └── loteria.ts                  # TypeScript models & config interfaces
 │   ├── utils/              # Helper utilities and storage management

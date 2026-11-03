@@ -61,7 +61,7 @@ custom-loteria/
 │   │   ├── Header.tsx
 │   │   ├── PasswordModal.tsx
 │   │   └── SwipeCardEditor.tsx
-│   ├── data/                     # Preset themes (e.g., plantasDefault.ts)
+│   ├── data/                     # Preset themes & default starter deck (defaultCards.ts)
 │   ├── types/                    # Domain models & TypeScript interfaces
 │   ├── utils/                    # PDF rendering, deck I/O, audio & engine logic
 │   ├── App.tsx                   # Top-level view router & state holder
