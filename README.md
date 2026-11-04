@@ -5,7 +5,10 @@
 <p align="center">
   <h1 align="center">Custom Lotería</h1>
   <p align="center">
-    <em>Customizable Mexican Lotería board game generator and digital caller built for web and print.</em>
+    <em>Customizable Mexican Lotería board game generator, print studio, and offline digital caller (PWA).</em>
+  </p>
+  <p align="center">
+    <a href="https://brizueia.github.io/custom-loteria/"><strong>🌐 Live App: brizueia.github.io/custom-loteria</strong></a>
   </p>
 </p>
 
@@ -14,36 +17,37 @@
   <img src="https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Vite-6.0-646CFF?logo=vite&logoColor=white" alt="Vite">
-  <img src="https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?logo=tailwind-css&logoColor=white" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/PWA-Offline%20Ready-164E3D?logo=pwa&logoColor=white" alt="PWA">
+  <img src="https://img.shields.io/badge/Tests-51%20Passing-10B981?logo=vitest&logoColor=white" alt="Vitest">
 </p>
 
 ---
 
 ## ⚡ Highlights
 
-* **🎙️ Interactive Digital Caller (*El Cantador*):** 
-  Fully featured caller engine with auto-shuffle, adjustable timer intervals, voice narration, traditional Mexican lottery rhymes/taglines, live history of called cards, and celebration confetti.
-* **🖨️ Printable Board Generator (*Tablas a PDF*):** 
-  Algorithmic generation of randomized, unique game boards (4x4 grids or custom dimensions) with duplicate card prevention. Export directly to print-ready high-resolution PDFs using `jsPDF` and `html2canvas`.
-* **🎨 Visual Customization Studio:** 
-  Fine-tune frame styles (Classic Lithography, Ornate Borders), card background colors, border styles, typography (Serif, Sans, Display), and text positioning.
-* **🃏 Card Editor & Deck Manager:** 
-  Inspect, tweak, and edit card details including numbers, names, subtitles, and traditional rhymes/sayings with both grid and swipe-based editors.
-* **🔒 Host Lock & PIN Security:** 
-  Lock down the generator and settings with an admin PIN, leaving an uncluttered, tamper-proof standalone interface for game hosts and players.
-* **✨ Ready-to-Play Starter Deck:** 
-  Comes out-of-the-box with a complete 54-card sample starter deck, ready for immediate play or full customization with your own themes.
+* **🎙️ Interactive Digital Caller (*El Cantador*):**
+  Full-featured caller engine with auto-shuffle, adjustable timer intervals, dynamic native voice narration (**Web Speech API** with 4 character pitch/rate profiles + static MP3 sound effects for *"¡Buenas!"*, *"¡Lotería!"*, and card shuffling), live history of called cards, tie-breaker mode (*Carta Mayor*), and celebration confetti.
+* **📲 Installable Offline PWA & `IndexedDB` Storage:**
+  Installable on Android, iOS, and Desktop as a standalone full-screen app. Stores all 54 high-resolution custom photos locally in **`IndexedDB`** (`loteria_custom_db`), bypassing browser `localStorage` 5 MB limits and isolating each device's deck instance.
+* **⚡ Direct PC ↔ Phone Transfer via QR Code (WebRTC P2P):**
+  Design your 54-card deck on a computer and transfer it directly to a phone in 2–3 seconds by scanning a live **QR Code** (or entering a 6-character code like `K7M-49P` inside an installed iOS/Android PWA). Powered by `PeerJS` WebRTC DataChannels with 16 KB chunking and FNV-1a checksum verification—no cloud accounts or external servers required.
+* **🖨️ WYSIWYG Printable Board & Deck PDF Studio:**
+  Algorithmically generates unique player boards (*tablas*) using Fisher-Yates permutations and signature uniqueness checks. Exports print-ready PDFs (Letter or A4) via direct HTML5 Canvas 2D rendering + `jsPDF`, guaranteeing the downloaded PDF matches the live preview 100%.
+* **🎨 Visual Customization Studio & Single-File `.json` Backup:**
+  Customize frame styles (Botanical Lithography, Traditional Gallo, Talavera, Vintage Poster, Minimal Modern), colors, and typography. Export or import the entire 54-card deck—with all photos embedded in Base64—as a single `.json` file.
+* **🔒 Organizer PIN Lock:**
+  Lock the app into standalone *Cantador* mode with a customizable PIN so event guests or clients only interact with the caller screen.
 
 ---
 
 ## 🏛️ Architecture & Stack
 
 * **Framework:** [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-* **Build Tool:** [Vite 6](https://vitejs.dev/)
+* **Build Tool & Testing:** [Vite 6](https://vitejs.dev/) + [Vitest 5](https://vitest.dev/) (51 unit & integration tests)
 * **Styling:** [Tailwind CSS](https://tailwindcss.com/)
-* **Typography:** Google Fonts (*Cinzel*, *Playfair Display*, *Plus Jakarta Sans*)
-* **Document Generation:** [jsPDF](https://github.com/parallax/jsPDF) & [html2canvas](https://html2canvas.hertzen.com/)
-* **Visual Effects & Icons:** [canvas-confetti](https://www.kirilv.com/canvas-confetti/) & [Lucide React](https://lucide.dev/)
+* **Persistence & Offline:** `IndexedDB` (`deckStorage.ts`) + Service Worker (`public/sw.js`) + Web App Manifest (`public/manifest.json`)
+* **P2P Sync & QR:** [PeerJS](https://peerjs.com/) (WebRTC DataChannel) + [qrcode](https://github.com/soldair/node-qrcode)
+* **PDF Rendering:** Direct HTML5 Canvas 2D pipeline + [jsPDF](https://github.com/parallax/jsPDF)
 
 ---
 
@@ -51,8 +55,8 @@
 
 ### Prerequisites
 
-* [Node.js](https://nodejs.org/) (v18.0.0 or higher recommended)
-* `npm`, `pnpm`, or `yarn`
+* [Node.js](https://nodejs.org/) (v20.0.0 or v22.0.0+ recommended)
+* `npm`
 
 ### Installation
 
@@ -72,7 +76,7 @@
    npm run dev
    ```
 
-4. Open your browser at `http://localhost:5173` (or the URL shown in your terminal).
+4. Open your browser at `http://localhost:5173`.
 
 ---
 
@@ -81,16 +85,18 @@
 | Command | Description |
 | :--- | :--- |
 | `npm run dev` | Starts Vite development server with Hot Module Replacement (HMR). |
-| `npm run build` | Compiles TypeScript and builds production-optimized assets in `dist/`. |
+| `npm test` | Runs the full Vitest unit & integration test suite (51 tests across 10 suites). |
+| `npm run test:watch` | Runs Vitest in interactive watch mode. |
+| `npm run build` | Runs `tsc` typechecking and builds production-optimized assets in `dist/`. |
 | `npm run preview` | Locally serves the production build for verification. |
 
 ---
 
 ## 📜 Architecture, Governance & Policies
 
-* **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**: Full system architecture, board generation algorithm, and audio caller pipeline.
+* **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**: Full system architecture, `IndexedDB` storage, WebRTC P2P transfer protocol, PDF rendering pipeline, and audio caller engine.
 * **[SECURITY.md](.github/SECURITY.md)**: Vulnerability disclosure procedure and security policy.
-* **[CONTRIBUTING.md](.github/CONTRIBUTING.md)**: Guidelines for contributing code, custom decks, and bug reports.
+* **[CONTRIBUTING.md](.github/CONTRIBUTING.md)**: Guidelines for contributing code, running tests, and submitting pull requests.
 
 ---
 
@@ -98,38 +104,59 @@
 
 ```text
 custom-loteria/
-├── .github/                # CI Quality Gates & GitHub templates
-│   ├── workflows/ci.yml    # Build & Typecheck CI pipeline
-│   ├── ISSUE_TEMPLATE/     # Bug report & Feature request templates
-│   ├── CONTRIBUTING.md     # Development & contribution guide
+├── .github/                      # CI/CD workflows & GitHub templates
+│   ├── workflows/
+│   │   ├── ci.yml                # Automated Test, Typecheck & Build Quality Gate
+│   │   └── deploy.yml            # Automated GitHub Pages Deployment
+│   ├── ISSUE_TEMPLATE/           # Bug report & Feature request templates
+│   ├── CONTRIBUTING.md           # Development & contribution guide
 │   ├── pull_request_template.md
-│   └── SECURITY.md         # Vulnerability reporting policy
-├── docs/                   # Technical documentation
-│   └── architecture/       # Architecture specification
-├── public/                 # Static assets, sounds & voice clips
+│   └── SECURITY.md               # Vulnerability reporting policy
+├── docs/
+│   └── architecture/
+│       └── ARCHITECTURE.md       # System design & protocol specifications
+├── public/                       # Static PWA assets, icons & audio clips
+│   ├── audio/                    # MP3 sound effects (buenas, loteria, barajar, aplausos)
+│   ├── manifest.json             # PWA Web App Manifest
+│   └── sw.js                     # Offline Service Worker (Cache-First & Stale-While-Revalidate)
 ├── src/
-│   ├── components/         # Reusable UI components
-│   │   ├── BoardGeneratorSettings.tsx  # Board layout & PDF generation
-│   │   ├── CantadorView.tsx            # Digital caller game screen
-│   │   ├── CardPreview.tsx             # Card renderer & style application
-│   │   ├── CardsGridView.tsx           # Multi-card deck visualizer
-│   │   ├── CardStyleSelector.tsx       # Frame, border, and font controls
-│   │   ├── GeneratorView.tsx           # Management & board builder layout
-│   │   ├── Header.tsx                  # Top navigation & host security
-│   │   ├── PasswordModal.tsx           # Host PIN verification modal
-│   │   └── SwipeCardEditor.tsx         # Card-by-card inspector
+│   ├── __tests__/                # End-to-end component integration tests
+│   ├── components/               # Modular UI components
+│   │   ├── BoardGeneratorSettings.tsx  # Board layout & live preview studio
+│   │   ├── CantadorView.tsx            # Digital caller screen & voice settings
+│   │   ├── CardPreview.tsx             # Responsive card renderer (board / grid / full)
+│   │   ├── CardsGridView.tsx           # 54-card adaptive desktop/mobile grid
+│   │   ├── CardStyleSelector.tsx       # Frame, border, and typography controls
+│   │   ├── DownloadPDFView.tsx         # Print PDF exporter, PWA installer & event lock
+│   │   ├── GeneratorView.tsx           # 4-step deck & board creation wizard
+│   │   ├── PasswordModal.tsx           # Organizer PIN verification & change modal
+│   │   ├── QRTransferModal.tsx         # P2P WebRTC QR sender & 6-char code receiver
+│   │   └── SwipeCardEditor.tsx         # Card-by-card mobile/desktop inspector
 │   ├── data/
-│   │   └── defaultCards.ts             # 54-card default starter deck dataset
+│   │   └── defaultCards.ts             # 54-card traditional Mexican Lotería starter deck
+│   ├── i18n/
+│   │   ├── LanguageContext.tsx         # Bilingual (ES/EN) context provider
+│   │   └── translations.ts             # Full Spanish & English dictionary
 │   ├── types/
-│   │   └── loteria.ts                  # TypeScript models & config interfaces
-│   ├── utils/              # Helper utilities and storage management
-│   ├── App.tsx             # Main application orchestrator & state
-│   ├── main.tsx            # React root mount
-│   └── index.css           # Tailwind base layers and font styles
+│   │   └── loteria.ts                  # TypeScript domain interfaces
+│   ├── utils/
+│   │   ├── __tests__/                  # Unit tests for all core utilities
+│   │   ├── audioCantador.ts            # Native Web Speech TTS + static/procedural audio engine
+│   │   ├── deckIO.ts                   # Single-file .json export & schema validation
+│   │   ├── deckStorage.ts              # High-capacity IndexedDB adapter & migration
+│   │   ├── imageOptimizer.ts           # Client-side image compression & resizing
+│   │   ├── loteriaEngine.ts            # Fisher-Yates shuffler & unique board generator
+│   │   ├── p2pDeckSync.ts              # Chunked WebRTC P2P transfer & FNV-1a checksum
+│   │   ├── pdfGenerator.ts             # Direct Canvas 2D -> jsPDF print renderer
+│   │   └── pwaInstaller.ts             # Service Worker registration & install prompt manager
+│   ├── App.tsx                   # Top-level state orchestrator, PIN guard & URL sync router
+│   ├── main.tsx                  # React root & PWA initializer
+│   └── index.css                 # Tailwind layers & typography rules
 ├── index.html
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts          # Consolidated Vite + Tailwind + PostCSS config
+├── vite.config.ts
+└── vitest.config.ts
 ```
 
 ---

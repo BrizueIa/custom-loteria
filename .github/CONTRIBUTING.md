@@ -13,7 +13,7 @@ Please maintain a welcoming, respectful, and constructive environment in all iss
 ## 🛠️ Development Setup
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) (v18.0.0 or higher)
+* [Node.js](https://nodejs.org/) (v20.0.0 or v22.0.0+ recommended)
 * [npm](https://www.npmjs.com/) (v9+)
 
 ### Local Workflow
@@ -30,7 +30,11 @@ Please maintain a welcoming, respectful, and constructive environment in all iss
    ```bash
    npm run dev
    ```
-4. Run typechecking and production build verification:
+4. Run the automated unit & integration test suite (Vitest):
+   ```bash
+   npm test
+   ```
+5. Run typechecking and production build verification:
    ```bash
    npm run build
    ```
@@ -40,9 +44,9 @@ Please maintain a welcoming, respectful, and constructive environment in all iss
 ## 🌿 Creating or Adding New Decks
 
 If you are contributing a new preset deck theme:
-1. Define the cards array under `src/data/<yourTheme>Default.ts` implementing `LoteriaCard[]`.
-2. Ensure each card contains `id`, `number`, `name`, `scientificName` or subtitle, and a witty `tagline`.
-3. Provide card illustration assets under `public/images/` or as inline SVGs / optimized data URLs.
+1. Define the 54-card array under `src/data/<yourTheme>Default.ts` implementing `LoteriaCard[]`.
+2. Ensure each card contains `id`, `number` (1–54), `name`, `image` (SVG data URL or optimized image), and a traditional or custom `tagline`.
+3. Add unit tests under `src/data/__tests__/` verifying card count, sequential numbering, and non-empty fields.
 
 ---
 
@@ -52,6 +56,6 @@ If you are contributing a new preset deck theme:
    ```bash
    git checkout -b feat/your-feature-name
    ```
-2. Commit changes using clear, concise commit messages.
-3. Verify that `npm run build` succeeds without TypeScript or Vite errors.
-4. Push your branch and open a Pull Request describing your changes and testing steps.
+2. Commit changes using clear, concise commit messages (Conventional Commits preferred).
+3. Verify that both `npm test` and `npm run build` succeed without errors.
+4. Push your branch and open a Pull Request describing your changes and verification steps.
