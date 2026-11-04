@@ -24,7 +24,6 @@ import {
   Download,
   Upload,
   Palette,
-  Globe,
   Clock
 } from 'lucide-react';
 
@@ -51,7 +50,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   onImportDeck,
   onResetToDefault,
 }) => {
-  const { t, language, setLanguage, toggleLanguage } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
 
   const [shuffledDeck, setShuffledDeck] = useState<LoteriaCard[]>(() => shuffleArray(cards));
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
@@ -490,32 +489,11 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
           </span>
         </div>
 
-        {/* Acciones superiores (Idioma, Generador, Silencio y Ajustes) */}
-        <div className="flex items-center gap-1.5">
-          {/* Quick Language Toggle */}
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center gap-1 px-2 py-1 text-[11px] font-black bg-[#EFE3D3] hover:bg-[#E5D5C0] text-[#5C381E] border border-[#DFC7B0] rounded-xl shadow-2xs transition-all active:scale-95"
-            title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
-          >
-            <Globe className="w-3.5 h-3.5 text-[#B45309]" />
-            <span>{language.toUpperCase()}</span>
-          </button>
-
-          {canAccessGenerator && (
-            <button
-              onClick={onGoToGenerator}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#78350F] border border-[#FCD34D] rounded-xl shadow-2xs transition-colors"
-              title={t('open_generator')}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">{t('generator')}</span>
-            </button>
-          )}
-
+        {/* Acciones superiores (Únicamente Silencio y Ajustes) */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMuted(!isMuted)}
-            className={`p-2 rounded-xl transition-colors border shadow-2xs ${
+            className={`p-2 rounded-xl transition-colors border shadow-2xs cursor-pointer ${
               isMuted
                 ? 'text-rose-600 bg-rose-100/80 border-rose-300'
                 : 'text-[#5C381E] bg-[#EFE3D3] hover:bg-[#E5D5C0] border-[#DFC7B0]'
@@ -527,7 +505,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="p-2 rounded-xl text-[#5C381E] bg-[#EFE3D3] hover:bg-[#E5D5C0] border border-[#DFC7B0] shadow-2xs transition-colors"
+            className="p-2 rounded-xl text-[#5C381E] bg-[#EFE3D3] hover:bg-[#E5D5C0] border border-[#DFC7B0] shadow-2xs transition-colors cursor-pointer"
             title={t('settings_title')}
           >
             <Sliders className="w-4 h-4" />
