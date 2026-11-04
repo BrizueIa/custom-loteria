@@ -28,7 +28,11 @@ const DEFAULT_BOARD_CONFIG: BoardConfig = {
   cols: 4,
   allowDuplicates: false,
   quantity: 20,
-  title: 'LOTERÍA'
+  title: 'LOTERÍA',
+  subtitle: '',
+  showBoardNumber: false,
+  boardFrameStyle: 'traditional_gallo',
+  boardBorderColor: '#164E3D'
 };
 
 function MainApp() {

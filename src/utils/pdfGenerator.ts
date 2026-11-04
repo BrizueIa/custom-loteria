@@ -11,6 +11,21 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function hexToRgb(hex?: string): { r: number; g: number; b: number } {
+  if (!hex) return { r: 22, g: 78, b: 61 }; // Default #164E3D
+  let clean = hex.replace('#', '');
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  const num = parseInt(clean, 16);
+  if (isNaN(num)) return { r: 22, g: 78, b: 61 };
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+}
+
 /**
  * Draws wrapped text onto canvas if it exceeds max width, scaling font if necessary
  */
@@ -309,7 +324,7 @@ export async function generateCardsPDF(
 }
 
 /**
- * PDF 2: Generated Boards (Tablas de lotería)
+ * PDF 2: Generated Boards (Tablas de lotería tradicionales y personalizadas)
  */
 export async function generateBoardsPDF(
   boards: GeneratedBoard[],
@@ -323,47 +338,197 @@ export async function generateBoardsPDF(
     format: 'letter'
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
+  const pageWidth = doc.internal.pageSize.getWidth(); // 215.9 mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // 279.4 mm
 
   const totalBoards = boards.length;
+  const frameStyle = boardConfig.boardFrameStyle || 'traditional_gallo';
+  const borderColor = boardConfig.boardBorderColor || '#164E3D';
+  const rgb = hexToRgb(borderColor);
+
+  const title = (boardConfig.title || 'LOTERÍA MEXICANA').toUpperCase().trim();
+  const subtitle = (boardConfig.subtitle || '').trim();
+  const showNumber = Boolean(boardConfig.showBoardNumber);
+
+  // Dimensiones del marco del tablero
+  const frameX = 8;
+  const frameY = 8;
+  const frameW = pageWidth - frameX * 2; // ~199.9 mm
+  const frameH = pageHeight - frameY * 2; // ~263.4 mm
+
+  const hasSub = subtitle.length > 0;
+  const headerHeight = hasSub ? 22 : showNumber ? 19 : 16;
+
+  // Helper para dibujar rombos de imprenta tradicional
+  const drawDiamond = (cx: number, cy: number, sz: number) => {
+    doc.setFillColor(rgb.r, rgb.g, rgb.b);
+    doc.triangle(cx, cy - sz, cx + sz, cy, cx - sz, cy, 'F');
+    doc.triangle(cx, cy + sz, cx + sz, cy, cx - sz, cy, 'F');
+  };
 
   for (let bIdx = 0; bIdx < totalBoards; bIdx++) {
     if (bIdx > 0) doc.addPage();
 
     const board = boards[bIdx];
 
-    // Minimalist, elegant header (no harsh colored banners)
-    doc.setFont('times', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(28, 25, 23); // stone-900
-    doc.text(boardConfig.title || 'LOTERÍA MEXICANA', pageWidth / 2, 14, { align: 'center' });
+    // 1. Dibujar Marco según el estilo elegido
+    if (frameStyle === 'traditional_gallo') {
+      // Marco exterior grueso
+      doc.setDrawColor(rgb.r, rgb.g, rgb.b);
+      doc.setLineWidth(1.2);
+      doc.rect(frameX, frameY, frameW, frameH, 'S');
 
-    doc.setFontSize(10);
-    doc.setTextColor(120, 113, 108); // stone-500
-    doc.text(`TABLA #${board.index}`, pageWidth / 2, 20, { align: 'center' });
+      // Filete interior fino
+      doc.setLineWidth(0.4);
+      doc.rect(frameX + 2, frameY + 2, frameW - 4, frameH - 4, 'S');
 
-    // Grid Dimensions
-    const gridMarginX = 14;
-    const gridMarginY = 25;
-    const gridWidth = pageWidth - gridMarginX * 2;
-    const gridHeight = pageHeight - gridMarginY - 14;
+      // Rombos en las 4 esquinas exteriores
+      drawDiamond(frameX + 5, frameY + 5, 2.2);
+      drawDiamond(frameX + frameW - 5, frameY + 5, 2.2);
+      drawDiamond(frameX + 5, frameY + frameH - 5, 2.2);
+      drawDiamond(frameX + frameW - 5, frameY + frameH - 5, 2.2);
 
-    const cellWidth = gridWidth / boardConfig.cols;
-    const cellHeight = gridHeight / boardConfig.rows;
+      // Separador doble de cabecera
+      const divY = frameY + headerHeight;
+      doc.setLineWidth(0.8);
+      doc.line(frameX + 2, divY, frameX + frameW - 2, divY);
+      doc.setLineWidth(0.3);
+      doc.line(frameX + 2, divY + 1.2, frameX + frameW - 2, divY + 1.2);
+    } else if (frameStyle === 'festive_banner') {
+      // Borde exterior
+      doc.setDrawColor(rgb.r, rgb.g, rgb.b);
+      doc.setLineWidth(0.9);
+      doc.rect(frameX, frameY, frameW, frameH, 'S');
+
+      // Bloque sólido de color para el encabezado
+      doc.setFillColor(rgb.r, rgb.g, rgb.b);
+      doc.rect(frameX, frameY, frameW, headerHeight, 'F');
+    } else if (frameStyle === 'talavera_frame') {
+      // Borde exterior
+      doc.setDrawColor(rgb.r, rgb.g, rgb.b);
+      doc.setLineWidth(1.0);
+      doc.rect(frameX, frameY, frameW, frameH, 'S');
+
+      // Marco interior
+      doc.setLineWidth(0.4);
+      doc.rect(frameX + 2.5, frameY + 2.5, frameW - 5, frameH - 5, 'S');
+
+      // Cuadrantes esquineros Talavera
+      const cSz = 4.5;
+      doc.setLineWidth(0.6);
+      doc.rect(frameX, frameY, cSz, cSz, 'S');
+      doc.rect(frameX + frameW - cSz, frameY, cSz, cSz, 'S');
+      doc.rect(frameX, frameY + frameH - cSz, cSz, cSz, 'S');
+      doc.rect(frameX + frameW - cSz, frameY + frameH - cSz, cSz, cSz, 'S');
+
+      drawDiamond(frameX + cSz / 2, frameY + cSz / 2, 1.2);
+      drawDiamond(frameX + frameW - cSz / 2, frameY + cSz / 2, 1.2);
+      drawDiamond(frameX + cSz / 2, frameY + frameH - cSz / 2, 1.2);
+      drawDiamond(frameX + frameW - cSz / 2, frameY + frameH - cSz / 2, 1.2);
+
+      // Separador
+      const divY = frameY + headerHeight;
+      doc.setLineWidth(0.6);
+      doc.line(frameX + 2.5, divY, frameX + frameW - 2.5, divY);
+    } else if (frameStyle === 'clean_minimal') {
+      // Línea fina minimalista
+      doc.setDrawColor(rgb.r, rgb.g, rgb.b);
+      doc.setLineWidth(0.7);
+      doc.rect(frameX, frameY, frameW, frameH, 'S');
+
+      // Separador simple
+      const divY = frameY + headerHeight;
+      doc.setLineWidth(0.4);
+      doc.line(frameX, divY, frameX + frameW, divY);
+    } else {
+      // 'none': Sin marco exterior
+      const divY = frameY + headerHeight;
+      doc.setDrawColor(214, 211, 209); // stone-300
+      doc.setLineWidth(0.4);
+      doc.line(frameX + 12, divY, frameX + frameW - 12, divY);
+    }
+
+    // 2. Encabezado de la tabla (Título, Subtítulo opcional, Número de tabla condicional)
+    const isBanner = frameStyle === 'festive_banner';
+
+    if (hasSub && showNumber) {
+      doc.setFont('times', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.text(title, pageWidth / 2, frameY + 7.5, { align: 'center' });
+
+      doc.setFont('times', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(isBanner ? 254 : 110, isBanner ? 243 : 105, isBanner ? 199 : 100);
+      doc.text(subtitle, pageWidth / 2, frameY + 13, { align: 'center' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(isBanner ? 240 : 120, isBanner ? 240 : 113, isBanner ? 240 : 108);
+      doc.text(`TABLA #${board.index}`, pageWidth / 2, frameY + 18, { align: 'center' });
+    } else if (hasSub) {
+      doc.setFont('times', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.text(title, pageWidth / 2, frameY + 9, { align: 'center' });
+
+      doc.setFont('times', 'italic');
+      doc.setFontSize(9.5);
+      doc.setTextColor(isBanner ? 254 : 110, isBanner ? 243 : 105, isBanner ? 199 : 100);
+      doc.text(subtitle, pageWidth / 2, frameY + 16, { align: 'center' });
+    } else if (showNumber) {
+      doc.setFont('times', 'bold');
+      doc.setFontSize(19);
+      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.text(title, pageWidth / 2, frameY + 9.5, { align: 'center' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(isBanner ? 240 : 120, isBanner ? 240 : 113, isBanner ? 240 : 108);
+      doc.text(`TABLA #${board.index}`, pageWidth / 2, frameY + 15.5, { align: 'center' });
+    } else {
+      // Solo título centrado
+      doc.setFont('times', 'bold');
+      doc.setFontSize(21);
+      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.text(title, pageWidth / 2, frameY + headerHeight / 2 + 2.5, { align: 'center' });
+    }
+
+    // 3. Grid de Casillas (Proporción auténtica de tablero de lotería)
+    const gridInsetX = frameStyle === 'none' ? 2 : frameStyle === 'traditional_gallo' ? 4.5 : 3.5;
+    const gridInsetY = frameStyle === 'none' ? 3 : frameStyle === 'traditional_gallo' ? 4 : 3;
+    const gridBottomPad = frameStyle === 'none' ? 4 : frameStyle === 'traditional_gallo' ? 6 : 4.5;
+
+    const gridX = frameX + gridInsetX;
+    const gridY = frameY + headerHeight + gridInsetY;
+    const gridW = frameW - gridInsetX * 2;
+    const gridH = frameH - headerHeight - gridInsetY - gridBottomPad;
+
+    const cellWidth = gridW / boardConfig.cols;
+    const cellHeight = gridH / boardConfig.rows;
 
     let cardCellIdx = 0;
+    const pad = 0.8;
+    const cardRenderW = cellWidth - pad * 2;
+    const cardRenderH = cellHeight - pad * 2;
+    const canvasPxW = 240;
+    const canvasPxH = Math.round(canvasPxW * (cardRenderH / cardRenderW));
 
     for (let r = 0; r < boardConfig.rows; r++) {
       for (let c = 0; c < boardConfig.cols; c++) {
         if (cardCellIdx >= board.cards.length) break;
 
         const card = board.cards[cardCellIdx];
-        const cellX = gridMarginX + c * cellWidth;
-        const cellY = gridMarginY + r * cellHeight;
+        const cellX = gridX + c * cellWidth + pad;
+        const cellY = gridY + r * cellHeight + pad;
 
-        const cardDataUrl = await drawCardToCanvas(card, cardStyle, 220, 290);
-        doc.addImage(cardDataUrl, 'JPEG', cellX + 1, cellY + 1, cellWidth - 2, cellHeight - 2);
+        const cardDataUrl = await drawCardToCanvas(card, cardStyle, canvasPxW, canvasPxH);
+        doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH);
+
+        // Guía de separación limpia
+        doc.setDrawColor(214, 211, 209);
+        doc.setLineWidth(0.15);
+        doc.rect(cellX, cellY, cardRenderW, cardRenderH, 'S');
 
         cardCellIdx++;
       }

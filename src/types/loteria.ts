@@ -27,12 +27,23 @@ export interface CardStyleConfig {
   fontFamily: 'serif' | 'sans' | 'display';
 }
 
+export type BoardFrameStyle = 
+  | 'traditional_gallo'  // Clásico tradicional con doble ribete y remates
+  | 'festive_banner'     // Cabecera destacada tipo cartel de feria
+  | 'talavera_frame'     // Marco con esquinas ornamentales Talavera
+  | 'clean_minimal'      // Marco fino limpio moderno
+  | 'none';              // Sin marco exterior
+
 export interface BoardConfig {
   rows: number;
   cols: number;
   allowDuplicates: boolean;
   quantity: number;
   title: string;
+  subtitle?: string;
+  showBoardNumber?: boolean;
+  boardFrameStyle?: BoardFrameStyle;
+  boardBorderColor?: string;
 }
 
 export interface GeneratedBoard {

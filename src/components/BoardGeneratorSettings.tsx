@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import { BoardConfig, LoteriaCard, CardStyleConfig, GeneratedBoard } from '../types/loteria';
+import { BoardConfig, LoteriaCard, CardStyleConfig, GeneratedBoard, BoardFrameStyle } from '../types/loteria';
 import { generateBoards } from '../utils/loteriaEngine';
 import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
 import { CardPreview } from './CardPreview';
-import { FileDown, Play, RefreshCw, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useLanguage } from '../i18n/LanguageContext';
+import {
+  FileDown,
+  Play,
+  RefreshCw,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  LayoutTemplate,
+  Palette,
+  Info
+} from 'lucide-react';
+import { useLanguage, TranslationKey } from '../i18n/LanguageContext';
 
 interface BoardGeneratorSettingsProps {
   cards: LoteriaCard[];
@@ -14,6 +25,15 @@ interface BoardGeneratorSettingsProps {
   onBack: () => void;
   onGoToGame: () => void;
 }
+
+const BOARD_COLOR_PALETTES = [
+  { hex: '#164E3D', label: 'Verde Tradicional' },
+  { hex: '#991B1B', label: 'Rojo Patrio' },
+  { hex: '#1E3A8A', label: 'Azul Talavera' },
+  { hex: '#B45309', label: 'Ocre Dorado' },
+  { hex: '#7C2D12', label: 'Barro Cocido' },
+  { hex: '#1C1917', label: 'Negro Carbón' },
+];
 
 export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   cards,
@@ -38,6 +58,38 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     { label: `4 × 4 (16 ${t('cards').toLowerCase()} - ${language === 'en' ? 'Standard' : 'Estándar'})`, rows: 4, cols: 4 },
     { label: `4 × 5 (20 ${t('cards').toLowerCase()})`, rows: 4, cols: 5 },
     { label: `5 × 5 (25 ${t('cards').toLowerCase()})`, rows: 5, cols: 5 },
+  ];
+
+  const frameOptions: {
+    id: BoardFrameStyle;
+    nameKey: TranslationKey;
+    descKey: TranslationKey;
+  }[] = [
+    {
+      id: 'traditional_gallo',
+      nameKey: 'frame_traditional_gallo',
+      descKey: 'frame_traditional_gallo_desc',
+    },
+    {
+      id: 'festive_banner',
+      nameKey: 'frame_festive_banner',
+      descKey: 'frame_festive_banner_desc',
+    },
+    {
+      id: 'talavera_frame',
+      nameKey: 'frame_talavera_board',
+      descKey: 'frame_talavera_board_desc',
+    },
+    {
+      id: 'clean_minimal',
+      nameKey: 'frame_clean_minimal',
+      descKey: 'frame_clean_minimal_desc',
+    },
+    {
+      id: 'none',
+      nameKey: 'frame_none_board',
+      descKey: 'frame_none_board_desc',
+    },
   ];
 
   const handleRegenerate = () => {
@@ -89,6 +141,8 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   };
 
   const currentPreviewBoard = generatedBoards[previewBoardIndex] || generatedBoards[0];
+  const activeFrameStyle = config.boardFrameStyle || 'traditional_gallo';
+  const activeBorderColor = config.boardBorderColor || '#164E3D';
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
@@ -106,14 +160,14 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             {t('back')}
           </button>
           <button
             onClick={onGoToGame}
-            className="flex items-center gap-2 px-4 py-2 bg-stone-900 hover:bg-black text-white rounded-xl font-bold text-xs shadow-xs transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-stone-900 hover:bg-black text-white rounded-xl font-bold text-xs shadow-xs transition-colors cursor-pointer"
           >
             <Play className="w-3.5 h-3.5 fill-white" />
             {t('go_to_game')}
@@ -124,23 +178,137 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Settings Column */}
         <div className="lg:col-span-5 bg-white rounded-2xl border border-stone-200/80 p-5 space-y-5 shadow-2xs">
-          {/* Title */}
+          {/* Official Dimensions Badge */}
+          <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-stone-600 shrink-0 mt-0.5" />
+            <div className="text-[11px] text-stone-600 leading-relaxed">
+              <span className="font-bold text-stone-900 block mb-0.5">
+                {t('official_dimensions_note')}
+              </span>
+              <span>
+                {language === 'en'
+                  ? 'Official authentic proportions adapted for standard Letter & A4 paper printing.'
+                  : 'Proporciones oficiales tradicionales adaptadas con precisión para impresión estándar.'}
+              </span>
+            </div>
+          </div>
+
+          {/* Titles & Subtitle Section */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+                {t('board_title_label')}
+              </label>
+              <input
+                type="text"
+                value={config.title}
+                onChange={(e) => onChangeConfig({ ...config, title: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 font-loteria-title text-sm font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                placeholder={t('board_title_placeholder')}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+                {t('board_subtitle_label')}
+              </label>
+              <input
+                type="text"
+                value={config.subtitle || ''}
+                onChange={(e) => onChangeConfig({ ...config, subtitle: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-800 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                placeholder={t('board_subtitle_placeholder')}
+              />
+            </div>
+
+            {/* Show Board Number Checkbox */}
+            <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/70 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-stone-900">
+                  {t('show_board_number_label')}
+                </p>
+                <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
+                  {t('show_board_number_hint')}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={config.showBoardNumber ?? false}
+                onChange={(e) => onChangeConfig({ ...config, showBoardNumber: e.target.checked })}
+                className="mt-0.5 w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Board Frame Style Selector */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1.5">
-              {t('board_title_label')}
-            </label>
-            <input
-              type="text"
-              value={config.title}
-              onChange={(e) => onChangeConfig({ ...config, title: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-stone-300 font-loteria-title text-sm font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-              placeholder={t('board_title_placeholder')}
-            />
+            <div className="flex items-center gap-1.5 mb-2">
+              <LayoutTemplate className="w-3.5 h-3.5 text-stone-600" />
+              <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                {t('board_frame_style')}
+              </label>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {frameOptions.map((f) => {
+                const isSelected = activeFrameStyle === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => onChangeConfig({ ...config, boardFrameStyle: f.id })}
+                    className={`w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
+                      isSelected
+                        ? 'border-stone-900 bg-stone-900 text-white shadow-xs'
+                        : 'border-stone-200 text-stone-700 hover:border-stone-300 bg-white'
+                    }`}
+                  >
+                    <div>
+                      <p className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-stone-900'}`}>
+                        {t(f.nameKey)}
+                      </p>
+                      <p className={`text-[10px] mt-0.5 ${isSelected ? 'text-stone-300' : 'text-stone-500'}`}>
+                        {t(f.descKey)}
+                      </p>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-white shrink-0 ml-2" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Board Border Color Theme */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Palette className="w-3.5 h-3.5 text-stone-600" />
+              <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                {t('board_color_theme')}
+              </label>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {BOARD_COLOR_PALETTES.map((palette) => {
+                const isSelected = activeBorderColor.toLowerCase() === palette.hex.toLowerCase();
+                return (
+                  <button
+                    key={palette.hex}
+                    type="button"
+                    title={palette.label}
+                    onClick={() => onChangeConfig({ ...config, boardBorderColor: palette.hex })}
+                    className={`w-8 h-8 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
+                      isSelected ? 'scale-110 border-stone-900 shadow-sm' : 'border-white hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: palette.hex }}
+                  >
+                    {isSelected && <Check className="w-4 h-4 text-white drop-shadow-sm" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Grid Presets */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-2">
               {t('board_dimensions')}
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -158,7 +326,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                         alert(err.message);
                       }
                     }}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
                       isSelected
                         ? 'border-stone-900 bg-stone-900 text-white'
                         : 'border-stone-200 text-stone-700 hover:border-stone-300 bg-white'
@@ -219,7 +387,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
 
           <button
             onClick={handleRegenerate}
-            className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-semibold text-xs transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             {t('regenerate_boards')}
@@ -245,14 +413,14 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               <button
                 disabled={isGeneratingCardsPDF}
                 onClick={handleDownloadCardsPDF}
-                className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer"
               >
                 <FileDown className="w-3.5 h-3.5" />
                 {isGeneratingCardsPDF ? t('generating_pdf', { progress: pdfProgress }) : t('download_deck_pdf')}
               </button>
             </div>
 
-            {/* PDF 2 */}
+            {/* PDF 2: Tablas de Lotería */}
             <div className="p-3 rounded-xl border border-stone-200 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-stone-900">{t('pdf_boards_title', { count: generatedBoards.length })}</span>
@@ -261,7 +429,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               <button
                 disabled={isGeneratingBoardsPDF}
                 onClick={handleDownloadBoardsPDF}
-                className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer"
               >
                 <FileDown className="w-3.5 h-3.5" />
                 {isGeneratingBoardsPDF ? t('generating_pdf', { progress: pdfProgress }) : t('download_boards_pdf', { count: generatedBoards.length })}
@@ -280,7 +448,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               <button
                 disabled={previewBoardIndex <= 0}
                 onClick={() => setPreviewBoardIndex(previewBoardIndex - 1)}
-                className="p-1 text-stone-600 hover:text-stone-900 disabled:opacity-30"
+                className="p-1 text-stone-600 hover:text-stone-900 disabled:opacity-30 cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -290,42 +458,131 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               <button
                 disabled={previewBoardIndex >= generatedBoards.length - 1}
                 onClick={() => setPreviewBoardIndex(previewBoardIndex + 1)}
-                className="p-1 text-stone-600 hover:text-stone-900 disabled:opacity-30"
+                className="p-1 text-stone-600 hover:text-stone-900 disabled:opacity-30 cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Board Mockup */}
+          {/* Authentic Board Mockup with Dynamic Frame & Colors */}
           {currentPreviewBoard && (
-            <div className="w-full max-w-md bg-white rounded-2xl border border-stone-300 p-4 shadow-sm">
-              <div className="text-center pb-2 mb-3 border-b border-stone-200">
-                <h2 className="font-loteria-title text-sm sm:text-base font-black text-stone-900 uppercase tracking-wider">
-                  {config.title || t('board_title_placeholder')}
-                </h2>
-                <span className="font-mono text-[10px] text-stone-500 uppercase tracking-widest">
-                  {t('board_prefix')} #{currentPreviewBoard.index}
-                </span>
-              </div>
-
-              {/* Grid Layout - Names adapt and wrap fully with isCompactTable */}
+            <div
+              className="w-full max-w-md bg-white rounded-2xl shadow-md transition-all relative overflow-hidden"
+              style={{
+                borderColor: activeFrameStyle !== 'none' ? activeBorderColor : '#E5E7EB',
+                borderWidth: activeFrameStyle === 'none' ? '1px' : activeFrameStyle === 'traditional_gallo' ? '3.5px' : '2px',
+                borderStyle: activeFrameStyle === 'none' ? 'dashed' : 'solid',
+                padding: activeFrameStyle === 'traditional_gallo' ? '6px' : activeFrameStyle === 'festive_banner' ? '0px' : '10px',
+              }}
+            >
+              {/* Inner wrapper for traditional gallo */}
               <div
-                className="grid gap-1.5"
+                className={`relative ${
+                  activeFrameStyle === 'traditional_gallo'
+                    ? 'p-3 border-1.5'
+                    : activeFrameStyle === 'festive_banner'
+                    ? ''
+                    : activeFrameStyle === 'talavera_frame'
+                    ? 'p-2.5 border'
+                    : activeFrameStyle === 'clean_minimal'
+                    ? 'p-2'
+                    : 'p-2'
+                }`}
                 style={{
-                  gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`
+                  borderColor: activeFrameStyle === 'traditional_gallo' || activeFrameStyle === 'talavera_frame'
+                    ? activeBorderColor
+                    : 'transparent',
                 }}
               >
-                {currentPreviewBoard.cards.map((card, cIdx) => (
-                  <div key={`${currentPreviewBoard.id}-${cIdx}`} className="aspect-[3/4]">
-                    <CardPreview
-                      card={card}
-                      style={cardStyle}
-                      isCompactTable={true}
-                      className="w-full h-full"
-                    />
+                {/* Traditional corner diamond ornaments */}
+                {activeFrameStyle === 'traditional_gallo' && (
+                  <>
+                    <span className="absolute -top-1.5 -left-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -bottom-1.5 -left-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                  </>
+                )}
+
+                {/* Talavera corner bracket squares */}
+                {activeFrameStyle === 'talavera_frame' && (
+                  <>
+                    <span className="absolute top-0 left-0 w-3 h-3 border-r border-b" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute top-0 right-0 w-3 h-3 border-l border-b" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute bottom-0 left-0 w-3 h-3 border-r border-t" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 border-l border-t" style={{ borderColor: activeBorderColor }} />
+                  </>
+                )}
+
+                {/* Header Layout */}
+                {activeFrameStyle === 'festive_banner' ? (
+                  <div
+                    className="text-center py-3 px-4 mb-2.5 transition-colors"
+                    style={{ backgroundColor: activeBorderColor }}
+                  >
+                    <h2 className="font-loteria-title text-sm sm:text-base font-black uppercase tracking-wider text-white">
+                      {config.title || t('board_title_placeholder')}
+                    </h2>
+                    {config.subtitle && (
+                      <p className="text-[11px] italic text-amber-100 font-medium mt-0.5">
+                        {config.subtitle}
+                      </p>
+                    )}
+                    {config.showBoardNumber && (
+                      <span className="inline-block mt-1 font-mono text-[9px] text-white/90 uppercase tracking-widest bg-black/20 px-2 py-0.5 rounded-full">
+                        {t('board_prefix')} #{currentPreviewBoard.index}
+                      </span>
+                    )}
                   </div>
-                ))}
+                ) : (
+                  <div
+                    className={`text-center pb-2 mb-3 ${
+                      activeFrameStyle === 'none' ? 'border-b border-stone-200' : 'border-b'
+                    }`}
+                    style={{
+                      borderColor: activeFrameStyle !== 'none' ? activeBorderColor : undefined,
+                    }}
+                  >
+                    <h2
+                      className="font-loteria-title text-sm sm:text-base font-black uppercase tracking-wider transition-colors"
+                      style={{
+                        color: activeFrameStyle !== 'none' ? activeBorderColor : '#1C1917',
+                      }}
+                    >
+                      {config.title || t('board_title_placeholder')}
+                    </h2>
+                    {config.subtitle && (
+                      <p className="text-[11px] italic text-stone-600 font-medium mt-0.5">
+                        {config.subtitle}
+                      </p>
+                    )}
+                    {config.showBoardNumber && (
+                      <span className="inline-block mt-1 font-mono text-[10px] text-stone-500 uppercase tracking-widest">
+                        {t('board_prefix')} #{currentPreviewBoard.index}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Grid Layout inside preview */}
+                <div
+                  className={`grid gap-1.5 ${activeFrameStyle === 'festive_banner' ? 'p-3' : ''}`}
+                  style={{
+                    gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`
+                  }}
+                >
+                  {currentPreviewBoard.cards.map((card, cIdx) => (
+                    <div key={`${currentPreviewBoard.id}-${cIdx}`} className="aspect-[3/4]">
+                      <CardPreview
+                        card={card}
+                        style={cardStyle}
+                        isCompactTable={true}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
