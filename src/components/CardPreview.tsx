@@ -222,10 +222,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         <div
           className={`w-full text-center z-10 ${
             isBoard
-              ? `pt-0.5 pb-0 ${style.numberPosition === 'top-right' ? 'pr-2.5 pl-0.5' : style.numberPosition === 'top-left' ? 'pl-2.5 pr-0.5' : 'px-0.5'}`
+              ? 'pt-0.5 pb-0 px-0.5'
               : isGrid
-              ? `pt-1 sm:pt-1.5 pb-0.5 ${style.numberPosition === 'top-right' ? 'pr-7 pl-1.5' : style.numberPosition === 'top-left' ? 'pl-7 pr-1.5' : 'px-2'}`
-              : `pt-2 sm:pt-2.5 pb-1 ${style.numberPosition === 'top-right' ? 'pr-9 pl-3' : style.numberPosition === 'top-left' ? 'pl-9 pr-3' : 'px-4'}`
+              ? 'pt-1 sm:pt-1.5 pb-0.5 px-2'
+              : 'pt-2 sm:pt-2.5 pb-1 px-4'
           }`}
         >
           <h4
@@ -260,10 +260,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         <div
           className={`w-full text-center z-10 ${
             isBoard
-              ? `pt-0 pb-0.5 ${style.numberPosition === 'bottom-right' ? 'pr-2.5 pl-0.5' : style.numberPosition === 'bottom-left' ? 'pl-2.5 pr-0.5' : 'px-0.5'}`
+              ? 'pt-0 pb-0.5 px-0.5'
               : isGrid
-              ? `pt-0.5 pb-1 sm:pb-1.5 ${style.numberPosition === 'bottom-right' ? 'pr-7 pl-1.5' : style.numberPosition === 'bottom-left' ? 'pl-7 pr-1.5' : 'px-2'}`
-              : `pt-0.5 pb-2 sm:pb-2.5 ${style.numberPosition === 'bottom-right' ? 'pr-9 pl-3' : style.numberPosition === 'bottom-left' ? 'pl-9 pr-3' : 'px-4'}`
+              ? 'pt-0.5 pb-1 sm:pb-1.5 px-2'
+              : 'pt-0.5 pb-2 sm:pb-2.5 px-4'
           }`}
         >
           <h4
