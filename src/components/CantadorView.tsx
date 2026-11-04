@@ -489,28 +489,14 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
           </span>
         </div>
 
-        {/* Acciones superiores (Únicamente Silencio y Ajustes) */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsMuted(!isMuted)}
-            className={`p-2 rounded-xl transition-colors border shadow-2xs cursor-pointer ${
-              isMuted
-                ? 'text-rose-600 bg-rose-100/80 border-rose-300'
-                : 'text-[#5C381E] bg-[#EFE3D3] hover:bg-[#E5D5C0] border-[#DFC7B0]'
-            }`}
-            title={isMuted ? 'Sonido silenciado' : 'Silenciar'}
-          >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className="p-2 rounded-xl text-[#5C381E] bg-[#EFE3D3] hover:bg-[#E5D5C0] border border-[#DFC7B0] shadow-2xs transition-colors cursor-pointer"
-            title={t('settings_title')}
-          >
-            <Sliders className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Acción superior: únicamente Ajustes */}
+        <button
+          onClick={() => setShowSettingsModal(true)}
+          className="p-2 rounded-xl text-[#5C381E] bg-[#EFE3D3] hover:bg-[#E5D5C0] border border-[#DFC7B0] shadow-2xs transition-colors cursor-pointer"
+          title={t('settings_title')}
+        >
+          <Sliders className="w-4 h-4" />
+        </button>
       </div>
 
       {/* 2. ESCENARIO CENTRAL (Carta Principal) */}
@@ -720,12 +706,27 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               <h3 className="font-serif font-black text-lg text-stone-900 tracking-tight">
                 {t('settings_title')}
               </h3>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="p-1 rounded-full text-stone-400 hover:text-stone-800 hover:bg-stone-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMuted(!isMuted)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    isMuted
+                      ? 'text-rose-700 bg-rose-50 border-rose-200'
+                      : 'text-stone-700 bg-stone-100 hover:bg-stone-200 border-stone-200'
+                  }`}
+                  title={isMuted ? 'Activar sonido' : 'Silenciar'}
+                >
+                  {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-600" /> : <Volume2 className="w-3.5 h-3.5 text-stone-600" />}
+                  <span>{isMuted ? (language === 'en' ? 'Muted' : 'Silenciado') : (language === 'en' ? 'Mute' : 'Silenciar')}</span>
+                </button>
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="p-1 rounded-full text-stone-400 hover:text-stone-800 hover:bg-stone-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Selector de Idioma (Español / English) */}
