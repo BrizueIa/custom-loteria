@@ -11,7 +11,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function hexToRgb(hex?: string): { r: number; g: number; b: number } {
+export function hexToRgb(hex?: string): { r: number; g: number; b: number } {
   if (!hex) return { r: 22, g: 78, b: 61 }; // Default #164E3D
   let clean = hex.replace('#', '');
   if (clean.length === 3) {
@@ -279,12 +279,13 @@ export async function generateCardsPDF(
   cards: LoteriaCard[],
   style: CardStyleConfig,
   _cardsPerPage: number = 4,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  paperSize: 'letter' | 'a4' = 'letter'
 ): Promise<Blob> {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'letter'
+    format: paperSize
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -343,12 +344,13 @@ export async function generateBoardsPDF(
   boards: GeneratedBoard[],
   boardConfig: BoardConfig,
   cardStyle: CardStyleConfig,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  paperSize: 'letter' | 'a4' = 'letter'
 ): Promise<Blob> {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'letter'
+    format: paperSize
   });
 
   const pageWidth = doc.internal.pageSize.getWidth(); // 215.9 mm

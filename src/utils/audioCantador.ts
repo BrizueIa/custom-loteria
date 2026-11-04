@@ -85,6 +85,12 @@ export function getVoicesCatalog(lang: 'es' | 'en'): VoiceProfile[] {
   return lang === 'en' ? ENGLISH_VOICES : SPANISH_VOICES;
 }
 
+export function getAssetUrl(path: string): string {
+  const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL ? import.meta.env.BASE_URL : './';
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return base.endsWith('/') ? `${base}${cleanPath}` : `${base}/${cleanPath}`;
+}
+
 class AudioCantador {
   private currentAudio: HTMLAudioElement | null = null;
   private currentAudioResolve: ((val: boolean) => void) | null = null;
@@ -237,8 +243,14 @@ class AudioCantador {
     });
   }
 
-  // Speak using device Web Speech API (fallback for custom cards)
-  speakWebSpeech(text: string, voiceURI?: string, rate: number = 1.0, onCountdownReady?: () => void): Promise<boolean> {
+  // Speak using device Web Speech API (fallback for custom cards & offline environments)
+  speakWebSpeech(
+    text: string,
+    voiceURI?: string,
+    rate: number = 1.0,
+    onCountdownReady?: () => void,
+    voiceId: VoiceId = 'dona_plantas'
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
         if (onCountdownReady) onCountdownReady();
@@ -295,12 +307,31 @@ class AudioCantador {
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.rate = rate;
 
+          const isEnglish = voiceId.endsWith('_us') || voiceId.endsWith('_uk');
+          const defaultLang = isEnglish
+            ? (voiceId.endsWith('_uk') ? 'en-GB' : 'en-US')
+            : (voiceId === 'sobrina' ? 'es-ES' : voiceId === 'locutor' ? 'es-CO' : 'es-MX');
+
           const voices = window.speechSynthesis.getVoices();
           if (voiceURI) {
             const chosen = voices.find(v => v.voiceURI === voiceURI);
-            if (chosen) utterance.voice = chosen;
+            if (chosen) {
+              utterance.voice = chosen;
+              utterance.lang = chosen.lang || defaultLang;
+            } else {
+              utterance.lang = defaultLang;
+            }
+          } else {
+            // Find best matching voice for target language
+            const matchingVoice = voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith(defaultLang.toLowerCase())) ||
+              voices.find(v => v.lang.toLowerCase().startsWith(isEnglish ? 'en' : 'es'));
+            if (matchingVoice) {
+              utterance.voice = matchingVoice;
+              utterance.lang = matchingVoice.lang;
+            } else {
+              utterance.lang = defaultLang;
+            }
           }
-          utterance.lang = 'es-MX';
 
           // Estimar duración para disparar en el último segundo (~15 caracteres por segundo)
           const estimatedDurationSec = Math.max(1.0, (text.length / 15) / (rate || 1.0));
@@ -335,8 +366,8 @@ class AudioCantador {
     const proxyPlayed = await this.playAudioUrl(proxyUrl, rate, onCountdownReady);
     if (proxyPlayed) return true;
 
-    // 2. Fallback to Web Speech API (device voice synthesis in Spanish for any card name)
-    const webSpeechOk = await this.speakWebSpeech(textToSpeak, systemVoiceURI, rate, onCountdownReady);
+    // 2. Fallback to Web Speech API (device voice synthesis in proper language)
+    const webSpeechOk = await this.speakWebSpeech(textToSpeak, systemVoiceURI, rate, onCountdownReady, voiceId);
     if (webSpeechOk) return true;
 
     return false;
@@ -360,18 +391,22 @@ class AudioCantador {
     const ok = await this.playAudioUrl(proxyUrl, rate);
     if (ok) return;
 
-    // Fallbacks
-    const primaryUrl = `/audio/voices/${voiceId}/${specialKey}.mp3`;
+    // Fallbacks to static assets
+    const primaryUrl = getAssetUrl(`audio/voices/${voiceId}/${specialKey}.mp3`);
     const okStatic = await this.playAudioUrl(primaryUrl, rate);
     if (okStatic) return;
 
-    const specialUrl = `/audio/voices/${voiceId}/special-${specialKey}.mp3`;
+    const specialUrl = getAssetUrl(`audio/voices/${voiceId}/special-${specialKey}.mp3`);
     const ok2 = await this.playAudioUrl(specialUrl, rate);
     if (ok2) return;
 
     if (specialKey === 'buenas') {
-      await this.playAudioUrl('/audio/buenas.mp3', rate);
+      const okBuenas = await this.playAudioUrl(getAssetUrl('audio/buenas.mp3'), rate);
+      if (okBuenas) return;
     }
+
+    // Ultimate fallback for pure static hosting without backend: Web Speech API
+    await this.speakWebSpeech(phrase, undefined, rate, undefined, voiceId);
   }
 
   stop() {
@@ -403,7 +438,7 @@ class AudioCantador {
   playShuffleSound(volume: number = 0.85): void {
     try {
       this.stopShuffle();
-      const audio = new Audio('/audio/barajar.mp3');
+      const audio = new Audio(getAssetUrl('audio/barajar.mp3'));
       audio.volume = Math.max(0, Math.min(1, volume));
       this.shuffleAudio = audio;
 
@@ -470,7 +505,7 @@ class AudioCantador {
         this.applauseAudio.pause();
         this.applauseAudio.currentTime = 0;
       }
-      const audio = new Audio('/audio/aplausos.mp3');
+      const audio = new Audio(getAssetUrl('audio/aplausos.mp3'));
       audio.volume = Math.max(0, Math.min(1, volume));
       this.applauseAudio = audio;
 

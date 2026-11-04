@@ -88,11 +88,7 @@ function MainApp() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_BOARD);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.title && (parsed.title.includes('PLANTAS') || parsed.title.includes('SEÑORA'))) {
-          parsed.title = 'LOTERÍA';
-        }
-        return parsed;
+        return JSON.parse(saved);
       }
     } catch (e) {
       console.error(e);
@@ -193,6 +189,7 @@ function MainApp() {
               onUpdateBoardConfig={setBoardConfig}
               onGoToGame={() => setActiveTab('game')}
               onLockGenerator={handleLockGenerator}
+              onImportDeck={handleImportDeck}
             />
           </div>
         ) : (

@@ -4,6 +4,7 @@ import { CardPreview } from './CardPreview';
 import { ChevronLeft, ChevronRight, Upload, LayoutGrid, ArrowLeftRight, Trash2, Eye, X } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder } from '../data/defaultCards';
+import { optimizeImage } from '../utils/imageOptimizer';
 
 interface SwipeCardEditorProps {
   cards: LoteriaCard[];
@@ -39,21 +40,21 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
     else onSelectIndex(0);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const dataUrl = await optimizeImage(file);
       if (dataUrl) {
         onUpdateCard({
           ...currentCard,
           image: dataUrl
         });
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error optimizing image:', err);
+    }
     if (e.target) e.target.value = '';
   };
 

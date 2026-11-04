@@ -8,7 +8,9 @@ import { DownloadPDFView } from './DownloadPDFView';
 import { swapCardNumbers } from '../utils/loteriaEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder, DEFAULT_CARDS } from '../data/defaultCards';
-import { Images, LayoutGrid, Volume2, Lock, Globe } from 'lucide-react';
+import { exportDeckToJson, validateAndParseDeckJson } from '../utils/deckIO';
+import { optimizeImage, isSvgDataUrl } from '../utils/imageOptimizer';
+import { Images, LayoutGrid, Volume2, Lock, Globe, Download, Upload } from 'lucide-react';
 
 interface GeneratorViewProps {
   cards: LoteriaCard[];
@@ -19,6 +21,7 @@ interface GeneratorViewProps {
   onUpdateBoardConfig: (config: BoardConfig) => void;
   onGoToGame: () => void;
   onLockGenerator?: () => void;
+  onImportDeck?: (imported: { cards: LoteriaCard[]; style: CardStyleConfig; boardConfig: BoardConfig }) => void;
 }
 
 export const GeneratorView: React.FC<GeneratorViewProps> = ({
@@ -30,8 +33,10 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   onUpdateBoardConfig,
   onGoToGame,
   onLockGenerator,
+  onImportDeck,
 }) => {
   const { t, language, toggleLanguage } = useLanguage();
+  const jsonFileInputRef = React.useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState<GeneratorStep>('cards_input');
   const [subView, setSubView] = useState<'grid' | 'swipe'>('grid');
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
@@ -48,33 +53,80 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
     onUpdateCards(swapped);
   };
 
-  const handleBatchUpload = (files: FileList) => {
+  const handleBatchUpload = async (files: FileList) => {
     const fileArray = Array.from(files).slice(0, 54);
     if (fileArray.length === 0) return;
 
-    let loadedCount = 0;
-    const newCards = [...cards];
+    let startIdx = 0;
+    const firstEmptyIdx = cards.findIndex(c => isSvgDataUrl(c.image));
+    if (firstEmptyIdx > 0 && firstEmptyIdx < cards.length) {
+      const fillFromEmpty = window.confirm(
+        language === 'en'
+          ? `Add these photos starting from empty card #${firstEmptyIdx + 1}? (Click Cancel to replace from card #1)`
+          : `¿Deseas agregar estas fotos a partir de la carta vacía #${firstEmptyIdx + 1}? (Pulsa Cancelar para reemplazar desde la #1)`
+      );
+      if (fillFromEmpty) {
+        startIdx = firstEmptyIdx;
+      }
+    }
 
-    fileArray.forEach((file, index) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        if (dataUrl && newCards[index]) {
+    const newCards = [...cards];
+    let loadedCount = 0;
+
+    for (let i = 0; i < fileArray.length; i++) {
+      const targetIndex = (startIdx + i) % 54;
+      const file = fileArray[i];
+      try {
+        const dataUrl = await optimizeImage(file);
+        if (dataUrl && newCards[targetIndex]) {
           const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-          newCards[index] = {
-            ...newCards[index],
-            name: cleanName || newCards[index].name,
+          newCards[targetIndex] = {
+            ...newCards[targetIndex],
+            name: cleanName || newCards[targetIndex].name,
             image: dataUrl
           };
+          loadedCount++;
         }
-        loadedCount++;
-        if (loadedCount === fileArray.length) {
-          onUpdateCards([...newCards]);
-          alert(`Se cargaron ${fileArray.length} fotos a la baraja.`);
+      } catch (err) {
+        console.error('Error optimizing batch image:', err);
+      }
+    }
+
+    onUpdateCards(newCards);
+    alert(
+      language === 'en'
+        ? `Successfully loaded and optimized ${loadedCount} photos.`
+        : `Se cargaron y optimizaron ${loadedCount} fotos para la baraja.`
+    );
+  };
+
+  const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const res = validateAndParseDeckJson(content);
+      if (res.success && res.data) {
+        if (onImportDeck) {
+          onImportDeck({
+            cards: res.data.cards,
+            style: res.data.style || cardStyle,
+            boardConfig: res.data.boardConfig || boardConfig
+          });
+        } else {
+          onUpdateCards(res.data.cards);
+          if (res.data.style) onUpdateCardStyle(res.data.style);
+          if (res.data.boardConfig) onUpdateBoardConfig(res.data.boardConfig);
         }
-      };
-      reader.readAsDataURL(file);
-    });
+        alert(t('deck_imported_success'));
+      } else {
+        alert(res.error || t('deck_import_error'));
+      }
+    };
+    reader.readAsText(file);
+    if (e.target) e.target.value = '';
   };
 
   const handleClearAllImages = () => {
@@ -103,15 +155,35 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   return (
     <div className="w-full space-y-3 pb-8">
       {/* Top Controls of Generator */}
-      <div className="flex items-center justify-between gap-2 max-w-2xl mx-auto bg-white/90 backdrop-blur-md rounded-2xl border border-stone-200/80 p-2 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 max-w-2xl mx-auto bg-white/90 backdrop-blur-md rounded-2xl border border-stone-200/80 p-2 shadow-2xs">
         <button
           onClick={onGoToGame}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
           title={t('go_to_game')}
         >
           <Volume2 className="w-3.5 h-3.5" />
           <span>{t('go_to_game')}</span>
         </button>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => exportDeckToJson(cards, cardStyle, boardConfig)}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-stone-200"
+            title={t('export_deck')}
+          >
+            <Download className="w-3.5 h-3.5 text-stone-600" />
+            <span className="hidden sm:inline">{t('export_deck')}</span>
+          </button>
+
+          <button
+            onClick={() => jsonFileInputRef.current?.click()}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-stone-200"
+            title={t('import_deck')}
+          >
+            <Upload className="w-3.5 h-3.5 text-stone-600" />
+            <span className="hidden sm:inline">{t('import_deck')}</span>
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
           <span className="font-serif font-black text-xs text-stone-800 uppercase tracking-wider">
@@ -119,24 +191,32 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           </span>
           <button
             onClick={toggleLanguage}
-            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-black bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-black bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg transition-colors cursor-pointer"
             title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
           >
             <Globe className="w-3 h-3 text-[#B45309]" />
             <span>{language.toUpperCase()}</span>
           </button>
+
+          {onLockGenerator && (
+            <button
+              onClick={onLockGenerator}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              title={t('lock_client')}
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-700" />
+              <span className="hidden xs:inline">{t('lock_client')}</span>
+            </button>
+          )}
         </div>
 
-        {onLockGenerator && (
-          <button
-            onClick={onLockGenerator}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-all"
-            title={t('lock_client')}
-          >
-            <Lock className="w-3.5 h-3.5 text-amber-700" />
-            <span className="hidden xs:inline">{t('lock_client')}</span>
-          </button>
-        )}
+        <input
+          ref={jsonFileInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleJsonImport}
+        />
       </div>
 
       {/* Super Compact Segmented Steps Navigation */}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LoteriaCard, CardStyleConfig, BoardConfig } from '../types/loteria';
 import { shuffleArray } from '../utils/loteriaEngine';
-import { audioCantador, VoiceId, getVoicesCatalog } from '../utils/audioCantador';
-import { exportDeckToJson } from '../utils/deckIO';
+import { audioCantador, VoiceId, getVoicesCatalog, getAssetUrl } from '../utils/audioCantador';
+import { exportDeckToJson, validateAndParseDeckJson } from '../utils/deckIO';
 import { CardPreview } from './CardPreview';
 import { useLanguage } from '../i18n/LanguageContext';
 import confetti from 'canvas-confetti';
@@ -65,6 +65,42 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   useEffect(() => {
     setTimeRemaining(intervalSeconds * 1000);
   }, [intervalSeconds]);
+
+  // Keep screen awake while game is calling cards
+  useEffect(() => {
+    let wakeLockSentinel: any = null;
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && isPlaying) {
+        try {
+          wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          // Wake lock not permitted or unsupported
+        }
+      }
+    };
+
+    if (isPlaying) {
+      requestWakeLock();
+    }
+
+    return () => {
+      if (wakeLockSentinel) {
+        wakeLockSentinel.release().catch(() => {});
+      }
+    };
+  }, [isPlaying]);
+
+  // Sync shuffled deck immediately when active deck cards change (e.g. from editor or import)
+  useEffect(() => {
+    setShuffledDeck(shuffleArray(cards));
+    setCurrentIndex(-1);
+    setIsPlaying(false);
+    setIsAnnouncing(false);
+    setGameEnded(false);
+    setHasCalledBuenas(false);
+    setTimeRemaining(intervalSeconds * 1000);
+    audioCantador.stop();
+  }, [cards]);
 
   // Modals & Panels
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
@@ -444,16 +480,16 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        const parsed = JSON.parse(content);
-        if (parsed.cards && Array.isArray(parsed.cards)) {
+        const res = validateAndParseDeckJson(content);
+        if (res.success && res.data) {
           onImportDeck({
-            cards: parsed.cards,
-            style: parsed.cardStyle || cardStyle,
-            boardConfig: parsed.boardConfig || boardConfig
+            cards: res.data.cards,
+            style: res.data.style || cardStyle,
+            boardConfig: res.data.boardConfig || boardConfig
           });
           alert(t('deck_imported_success'));
         } else {
-          alert(t('deck_import_error'));
+          alert(res.error || t('deck_import_error'));
         }
       } catch (err) {
         alert(t('deck_import_read_error'));
@@ -512,7 +548,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
         ) : (
           <div className="h-full max-h-[380px] aspect-[3/4] bg-[#FFFDF9] rounded-3xl border-2 border-dashed border-[#DFCBB5] flex flex-col items-center justify-center p-6 text-center space-y-4 shadow-sm">
             <img
-              src="/logo.png"
+              src={getAssetUrl('logo.png')}
               alt="Custom Lotería"
               className="w-20 h-20 object-contain drop-shadow-md select-none"
             />

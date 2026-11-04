@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BoardConfig, LoteriaCard, CardStyleConfig } from '../types/loteria';
 import { generateBoards } from '../utils/loteriaEngine';
 import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
+import { exportDeckToJson } from '../utils/deckIO';
 import { FileDown, Play, ArrowLeft, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -21,6 +22,7 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
   onGoToGame,
 }) => {
   const { t, language } = useLanguage();
+  const [paperSize, setPaperSize] = useState<'letter' | 'a4'>('letter');
   const [isGeneratingCardsPDF, setIsGeneratingCardsPDF] = useState(false);
   const [isGeneratingBoardsPDF, setIsGeneratingBoardsPDF] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
@@ -29,11 +31,11 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
     try {
       setIsGeneratingCardsPDF(true);
       setPdfProgress(0);
-      const blob = await generateCardsPDF(cards, cardStyle, 4, (pct) => setPdfProgress(pct));
+      const blob = await generateCardsPDF(cards, cardStyle, 4, (pct) => setPdfProgress(pct), paperSize);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `baraja-54-cartas-4-por-hoja.pdf`;
+      a.download = `baraja-54-cartas-4-por-hoja-${paperSize}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -49,11 +51,11 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
       setIsGeneratingBoardsPDF(true);
       setPdfProgress(0);
       const boards = generateBoards(cards, boardConfig);
-      const blob = await generateBoardsPDF(boards, boardConfig, cardStyle, (pct) => setPdfProgress(pct));
+      const blob = await generateBoardsPDF(boards, boardConfig, cardStyle, (pct) => setPdfProgress(pct), paperSize);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `tablas-loteria-${boardConfig.quantity}-tablas.pdf`;
+      a.download = `tablas-loteria-${boardConfig.quantity}-tablas-${paperSize}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -79,6 +81,31 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
             ? 'Your 54 deck cards and custom boards are ready. Download the high-resolution PDFs below to cut and play.'
             : 'Tu baraja de 54 cartas y tus tablas personalizadas están listas. Descarga los archivos PDF para imprimir en papel Carta o A4.'}
         </p>
+
+        {/* Paper Size selector */}
+        <div className="flex items-center justify-between pt-2 border-t border-stone-100 max-w-xs mx-auto">
+          <span className="text-[11px] font-bold text-stone-600">
+            {language === 'en' ? 'Paper format:' : 'Tamaño de papel:'}
+          </span>
+          <div className="flex items-center gap-1 bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs">
+            <button
+              onClick={() => setPaperSize('letter')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                paperSize === 'letter' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              Carta (Letter)
+            </button>
+            <button
+              onClick={() => setPaperSize('a4')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                paperSize === 'a4' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              A4
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Card 1: Baraja PDF */}
@@ -138,6 +165,36 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
           {isGeneratingBoardsPDF
             ? t('generating_pdf', { progress: pdfProgress })
             : t('download_boards_pdf', { count: boardConfig.quantity })}
+        </button>
+      </div>
+
+      {/* Card 3: Respaldo editable Baraja JSON */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-stone-900 text-sm">
+                {language === 'en' ? '3. Project Backup (.json)' : '3. Respaldo de Proyecto (.json)'}
+              </span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            </div>
+            <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
+              {language === 'en'
+                ? 'Save your custom deck file so you can reopen, edit, or play anytime.'
+                : 'Guarda tu archivo de baraja para volver a editarla, actualizar fotos o compartirla.'}
+            </p>
+          </div>
+          <span className="bg-blue-50 text-blue-800 font-bold px-2 py-0.5 rounded-md border border-blue-200 text-[10px] shrink-0">
+            JSON
+          </span>
+        </div>
+
+        <button
+          onClick={() => exportDeckToJson(cards, cardStyle, boardConfig)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs border border-stone-300"
+        >
+          <FileDown className="w-4 h-4 text-stone-600" />
+          <span>{t('export_deck')}</span>
         </button>
       </div>
 
