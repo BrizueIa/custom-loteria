@@ -172,48 +172,58 @@ async function drawCardToCanvas(
     ctx.strokeRect(width - 14, height - 14, 8, 8);
   } else if (style.frameStyle === 'botanical_litho') {
     ctx.lineWidth = 1.8;
+    ctx.strokeStyle = style.borderColor || '#1C1917';
     ctx.strokeRect(6, 6, width - 12, height - 12);
     ctx.lineWidth = 0.6;
+    ctx.strokeStyle = '#78716c';
     ctx.strokeRect(9, 9, width - 18, height - 18);
-    // Corner rosettes
+    // Corner rosettes (each must be an isolated subpath to avoid connecting diagonals)
     ctx.fillStyle = style.borderColor || '#1C1917';
-    ctx.beginPath();
-    ctx.arc(10, 10, 2.5, 0, Math.PI * 2);
-    ctx.arc(width - 10, 10, 2.5, 0, Math.PI * 2);
-    ctx.arc(10, height - 10, 2.5, 0, Math.PI * 2);
-    ctx.arc(width - 10, height - 10, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    const drawRosette = (cx: number, cy: number) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    drawRosette(10, 10);
+    drawRosette(width - 10, 10);
+    drawRosette(10, height - 10);
+    drawRosette(width - 10, height - 10);
   } else if (style.frameStyle === 'editorial_luxury') {
     ctx.lineWidth = 0.8;
+    ctx.strokeStyle = '#d6d3d1';
     ctx.strokeRect(8, 8, width - 16, height - 16);
     // Corner registration marks
     ctx.font = '10px monospace';
     ctx.fillStyle = '#78716c';
-    ctx.fillText('+', 8, 11);
-    ctx.fillText('+', width - 8, 11);
-    ctx.fillText('+', 8, height - 6);
-    ctx.fillText('+', width - 8, height - 6);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('+', 8, 8);
+    ctx.fillText('+', width - 8, 8);
+    ctx.fillText('+', 8, height - 8);
+    ctx.fillText('+', width - 8, height - 8);
   } else if (style.frameStyle === 'organic_floral') {
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = '#065f46';
+    ctx.strokeStyle = style.borderColor || '#065f46';
     ctx.strokeRect(6, 6, width - 12, height - 12);
     // Leaf flourishes
-    ctx.fillStyle = '#065f46';
+    ctx.fillStyle = style.borderColor || '#065f46';
     ctx.font = '11px serif';
-    ctx.fillText('❦', 11, 15);
-    ctx.fillText('❦', width - 11, 15);
-    ctx.fillText('❦', 11, height - 9);
-    ctx.fillText('❦', width - 11, height - 9);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('❦', 11, 11);
+    ctx.fillText('❦', width - 11, 11);
+    ctx.fillText('❦', 11, height - 11);
+    ctx.fillText('❦', width - 11, height - 11);
   } else {
     // classic_loteria
     ctx.lineWidth = 3;
+    ctx.strokeStyle = style.borderColor || '#1C1917';
     ctx.strokeRect(6, 6, width - 12, height - 12);
     // Diamonds in corners
     ctx.fillStyle = '#b45309';
     const drawDiamond = (cx: number, cy: number, sz: number) => {
       ctx.beginPath();
       ctx.moveTo(cx, cy - sz);
-      ctx.lineTo(cx + sz, cy);
       ctx.lineTo(cx + sz, cy);
       ctx.lineTo(cx, cy + sz);
       ctx.lineTo(cx - sz, cy);
@@ -260,6 +270,7 @@ async function drawCardToCanvas(
   ctx.fillText(numText, numX, numY);
 
   // 5. Draw Adaptive Name & Tagline (Layer 5 - on top of everything)
+  const baseFontSize = width >= 280 ? 15 : 13;
   const maxTextWidth = width - 42;
   drawAdaptiveText(
     ctx,
@@ -267,8 +278,8 @@ async function drawCardToCanvas(
     width / 2,
     nameCenterY,
     maxTextWidth,
-    13,
-    '"Playfair Display", Georgia, serif',
+    baseFontSize,
+    '"Fraunces", "Playfair Display", Georgia, serif',
     style.textColor || '#1C1917'
   );
 
