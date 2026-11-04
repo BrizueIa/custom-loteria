@@ -4,8 +4,10 @@ import { DEFAULT_CARDS } from './data/defaultCards';
 import { GeneratorView } from './components/GeneratorView';
 import { CantadorView } from './components/CantadorView';
 import { PasswordModal } from './components/PasswordModal';
+import { QRTransferModal } from './components/QRTransferModal';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
-import { loadCardsFromStorage, debounceSaveCards, clearDeckStorage } from './utils/deckStorage';
+import { loadCardsFromStorage, debounceSaveCards, saveCardsToStorage, clearDeckStorage } from './utils/deckStorage';
+import { SyncDeckPayload } from './utils/p2pDeckSync';
 
 const STORAGE_KEY_CARDS = 'loteria_cards_v3';
 const STORAGE_KEY_STYLE = 'loteria_style_v3';
@@ -59,6 +61,28 @@ function MainApp() {
   const [isSessionUnlocked, setIsSessionUnlocked] = useState<boolean>(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
   const [passwordModalMode, setPasswordModalMode] = useState<'unlock' | 'change_password'>('unlock');
+
+  // P2P QR Transfer Modal state
+  const [isQRModalOpen, setIsQRModalOpen] = useState<boolean>(false);
+  const [qrModalMode, setQrModalMode] = useState<'send' | 'receive'>('send');
+  const [qrInitialCode, setQrInitialCode] = useState<string>('');
+
+  // Check URL query parameters on initial mount (?sync=XXXXXX)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const syncParam = params.get('sync');
+      if (syncParam) {
+        setQrInitialCode(syncParam);
+        setQrModalMode('receive');
+        setIsQRModalOpen(true);
+        // Clean up URL without triggering re-render/reload
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    } catch (_) {}
+  }, []);
 
   // Active tab: if locked and not session unlocked, always default to 'game'
   const [activeTab, setActiveTab] = useState<AppTab>(() => {
@@ -188,7 +212,39 @@ function MainApp() {
     setIsPasswordModalOpen(true);
   };
 
+  const handleOpenQRModal = (mode: 'send' | 'receive') => {
+    setQrModalMode(mode);
+    setQrInitialCode('');
+    setIsQRModalOpen(true);
+  };
+
+  const handleCompleteP2PSync = async (payload: SyncDeckPayload) => {
+    if (payload.parsedDeck) {
+      setCards(payload.parsedDeck.cards);
+      if (payload.parsedDeck.cardStyle) setCardStyle(payload.parsedDeck.cardStyle);
+      if (payload.parsedDeck.boardConfig) setBoardConfig(payload.parsedDeck.boardConfig);
+      await saveCardsToStorage(payload.parsedDeck.cards);
+    }
+    if (payload.lockOnReceive) {
+      if (payload.adminPin) {
+        setAdminPassword(payload.adminPin);
+      }
+      setIsLocked(true);
+      setIsSessionUnlocked(false);
+      setActiveTab('game');
+    }
+  };
+
   const canAccessGenerator = !isLocked || isSessionUnlocked;
+
+  const currentDeckJson = JSON.stringify({
+    version: 1,
+    name: boardConfig.title || 'Lotería Personalizada',
+    exportDate: new Date().toISOString(),
+    cards,
+    cardStyle,
+    boardConfig
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F6EFE6] text-[#3D2514] select-none">
@@ -206,6 +262,7 @@ function MainApp() {
               onGoToGame={() => setActiveTab('game')}
               onLockGenerator={handleLockGenerator}
               onImportDeck={handleImportDeck}
+              onOpenQRModal={handleOpenQRModal}
             />
           </div>
         ) : (
@@ -219,6 +276,7 @@ function MainApp() {
             onOpenPasswordModal={handleOpenPasswordModal}
             onImportDeck={handleImportDeck}
             onResetToDefault={handleResetToDefault}
+            onOpenQRModal={handleOpenQRModal}
           />
         )}
       </main>
@@ -232,6 +290,18 @@ function MainApp() {
         onUpdatePassword={setAdminPassword}
         mode={passwordModalMode}
         setMode={setPasswordModalMode}
+      />
+
+      {/* P2P QR Transfer Modal */}
+      <QRTransferModal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        mode={qrModalMode}
+        initialCode={qrInitialCode}
+        deckPackageJson={currentDeckJson}
+        deckName={boardConfig.title || 'Lotería Personalizada'}
+        currentAdminPin={adminPassword}
+        onCompleteSync={handleCompleteP2PSync}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { generateBoards } from '../utils/loteriaEngine';
 import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
 import { CardPreview } from './CardPreview';
 import { exportDeckToJson } from '../utils/deckIO';
-import { FileDown, Play, ArrowLeft, Sparkles, CheckCircle2, RefreshCw, Smartphone, Lock, HardDrive } from 'lucide-react';
+import { FileDown, Play, ArrowLeft, Sparkles, CheckCircle2, RefreshCw, Smartphone, Lock, HardDrive, QrCode } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { subscribePWA, promptPWAInstall, isStandalone, isIOS } from '../utils/pwaInstaller';
 import { estimateStorageUsage } from '../utils/deckStorage';
@@ -18,6 +18,7 @@ interface DownloadPDFViewProps {
   onBack: () => void;
   onGoToGame: () => void;
   onLockGenerator?: () => void;
+  onOpenQRModal?: (mode: 'send' | 'receive') => void;
 }
 
 export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
@@ -29,6 +30,7 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
   onBack,
   onGoToGame,
   onLockGenerator,
+  onOpenQRModal,
 }) => {
   const { t, language } = useLanguage();
   const [paperSize, setPaperSize] = useState<'letter' | 'a4'>('letter');
@@ -369,6 +371,16 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
 
         {/* Bloqueo y Paso al Cantador */}
         <div className="pt-1 space-y-2">
+          {onOpenQRModal && (
+            <button
+              onClick={() => onOpenQRModal('send')}
+              className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-800 to-teal-900 hover:from-emerald-900 hover:to-teal-950 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+            >
+              <QrCode className="w-4 h-4 text-emerald-300" />
+              <span>{language === 'en' ? 'Transfer to Phone with QR Code' : 'Pasar Baraja a otro Teléfono con QR'}</span>
+            </button>
+          )}
+
           {onLockGenerator ? (
             <button
               onClick={onLockGenerator}

@@ -10,7 +10,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder, DEFAULT_CARDS } from '../data/defaultCards';
 import { exportDeckToJson, validateAndParseDeckJson } from '../utils/deckIO';
 import { optimizeImage, isSvgDataUrl } from '../utils/imageOptimizer';
-import { Images, LayoutGrid, Volume2, Lock, Globe, Download, Upload } from 'lucide-react';
+import { Images, LayoutGrid, Volume2, Lock, Globe, Download, Upload, QrCode } from 'lucide-react';
 
 interface GeneratorViewProps {
   cards: LoteriaCard[];
@@ -22,6 +22,7 @@ interface GeneratorViewProps {
   onGoToGame: () => void;
   onLockGenerator?: () => void;
   onImportDeck?: (imported: { cards: LoteriaCard[]; style: CardStyleConfig; boardConfig: BoardConfig }) => void;
+  onOpenQRModal?: (mode: 'send' | 'receive') => void;
 }
 
 export const GeneratorView: React.FC<GeneratorViewProps> = ({
@@ -34,6 +35,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   onGoToGame,
   onLockGenerator,
   onImportDeck,
+  onOpenQRModal,
 }) => {
   const { t, language, toggleLanguage } = useLanguage();
   const jsonFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -234,6 +236,17 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
             <Upload className="w-3.5 h-3.5 text-stone-600" />
             <span className="hidden sm:inline">{t('import_deck')}</span>
           </button>
+
+          {onOpenQRModal && (
+            <button
+              onClick={() => onOpenQRModal('send')}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all cursor-pointer border border-emerald-300"
+              title={language === 'en' ? 'Send Deck via QR' : 'Pasar Baraja con QR'}
+            >
+              <QrCode className="w-3.5 h-3.5 text-emerald-700" />
+              <span>QR</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -389,6 +402,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           onBack={() => setCurrentStep('board_config')}
           onGoToGame={onGoToGame}
           onLockGenerator={onLockGenerator}
+          onOpenQRModal={onOpenQRModal}
         />
       )}
     </div>

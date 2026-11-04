@@ -1,4 +1,4 @@
-const CACHE_NAME = 'custom-loteria-v1';
+const CACHE_NAME = 'custom-loteria-v2';
 
 // Recursos críticos para arranque offline
 const PRECACHE_URLS = [
@@ -39,8 +39,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
-  // Ignorar métodos no-GET o peticiones de extensiones
+  // Ignorar métodos no-GET o peticiones de extensiones / protocolos no-http
   if (req.method !== 'GET' || !req.url.startsWith('http')) {
+    return;
+  }
+
+  // Dejar que peticiones a servidores externos (ej. señalización WebRTC PeerJS) pasen directo por la red
+  try {
+    const requestUrl = new URL(req.url);
+    if (requestUrl.origin !== self.location.origin) {
+      return;
+    }
+  } catch (_) {
     return;
   }
 

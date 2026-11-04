@@ -25,7 +25,8 @@ import {
   Download,
   Upload,
   Palette,
-  Clock
+  Clock,
+  QrCode
 } from 'lucide-react';
 
 interface CantadorViewProps {
@@ -38,6 +39,7 @@ interface CantadorViewProps {
   onOpenPasswordModal: (mode: 'unlock' | 'change_password') => void;
   onImportDeck: (imported: { cards: LoteriaCard[]; style: CardStyleConfig; boardConfig: BoardConfig }) => void;
   onResetToDefault: () => void;
+  onOpenQRModal?: (mode: 'send' | 'receive') => void;
 }
 
 export const CantadorView: React.FC<CantadorViewProps> = ({
@@ -50,6 +52,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   onOpenPasswordModal,
   onImportDeck,
   onResetToDefault,
+  onOpenQRModal,
 }) => {
   const { t, language, setLanguage } = useLanguage();
 
@@ -999,7 +1002,22 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               {!canAccessGenerator ? (
                 /* En modo cliente/bloqueado: completamente sutil y no notorio */
                 <div className="flex items-center justify-between text-xs text-stone-400">
-                  <span className="text-[11px] font-mono">v1.0</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono">v1.0</span>
+                    {onOpenQRModal && (
+                      <button
+                        onClick={() => {
+                          setShowSettingsModal(false);
+                          onOpenQRModal('receive');
+                        }}
+                        className="flex items-center gap-1 text-stone-400 hover:text-stone-700 text-xs px-1.5 py-0.5 rounded transition-colors"
+                        title={language === 'en' ? 'Sync Deck with Code' : 'Sincronizar Baraja'}
+                      >
+                        <QrCode className="w-3 h-3 text-stone-400" />
+                        <span className="text-[11px]">{language === 'en' ? 'Sync Deck' : 'Sincronizar'}</span>
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={() => {
                       setShowSettingsModal(false);
@@ -1058,6 +1076,19 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                       <span>{t('change_pin')}</span>
                     </button>
                   </div>
+
+                  {onOpenQRModal && (
+                    <button
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        onOpenQRModal('send');
+                      }}
+                      className="w-full py-2 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl font-bold flex items-center justify-center gap-1.5 text-xs shadow-2xs"
+                    >
+                      <QrCode className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>{language === 'en' ? 'Share Deck via QR Code' : 'Compartir Baraja con Código QR'}</span>
+                    </button>
+                  )}
 
                   <div className="grid grid-cols-2 gap-2 text-xs pt-1">
                     <button
