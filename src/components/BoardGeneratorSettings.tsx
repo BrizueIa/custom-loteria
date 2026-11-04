@@ -467,121 +467,125 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
 
           {/* Authentic Board Mockup with Dynamic Frame & Colors */}
           {currentPreviewBoard && (
-            <div
-              className="w-full max-w-md bg-white rounded-2xl shadow-md transition-all relative overflow-hidden"
-              style={{
-                borderColor: activeFrameStyle !== 'none' ? activeBorderColor : '#E5E7EB',
-                borderWidth: activeFrameStyle === 'none' ? '1px' : activeFrameStyle === 'traditional_gallo' ? '3.5px' : '2px',
-                borderStyle: activeFrameStyle === 'none' ? 'dashed' : 'solid',
-                padding: activeFrameStyle === 'traditional_gallo' ? '6px' : activeFrameStyle === 'festive_banner' ? '0px' : '10px',
-              }}
-            >
-              {/* Inner wrapper for traditional gallo */}
+            <div className="w-full max-w-md bg-stone-100/80 p-3 sm:p-4 rounded-2xl border border-stone-200/80 shadow-2xs flex flex-col items-center justify-center">
+              {/* Paper Sheet Preview Container (Ratio 22:31) */}
               <div
-                className={`relative ${
-                  activeFrameStyle === 'traditional_gallo'
-                    ? 'p-3 border-1.5'
-                    : activeFrameStyle === 'festive_banner'
-                    ? ''
-                    : activeFrameStyle === 'talavera_frame'
-                    ? 'p-2.5 border'
-                    : activeFrameStyle === 'clean_minimal'
-                    ? 'p-2'
-                    : 'p-2'
-                }`}
+                className="w-full bg-white shadow-sm transition-all relative overflow-hidden rounded-xs"
                 style={{
-                  borderColor: activeFrameStyle === 'traditional_gallo' || activeFrameStyle === 'talavera_frame'
-                    ? activeBorderColor
-                    : 'transparent',
+                  aspectRatio: '22 / 31',
+                  borderColor: activeFrameStyle !== 'none' ? activeBorderColor : '#E5E7EB',
+                  borderWidth: activeFrameStyle === 'none' ? '1px' : activeFrameStyle === 'traditional_gallo' ? '3px' : '2px',
+                  borderStyle: activeFrameStyle === 'none' ? 'dashed' : 'solid',
+                  padding: activeFrameStyle === 'traditional_gallo' ? '4px' : activeFrameStyle === 'festive_banner' ? '0px' : '6px',
                 }}
               >
-                {/* Traditional corner diamond ornaments */}
-                {activeFrameStyle === 'traditional_gallo' && (
-                  <>
-                    <span className="absolute -top-1.5 -left-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -bottom-1.5 -left-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                  </>
-                )}
-
-                {/* Talavera corner bracket squares */}
-                {activeFrameStyle === 'talavera_frame' && (
-                  <>
-                    <span className="absolute top-0 left-0 w-3 h-3 border-r border-b" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute top-0 right-0 w-3 h-3 border-l border-b" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute bottom-0 left-0 w-3 h-3 border-r border-t" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute bottom-0 right-0 w-3 h-3 border-l border-t" style={{ borderColor: activeBorderColor }} />
-                  </>
-                )}
-
-                {/* Header Layout */}
-                {activeFrameStyle === 'festive_banner' ? (
-                  <div
-                    className="text-center py-3 px-4 mb-2.5 transition-colors"
-                    style={{ backgroundColor: activeBorderColor }}
-                  >
-                    <h2 className="font-loteria-title text-sm sm:text-base font-black uppercase tracking-wider text-white">
-                      {config.title || t('board_title_placeholder')}
-                    </h2>
-                    {config.subtitle && (
-                      <p className="text-[11px] italic text-amber-100 font-medium mt-0.5">
-                        {config.subtitle}
-                      </p>
-                    )}
-                    {config.showBoardNumber && (
-                      <span className="inline-block mt-1 font-mono text-[9px] text-white/90 uppercase tracking-widest bg-black/20 px-2 py-0.5 rounded-full">
-                        {t('board_prefix')} #{currentPreviewBoard.index}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    className={`text-center pb-2 mb-3 ${
-                      activeFrameStyle === 'none' ? 'border-b border-stone-200' : 'border-b'
-                    }`}
-                    style={{
-                      borderColor: activeFrameStyle !== 'none' ? activeBorderColor : undefined,
-                    }}
-                  >
-                    <h2
-                      className="font-loteria-title text-sm sm:text-base font-black uppercase tracking-wider transition-colors"
-                      style={{
-                        color: activeFrameStyle !== 'none' ? activeBorderColor : '#1C1917',
-                      }}
-                    >
-                      {config.title || t('board_title_placeholder')}
-                    </h2>
-                    {config.subtitle && (
-                      <p className="text-[11px] italic text-stone-600 font-medium mt-0.5">
-                        {config.subtitle}
-                      </p>
-                    )}
-                    {config.showBoardNumber && (
-                      <span className="inline-block mt-1 font-mono text-[10px] text-stone-500 uppercase tracking-widest">
-                        {t('board_prefix')} #{currentPreviewBoard.index}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Grid Layout inside preview */}
+                {/* Inner wrapper for traditional gallo */}
                 <div
-                  className={`grid gap-1.5 ${activeFrameStyle === 'festive_banner' ? 'p-3' : ''}`}
+                  className={`relative h-full flex flex-col ${
+                    activeFrameStyle === 'traditional_gallo'
+                      ? 'p-2 border'
+                      : activeFrameStyle === 'festive_banner'
+                      ? ''
+                      : activeFrameStyle === 'talavera_frame'
+                      ? 'p-2 border'
+                      : activeFrameStyle === 'clean_minimal'
+                      ? 'p-1.5'
+                      : 'p-1.5'
+                  }`}
                   style={{
-                    gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`
+                    borderColor: activeFrameStyle === 'traditional_gallo' || activeFrameStyle === 'talavera_frame'
+                      ? activeBorderColor
+                      : 'transparent',
                   }}
                 >
-                  {currentPreviewBoard.cards.map((card, cIdx) => (
-                    <div key={`${currentPreviewBoard.id}-${cIdx}`} className="aspect-[3/4]">
-                      <CardPreview
-                        card={card}
-                        style={cardStyle}
-                        isCompactTable={true}
-                        className="w-full h-full"
-                      />
+                  {/* Traditional corner diamond ornaments */}
+                  {activeFrameStyle === 'traditional_gallo' && (
+                    <>
+                      <span className="absolute -top-1 -left-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                      <span className="absolute -bottom-1 -left-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                      <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    </>
+                  )}
+
+                  {/* Talavera corner bracket squares */}
+                  {activeFrameStyle === 'talavera_frame' && (
+                    <>
+                      <span className="absolute top-0 left-0 w-2.5 h-2.5 border-r border-b" style={{ borderColor: activeBorderColor }} />
+                      <span className="absolute top-0 right-0 w-2.5 h-2.5 border-l border-b" style={{ borderColor: activeBorderColor }} />
+                      <span className="absolute bottom-0 left-0 w-2.5 h-2.5 border-r border-t" style={{ borderColor: activeBorderColor }} />
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 border-l border-t" style={{ borderColor: activeBorderColor }} />
+                    </>
+                  )}
+
+                  {/* Header Layout */}
+                  {activeFrameStyle === 'festive_banner' ? (
+                    <div
+                      className="text-center py-2 px-3 mb-1.5 transition-colors shrink-0"
+                      style={{ backgroundColor: activeBorderColor }}
+                    >
+                      <h2 className="font-loteria-title text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                        {config.title || t('board_title_placeholder')}
+                      </h2>
+                      {config.subtitle && (
+                        <p className="text-[10px] italic text-amber-100 font-medium mt-0.5">
+                          {config.subtitle}
+                        </p>
+                      )}
+                      {config.showBoardNumber && (
+                        <span className="inline-block mt-0.5 font-mono text-[8px] text-white/90 uppercase tracking-widest bg-black/20 px-1.5 py-0.2 rounded-full">
+                          {t('board_prefix')} #{currentPreviewBoard.index}
+                        </span>
+                      )}
                     </div>
-                  ))}
+                  ) : (
+                    <div
+                      className={`text-center pb-1.5 mb-1.5 shrink-0 ${
+                        activeFrameStyle === 'none' ? 'border-b border-stone-200' : 'border-b'
+                      }`}
+                      style={{
+                        borderColor: activeFrameStyle !== 'none' ? activeBorderColor : undefined,
+                      }}
+                    >
+                      <h2
+                        className="font-loteria-title text-xs sm:text-sm font-black uppercase tracking-wider transition-colors"
+                        style={{
+                          color: activeFrameStyle !== 'none' ? activeBorderColor : '#1C1917',
+                        }}
+                      >
+                        {config.title || t('board_title_placeholder')}
+                      </h2>
+                      {config.subtitle && (
+                        <p className="text-[10px] italic text-stone-600 font-medium mt-0.5">
+                          {config.subtitle}
+                        </p>
+                      )}
+                      {config.showBoardNumber && (
+                        <span className="inline-block mt-0.5 font-mono text-[9px] text-stone-500 uppercase tracking-widest">
+                          {t('board_prefix')} #{currentPreviewBoard.index}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Grid Layout inside preview */}
+                  <div
+                    className={`grid gap-1 flex-1 ${activeFrameStyle === 'festive_banner' ? 'p-1.5' : ''}`}
+                    style={{
+                      gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`
+                    }}
+                  >
+                    {currentPreviewBoard.cards.map((card, cIdx) => (
+                      <div key={`${currentPreviewBoard.id}-${cIdx}`} className="aspect-[3/4]">
+                        <CardPreview
+                          card={card}
+                          style={cardStyle}
+                          isCompactTable={true}
+                          className="w-full h-full"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

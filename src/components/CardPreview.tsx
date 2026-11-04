@@ -19,24 +19,25 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const getNumberClass = () => {
     switch (style.numberPosition) {
       case 'top-right':
-        return isCompactTable ? 'top-1 right-1.5' : 'top-2 right-2.5';
+        return isCompactTable ? 'top-0.5 right-1' : 'top-2 right-2.5';
       case 'bottom-left':
-        return isCompactTable ? 'bottom-1 left-1.5' : 'bottom-2 left-2.5';
+        return isCompactTable ? 'bottom-0.5 left-1' : 'bottom-2 left-2.5';
       case 'bottom-right':
-        return isCompactTable ? 'bottom-1 right-1.5' : 'bottom-2 right-2.5';
+        return isCompactTable ? 'bottom-0.5 right-1' : 'bottom-2 right-2.5';
       case 'top-left':
       default:
-        return isCompactTable ? 'top-1 left-1.5' : 'top-2 left-2.5';
+        return isCompactTable ? 'top-0.5 left-1' : 'top-2 left-2.5';
     }
   };
 
-  // Dynamic font size so names NEVER get truncated and always adapt
+  // Dynamic font size so names adapt cleanly without awkward linebreaks
   const getNameFontSize = () => {
     const len = card.name.length;
     if (isCompactTable) {
-      if (len > 22) return 'text-[8px] leading-tight';
-      if (len > 16) return 'text-[9px] leading-tight';
-      return 'text-[10px] leading-tight';
+      if (len > 22) return 'text-[5.5px] leading-[1.05] tracking-tight';
+      if (len > 16) return 'text-[6px] leading-[1.1] tracking-tight';
+      if (len > 11) return 'text-[6.5px] leading-[1.15] tracking-tight';
+      return 'text-[7.5px] leading-tight';
     } else {
       if (len > 24) return 'text-xs leading-tight';
       if (len > 18) return 'text-sm leading-tight';
@@ -48,6 +49,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const renderFrameDecorations = () => {
     switch (style.frameStyle) {
       case 'talavera':
+        if (isCompactTable) {
+          return (
+            <>
+              <div className="absolute inset-0.5 border border-stone-800/60 pointer-events-none rounded-[2px]" />
+              <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 border-t border-l border-amber-800 pointer-events-none" />
+              <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 border-t border-r border-amber-800 pointer-events-none" />
+              <div className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 border-b border-l border-amber-800 pointer-events-none" />
+              <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 border-b border-r border-amber-800 pointer-events-none" />
+            </>
+          );
+        }
         return (
           <>
             {/* Double border */}
@@ -62,6 +74,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         );
 
       case 'botanical_litho':
+        if (isCompactTable) {
+          return (
+            <>
+              <div className="absolute inset-0.5 border border-stone-800/60 pointer-events-none" />
+              <span className="absolute top-0.5 left-0.5 text-[5px] text-stone-700 pointer-events-none leading-none">✤</span>
+              <span className="absolute top-0.5 right-0.5 text-[5px] text-stone-700 pointer-events-none leading-none">✤</span>
+              <span className="absolute bottom-0.5 left-0.5 text-[5px] text-stone-700 pointer-events-none leading-none">✤</span>
+              <span className="absolute bottom-0.5 right-0.5 text-[5px] text-stone-700 pointer-events-none leading-none">✤</span>
+            </>
+          );
+        }
         return (
           <>
             <div className="absolute inset-1.5 border border-stone-900/70 pointer-events-none" />
@@ -75,6 +98,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         );
 
       case 'editorial_luxury':
+        if (isCompactTable) {
+          return (
+            <>
+              <div className="absolute inset-0.5 border border-stone-300 pointer-events-none" />
+              <span className="absolute top-0.5 left-0.5 text-[6px] font-mono text-stone-400 pointer-events-none leading-none">+</span>
+              <span className="absolute top-0.5 right-0.5 text-[6px] font-mono text-stone-400 pointer-events-none leading-none">+</span>
+              <span className="absolute bottom-0.5 left-0.5 text-[6px] font-mono text-stone-400 pointer-events-none leading-none">+</span>
+              <span className="absolute bottom-0.5 right-0.5 text-[6px] font-mono text-stone-400 pointer-events-none leading-none">+</span>
+            </>
+          );
+        }
         return (
           <>
             <div className="absolute inset-1 border border-stone-300 pointer-events-none" />
@@ -87,6 +121,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         );
 
       case 'organic_floral':
+        if (isCompactTable) {
+          return (
+            <>
+              <div className="absolute inset-0.5 border border-emerald-900/50 rounded-[2px] pointer-events-none" />
+              <div className="absolute top-0.5 left-0.5 text-[6px] text-emerald-800 pointer-events-none leading-none">❦</div>
+              <div className="absolute top-0.5 right-0.5 text-[6px] text-emerald-800 pointer-events-none scale-x-[-1] leading-none">❦</div>
+              <div className="absolute bottom-0.5 left-0.5 text-[6px] text-emerald-800 pointer-events-none scale-y-[-1] leading-none">❦</div>
+              <div className="absolute bottom-0.5 right-0.5 text-[6px] text-emerald-800 pointer-events-none scale-[-1] leading-none">❦</div>
+            </>
+          );
+        }
         return (
           <>
             <div className="absolute inset-1.5 border border-emerald-900/60 rounded-md pointer-events-none" />
@@ -99,6 +144,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
 
       case 'classic_loteria':
       default:
+        if (isCompactTable) {
+          return (
+            <>
+              <div className="absolute inset-0.5 border border-stone-900 pointer-events-none" />
+              <div className="absolute top-0.5 left-0.5 w-1 h-1 bg-amber-700 rotate-45 pointer-events-none" />
+              <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-amber-700 rotate-45 pointer-events-none" />
+              <div className="absolute bottom-0.5 left-0.5 w-1 h-1 bg-amber-700 rotate-45 pointer-events-none" />
+              <div className="absolute bottom-0.5 right-0.5 w-1 h-1 bg-amber-700 rotate-45 pointer-events-none" />
+            </>
+          );
+        }
         return (
           <>
             <div className="absolute inset-1.5 border-2 border-stone-900 pointer-events-none" />
@@ -119,7 +175,11 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         backgroundColor: style.cardBgColor,
         borderColor: style.borderColor
       }}
-      className={`relative flex flex-col items-center justify-between p-2.5 rounded-lg aspect-[3/4] select-none transition-transform duration-150 border-2 shadow-xs overflow-hidden ${className}`}
+      className={`relative flex flex-col items-center justify-between select-none transition-transform duration-150 overflow-hidden ${
+        isCompactTable
+          ? 'p-0.5 border-[0.75px] rounded-xs shadow-none'
+          : 'p-2.5 rounded-lg border-2 shadow-xs'
+      } aspect-[3/4] ${className}`}
     >
       {/* Decorative Frame Elements */}
       {renderFrameDecorations()}
@@ -127,19 +187,27 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       {/* Card Number */}
       <span
         style={{ color: style.textColor }}
-        className={`absolute ${getNumberClass()} font-loteria-title ${
-          isCompactTable ? 'text-xs font-black' : 'text-sm sm:text-base font-black'
-        } z-20 bg-white/90 px-1 py-0.2 rounded shadow-2xs border border-stone-200/60`}
+        className={`absolute ${getNumberClass()} font-loteria-title z-20 ${
+          isCompactTable
+            ? 'text-[7px] font-bold leading-none bg-white/85 px-0.5 py-0.5 rounded-[2px]'
+            : 'text-sm sm:text-base font-black bg-white/90 px-1 py-0.2 rounded shadow-2xs border border-stone-200/60'
+        }`}
       >
         {card.number}
       </span>
 
       {/* Name Top (if selected) */}
       {style.namePosition === 'top' && (
-        <div className={`w-full text-center px-4 z-10 ${isCompactTable ? 'pt-0.5 pb-0' : 'pt-1 pb-1'}`}>
+        <div
+          className={`w-full text-center z-10 ${
+            isCompactTable
+              ? `pt-0 pb-0 ${style.numberPosition === 'top-right' ? 'pr-2.5 pl-0.5' : style.numberPosition === 'top-left' ? 'pl-2.5 pr-0.5' : 'px-0.5'}`
+              : 'px-4 pt-1 pb-1'
+          }`}
+        >
           <h4
             style={{ color: style.textColor }}
-            className={`font-loteria-card font-bold tracking-tight uppercase break-words ${getNameFontSize()}`}
+            className={`font-loteria-card font-bold tracking-tight uppercase break-normal whitespace-normal ${getNameFontSize()}`}
           >
             {card.name}
           </h4>
@@ -147,7 +215,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       )}
 
       {/* Card Image */}
-      <div className="flex-1 w-full min-h-0 relative flex items-center justify-center p-1 my-0.5 overflow-hidden z-10">
+      <div className={`flex-1 w-full min-h-0 relative flex items-center justify-center overflow-hidden z-10 ${isCompactTable ? 'p-0.5 my-0' : 'p-1 my-0.5'}`}>
         <img
           src={card.image}
           alt={card.name}
@@ -156,12 +224,18 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         />
       </div>
 
-      {/* Name Bottom (if selected) - Multi-line adaptable, never truncated */}
+      {/* Name Bottom (if selected) - Multi-line adaptable, never sliced mid-word */}
       {style.namePosition === 'bottom' && (
-        <div className={`w-full text-center px-2 z-10 ${isCompactTable ? 'pt-0 pb-0.5' : 'pt-0.5 pb-1'}`}>
+        <div
+          className={`w-full text-center z-10 ${
+            isCompactTable
+              ? `pt-0 pb-0.5 ${style.numberPosition === 'bottom-right' ? 'pr-2.5 pl-0.5' : style.numberPosition === 'bottom-left' ? 'pl-2.5 pr-0.5' : 'px-0.5'}`
+              : 'px-2 pt-0.5 pb-1'
+          }`}
+        >
           <h4
             style={{ color: style.textColor }}
-            className={`font-loteria-card font-bold tracking-tight uppercase break-words ${getNameFontSize()}`}
+            className={`font-loteria-card font-bold tracking-tight uppercase break-normal whitespace-normal ${getNameFontSize()}`}
           >
             {card.name}
           </h4>

@@ -350,14 +350,26 @@ export async function generateBoardsPDF(
   const subtitle = (boardConfig.subtitle || '').trim();
   const showNumber = Boolean(boardConfig.showBoardNumber);
 
-  // Dimensiones del marco del tablero
-  const frameX = 8;
-  const frameY = 8;
-  const frameW = pageWidth - frameX * 2; // ~199.9 mm
-  const frameH = pageHeight - frameY * 2; // ~263.4 mm
+  // Proporción oficial tradicional de tablero: 22 cm / 31 cm (ratio ~0.709677)
+  // Se escala centrado en la hoja carta (21.59 x 27.94 cm) con márgenes profesionales de ~2 cm,
+  // dejando el tablero más pequeño y elegante con espacio para sujetar o recortar.
+  const OFFICIAL_RATIO = 22 / 31;
+  const maxAllowedH = pageHeight - 38; // ~19 mm margen arriba y abajo
+  const maxAllowedW = pageWidth - 42; // ~21 mm margen izq y der
+
+  let frameW = maxAllowedW;
+  let frameH = frameW / OFFICIAL_RATIO;
+
+  if (frameH > maxAllowedH) {
+    frameH = maxAllowedH;
+    frameW = frameH * OFFICIAL_RATIO;
+  }
+
+  const frameX = (pageWidth - frameW) / 2;
+  const frameY = (pageHeight - frameH) / 2;
 
   const hasSub = subtitle.length > 0;
-  const headerHeight = hasSub ? 22 : showNumber ? 19 : 16;
+  const headerHeight = hasSub ? 20 : showNumber ? 17 : 14;
 
   // Helper para dibujar rombos de imprenta tradicional
   const drawDiamond = (cx: number, cy: number, sz: number) => {
@@ -370,6 +382,28 @@ export async function generateBoardsPDF(
     if (bIdx > 0) doc.addPage();
 
     const board = boards[bIdx];
+
+    // 0. Guías de corte discretas en las 4 esquinas del tablero (estilo imprenta)
+    doc.setDrawColor(200, 196, 192);
+    doc.setLineWidth(0.18);
+    const cmLen = 3.5;
+    const cmOffset = 2;
+
+    // Top-Left
+    doc.line(frameX - cmOffset, frameY, frameX - cmOffset - cmLen, frameY);
+    doc.line(frameX, frameY - cmOffset, frameX, frameY - cmOffset - cmLen);
+
+    // Top-Right
+    doc.line(frameX + frameW + cmOffset, frameY, frameX + frameW + cmOffset + cmLen, frameY);
+    doc.line(frameX + frameW, frameY - cmOffset, frameX + frameW, frameY - cmOffset - cmLen);
+
+    // Bottom-Left
+    doc.line(frameX - cmOffset, frameY + frameH, frameX - cmOffset - cmLen, frameY + frameH);
+    doc.line(frameX, frameY + frameH + cmOffset, frameX, frameY + frameH + cmOffset + cmLen);
+
+    // Bottom-Right
+    doc.line(frameX + frameW + cmOffset, frameY + frameH, frameX + frameW + cmOffset + cmLen, frameY + frameH);
+    doc.line(frameX + frameW, frameY + frameH + cmOffset, frameX + frameW, frameY + frameH + cmOffset + cmLen);
 
     // 1. Dibujar Marco según el estilo elegido
     if (frameStyle === 'traditional_gallo') {
