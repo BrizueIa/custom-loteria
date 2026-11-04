@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CardStyleConfig, FrameStyle, NumberPosition, NamePosition, LoteriaCard } from '../types/loteria';
 import { CardPreview } from './CardPreview';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, X } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface CardStyleSelectorProps {
@@ -20,6 +20,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   onNext,
 }) => {
   const { t } = useLanguage();
+  const [showFullPreview, setShowFullPreview] = useState(false);
 
   const frameOptions: Array<{ id: FrameStyle; label: string; desc: string }> = [
     {
@@ -63,20 +64,50 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-4 pb-20">
-      {/* Live Preview Container (Visible at top without scrolling on mobile!) */}
-      <div className="w-full bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-center gap-4">
-        <div className="w-36 sm:w-44 aspect-[3/4] flex-shrink-0">
+      {/* Live Preview Container (Matches exact card size and proportions from Step 1) */}
+      <div className="w-full bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs flex flex-col items-center justify-center gap-3">
+        <div className="w-64 sm:w-72 aspect-[3/4] relative">
           <CardPreview
             card={sampleCard}
             style={config}
             className="w-full h-full shadow-md"
           />
         </div>
-        <div className="text-center sm:text-left text-xs text-stone-500">
+        <div className="text-center text-xs text-stone-500 max-w-sm flex flex-col items-center gap-1.5">
           <p className="font-bold text-stone-800 text-sm">{t('card_preview_title')}</p>
           <p className="mt-0.5">{t('card_preview_hint')}</p>
+          <button
+            onClick={() => setShowFullPreview(true)}
+            className="mt-1 flex items-center gap-1 px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg transition-colors"
+          >
+            <Eye className="w-3.5 h-3.5 text-emerald-700" />
+            <span>{t('final_preview')}</span>
+          </button>
         </div>
       </div>
+
+      {/* Modal de Vista Previa Final */}
+      {showFullPreview && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-stone-100 rounded-3xl p-5 max-w-sm w-full flex flex-col items-center relative shadow-2xl border border-stone-300">
+            <button
+              onClick={() => setShowFullPreview(false)}
+              className="absolute top-3 right-3 p-1.5 bg-white text-stone-700 hover:text-black rounded-full border border-stone-200 shadow-xs"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">
+              {t('final_preview')}
+            </span>
+            <div className="w-64 aspect-[3/4] relative">
+              <CardPreview card={sampleCard} style={config} className="w-full h-full shadow-lg" />
+            </div>
+            <p className="text-[11px] text-stone-500 text-center mt-3">
+              Proporción y marco idénticos al formato de impresión en PDF.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Frame Style Grid (Compact 2 columns) */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs space-y-3">

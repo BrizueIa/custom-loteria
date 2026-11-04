@@ -2,13 +2,15 @@ import React, { useState, useRef } from 'react';
 import { LoteriaCard, CardStyleConfig } from '../types/loteria';
 import { CardPreview } from './CardPreview';
 import { useLanguage } from '../i18n/LanguageContext';
-import { Upload, ArrowRight, HelpCircle, X } from 'lucide-react';
+import { Upload, ArrowRight, HelpCircle, X, Trash2, RotateCcw } from 'lucide-react';
 
 interface CardsGridViewProps {
   cards: LoteriaCard[];
   cardStyle: CardStyleConfig;
   onSelectCard: (index: number) => void;
   onBatchUpload: (files: FileList) => void;
+  onClearAllImages?: () => void;
+  onResetToDefaultDeck?: () => void;
   onSwapNumber: (cardId: string, newNumber: number) => void;
   onContinue: () => void;
 }
@@ -18,6 +20,8 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
   cardStyle,
   onSelectCard,
   onBatchUpload,
+  onClearAllImages,
+  onResetToDefaultDeck,
   onSwapNumber,
   onContinue
 }) => {
@@ -34,7 +38,7 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
   return (
     <div className="w-full max-w-4xl mx-auto space-y-3 pb-20">
       {/* Super Compact Action Bar */}
-      <div className="flex items-center justify-between gap-2 px-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-bold text-stone-800">54 {t('cards')}</span>
           <button
@@ -46,10 +50,11 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => batchInputRef.current?.click()}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+            title={t('batch_upload_photos')}
           >
             <Upload className="w-3.5 h-3.5 text-emerald-700" />
             <span>{t('batch_upload_photos')}</span>
@@ -62,6 +67,28 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
             className="hidden"
             onChange={handleBatchChange}
           />
+
+          {onClearAllImages && (
+            <button
+              onClick={onClearAllImages}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-rose-50 border border-stone-200 hover:border-rose-200 text-stone-700 hover:text-rose-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+              title={t('clear_all_photos')}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>{t('clear_all_photos')}</span>
+            </button>
+          )}
+
+          {onResetToDefaultDeck && (
+            <button
+              onClick={onResetToDefaultDeck}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+              title={t('reset_default_deck')}
+            >
+              <RotateCcw className="w-3 h-3 text-stone-500" />
+              <span className="hidden sm:inline">{t('reset_default_deck')}</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { CardStyleSelector } from './CardStyleSelector';
 import { BoardGeneratorSettings } from './BoardGeneratorSettings';
 import { swapCardNumbers } from '../utils/loteriaEngine';
 import { useLanguage } from '../i18n/LanguageContext';
+import { createCleanCardPlaceholder, DEFAULT_CARDS } from '../data/defaultCards';
 import { Images, LayoutGrid, Volume2, Lock, Globe } from 'lucide-react';
 
 interface GeneratorViewProps {
@@ -71,6 +72,22 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleClearAllImages = () => {
+    if (window.confirm(t('clear_all_photos_confirm'))) {
+      const cleared = cards.map(c => ({
+        ...c,
+        image: createCleanCardPlaceholder(c.name, c.number)
+      }));
+      onUpdateCards(cleared);
+    }
+  };
+
+  const handleResetToDefaultDeck = () => {
+    if (window.confirm(t('reset_default_deck_confirm'))) {
+      onUpdateCards(DEFAULT_CARDS);
+    }
   };
 
   const steps = [
@@ -176,6 +193,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
                 setSubView('swipe');
               }}
               onBatchUpload={handleBatchUpload}
+              onClearAllImages={handleClearAllImages}
+              onResetToDefaultDeck={handleResetToDefaultDeck}
               onSwapNumber={handleSwapNumber}
               onContinue={() => setCurrentStep('card_style')}
             />

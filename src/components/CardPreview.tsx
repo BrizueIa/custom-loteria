@@ -34,13 +34,13 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const getNameFontSize = () => {
     const len = card.name.length;
     if (isCompactTable) {
-      if (len > 20) return 'text-[8px] leading-tight';
-      if (len > 14) return 'text-[9px] leading-tight';
+      if (len > 22) return 'text-[8px] leading-tight';
+      if (len > 16) return 'text-[9px] leading-tight';
       return 'text-[10px] leading-tight';
     } else {
-      if (len > 22) return 'text-xs leading-snug';
-      if (len > 16) return 'text-sm leading-snug';
-      return 'text-base leading-snug';
+      if (len > 24) return 'text-xs leading-tight';
+      if (len > 18) return 'text-sm leading-tight';
+      return 'text-sm sm:text-base leading-snug';
     }
   };
 
@@ -139,7 +139,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         <div className={`w-full text-center px-4 z-10 ${isCompactTable ? 'pt-0.5 pb-0' : 'pt-1 pb-1'}`}>
           <h4
             style={{ color: style.textColor }}
-            className={`font-loteria-card font-bold tracking-tight uppercase break-words hyphens-auto ${getNameFontSize()}`}
+            className={`font-loteria-card font-bold tracking-tight uppercase break-words ${getNameFontSize()}`}
           >
             {card.name}
           </h4>
@@ -161,7 +161,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         <div className={`w-full text-center px-2 z-10 ${isCompactTable ? 'pt-0 pb-0.5' : 'pt-0.5 pb-1'}`}>
           <h4
             style={{ color: style.textColor }}
-            className={`font-loteria-card font-bold tracking-tight uppercase break-words hyphens-auto ${getNameFontSize()}`}
+            className={`font-loteria-card font-bold tracking-tight uppercase break-words ${getNameFontSize()}`}
           >
             {card.name}
           </h4>

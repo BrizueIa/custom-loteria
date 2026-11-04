@@ -207,12 +207,36 @@ async function drawCardToCanvas(
     style.textColor || '#1C1917'
   );
 
-  // Draw Card Image
+  // Draw Card Image preserving true aspect ratio (object-fit: contain)
   try {
     const img = await loadImage(card.image);
     const imgMargin = 16;
-    const imgWidth = width - imgMargin * 2;
-    ctx.drawImage(img, imgMargin, imgTop, imgWidth, imgHeight);
+    const availWidth = width - imgMargin * 2;
+    const availHeight = imgHeight;
+
+    const imgNaturalW = img.naturalWidth || img.width || 1;
+    const imgNaturalH = img.naturalHeight || img.height || 1;
+    const imgAspect = imgNaturalW / imgNaturalH;
+    const availAspect = availWidth / availHeight;
+
+    let drawWidth = availWidth;
+    let drawHeight = availHeight;
+    let drawX = imgMargin;
+    let drawY = imgTop;
+
+    if (imgAspect > availAspect) {
+      // Imagen más ancha que la caja: ajustar ancho y centrar verticalmente
+      drawWidth = availWidth;
+      drawHeight = availWidth / imgAspect;
+      drawY = imgTop + (availHeight - drawHeight) / 2;
+    } else {
+      // Imagen más alta que la caja: ajustar alto y centrar horizontalmente
+      drawHeight = availHeight;
+      drawWidth = availHeight * imgAspect;
+      drawX = imgMargin + (availWidth - drawWidth) / 2;
+    }
+
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
   } catch (err) {
     console.error('Error loading image for card', card.number, err);
   }
