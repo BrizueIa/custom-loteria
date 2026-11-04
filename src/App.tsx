@@ -5,6 +5,7 @@ import { GeneratorView } from './components/GeneratorView';
 import { CantadorView } from './components/CantadorView';
 import { PasswordModal } from './components/PasswordModal';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
+import { loadCardsFromStorage, debounceSaveCards, clearDeckStorage } from './utils/deckStorage';
 
 const STORAGE_KEY_CARDS = 'loteria_cards_v3';
 const STORAGE_KEY_STYLE = 'loteria_style_v3';
@@ -64,6 +65,7 @@ function MainApp() {
     return 'game'; // Always start in game
   });
 
+  const [isStorageReady, setIsStorageReady] = useState<boolean>(false);
   const [cards, setCards] = useState<LoteriaCard[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CARDS);
@@ -73,6 +75,23 @@ function MainApp() {
     }
     return DEFAULT_CARDS;
   });
+
+  // Inicializar carga asíncrona desde IndexedDB (con fallback/migración de localStorage)
+  useEffect(() => {
+    let isMounted = true;
+    loadCardsFromStorage(DEFAULT_CARDS).then((loadedCards) => {
+      if (isMounted) {
+        setCards(loadedCards);
+        setIsStorageReady(true);
+      }
+    }).catch((err) => {
+      console.warn('Error al cargar cartas de IndexedDB:', err);
+      if (isMounted) setIsStorageReady(true);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const [cardStyle, setCardStyle] = useState<CardStyleConfig>(() => {
     try {
@@ -103,14 +122,11 @@ function MainApp() {
     }
   }, [isLocked, isSessionUnlocked, activeTab]);
 
-  // Sync to localStorage
+  // Guardar en IndexedDB con debounce para soportar cientos de MB sin límite de cuota
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
-    } catch (e) {
-      console.warn('LocalStorage limit or error:', e);
-    }
-  }, [cards]);
+    if (!isStorageReady) return;
+    debounceSaveCards(cards);
+  }, [cards, isStorageReady]);
 
   useEffect(() => {
     try {
@@ -136,12 +152,12 @@ function MainApp() {
     } catch (e) {}
   }, [adminPassword]);
 
-  const handleResetToDefault = () => {
+  const handleResetToDefault = async () => {
     if (window.confirm(t('restore_confirm'))) {
       setCards(DEFAULT_CARDS);
       setCardStyle(DEFAULT_STYLE);
       setBoardConfig(DEFAULT_BOARD_CONFIG);
-      localStorage.removeItem(STORAGE_KEY_CARDS);
+      await clearDeckStorage();
       localStorage.removeItem(STORAGE_KEY_STYLE);
       localStorage.removeItem(STORAGE_KEY_BOARD);
     }

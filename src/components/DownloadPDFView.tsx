@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BoardConfig, LoteriaCard, CardStyleConfig, GeneratedBoard } from '../types/loteria';
 import { generateBoards } from '../utils/loteriaEngine';
 import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
 import { CardPreview } from './CardPreview';
 import { exportDeckToJson } from '../utils/deckIO';
-import { FileDown, Play, ArrowLeft, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react';
+import { FileDown, Play, ArrowLeft, Sparkles, CheckCircle2, RefreshCw, Smartphone, Lock, HardDrive } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { subscribePWA, promptPWAInstall, isStandalone, isIOS } from '../utils/pwaInstaller';
+import { estimateStorageUsage } from '../utils/deckStorage';
 
 interface DownloadPDFViewProps {
   cards: LoteriaCard[];
@@ -15,6 +17,7 @@ interface DownloadPDFViewProps {
   onRegenerateBoards?: () => void;
   onBack: () => void;
   onGoToGame: () => void;
+  onLockGenerator?: () => void;
 }
 
 export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
@@ -25,6 +28,7 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
   onRegenerateBoards,
   onBack,
   onGoToGame,
+  onLockGenerator,
 }) => {
   const { t, language } = useLanguage();
   const [paperSize, setPaperSize] = useState<'letter' | 'a4'>('letter');
@@ -32,6 +36,21 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
   const [isGeneratingBoardsPDF, setIsGeneratingBoardsPDF] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
   const [previewBoardIdx, setPreviewBoardIdx] = useState(0);
+
+  // PWA and Storage state
+  const [canInstallPwa, setCanInstallPwa] = useState<boolean>(false);
+  const [isPwaInstalled, setIsPwaInstalled] = useState<boolean>(() => isStandalone());
+  const [storageUsageMB, setStorageUsageMB] = useState<number | null>(null);
+
+  useEffect(() => {
+    estimateStorageUsage().then((est) => {
+      if (est) setStorageUsageMB(est.usageMB);
+    });
+    return subscribePWA((canInstall) => {
+      setCanInstallPwa(canInstall);
+      setIsPwaInstalled(isStandalone());
+    });
+  }, []);
 
   const activeBoards = boards && boards.length > 0 ? boards : generateBoards(cards, boardConfig);
   const currentPreviewBoard = activeBoards[previewBoardIdx] || activeBoards[0];
@@ -287,25 +306,87 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
         </button>
       </div>
 
-      {/* Play Game Banner */}
-      <div className="bg-gradient-to-r from-emerald-900 to-teal-900 text-white rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3">
-        <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-200">
-            {language === 'en' ? 'Start Calling Cards' : 'Comenzar a Jugar'}
-          </h4>
-          <p className="text-[11px] text-emerald-100 mt-0.5">
-            {language === 'en'
-              ? 'Voice caller and game board are ready.'
-              : 'El cantador automático con voz y sonido está listo.'}
-          </p>
+      {/* Card 4: Preparar Cantador para el Evento (Organizador) */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-stone-900 text-sm">
+                {language === 'en' ? '4. Organizer Setup (Game Night)' : '4. Listo para el Evento (Cantador)'}
+              </span>
+              <Smartphone className="w-4 h-4 text-emerald-600" />
+            </div>
+            <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
+              {language === 'en'
+                ? 'Your custom deck is saved offline in IndexedDB. Lock it with your PIN so only the caller runs.'
+                : 'Tus 54 cartas e imágenes están guardadas en este dispositivo (IndexedDB). Bloquéalo con tu PIN para el evento.'}
+            </p>
+          </div>
+          <span className="bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-md border border-emerald-200 text-[10px] shrink-0">
+            OFFLINE
+          </span>
         </div>
-        <button
-          onClick={onGoToGame}
-          className="flex items-center gap-1.5 px-4 py-2 bg-white text-emerald-950 font-bold rounded-xl text-xs shadow-xs hover:bg-emerald-50 transition-colors cursor-pointer shrink-0"
-        >
-          <Play className="w-3.5 h-3.5 fill-emerald-950" />
-          <span>{t('go_to_game')}</span>
-        </button>
+
+        {/* Estado de almacenamiento en disco */}
+        <div className="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs">
+          <div className="flex items-center gap-2 text-stone-700">
+            <HardDrive className="w-3.5 h-3.5 text-stone-500" />
+            <span className="font-medium text-[11px]">
+              {language === 'en' ? 'Local Storage Status:' : 'Almacenamiento Local:'}
+            </span>
+          </div>
+          <span className="font-bold text-emerald-700 text-[11px]">
+            {cards.length} {language === 'en' ? 'cards ready' : 'cartas guardadas'}
+            {storageUsageMB !== null ? ` (${storageUsageMB} MB)` : ''}
+          </span>
+        </div>
+
+        {/* Instalación PWA */}
+        {isPwaInstalled ? (
+          <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200/70">
+            <span className="text-sm">📱</span>
+            <span>{language === 'en' ? 'App Installed (Running Offline)' : 'App Instalada (Funciona sin internet)'}</span>
+          </div>
+        ) : canInstallPwa ? (
+          <button
+            onClick={async () => {
+              const outcome = await promptPWAInstall();
+              if (outcome === 'accepted') setIsPwaInstalled(true);
+            }}
+            className="w-full py-2 px-3 bg-gradient-to-r from-teal-700 to-emerald-800 hover:from-teal-800 hover:to-emerald-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+          >
+            <span>📲</span>
+            <span>{language === 'en' ? 'Install App on this Device' : 'Instalar App en este Dispositivo (PWA)'}</span>
+          </button>
+        ) : isIOS() ? (
+          <div className="p-2.5 rounded-xl bg-stone-50 text-stone-600 text-[11px] leading-snug border border-stone-200">
+            <span className="font-bold text-stone-800 block mb-0.5">📲 {language === 'en' ? 'Install on iPhone/iPad' : 'Instalar en iPhone/iPad'}:</span>
+            {language === 'en'
+              ? 'In Safari, tap Share (box with arrow up) and choose "Add to Home Screen".'
+              : 'En Safari, toca Compartir (cuadrado con flecha arriba) y elige "Agregar al inicio".'}
+          </div>
+        ) : null}
+
+        {/* Bloqueo y Paso al Cantador */}
+        <div className="pt-1 space-y-2">
+          {onLockGenerator ? (
+            <button
+              onClick={onLockGenerator}
+              className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>{language === 'en' ? 'Lock App & Open Caller Mode' : 'Bloquear con PIN y Abrir Cantador'}</span>
+            </button>
+          ) : null}
+
+          <button
+            onClick={onGoToGame}
+            className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-stone-200"
+          >
+            <Play className="w-3.5 h-3.5 text-stone-700" />
+            <span>{language === 'en' ? 'Open Caller without Locking' : 'Ir al Cantador (Modo Libre)'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Navigation Footer */}

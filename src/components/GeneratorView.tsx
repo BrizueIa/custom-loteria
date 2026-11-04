@@ -388,6 +388,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           onRegenerateBoards={() => handleRegenerateBoards()}
           onBack={() => setCurrentStep('board_config')}
           onGoToGame={onGoToGame}
+          onLockGenerator={onLockGenerator}
         />
       )}
     </div>

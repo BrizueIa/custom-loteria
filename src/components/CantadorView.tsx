@@ -5,6 +5,7 @@ import { audioCantador, VoiceId, getVoicesCatalog, getAssetUrl } from '../utils/
 import { exportDeckToJson, validateAndParseDeckJson } from '../utils/deckIO';
 import { CardPreview } from './CardPreview';
 import { useLanguage } from '../i18n/LanguageContext';
+import { subscribePWA, promptPWAInstall, isStandalone, isIOS } from '../utils/pwaInstaller';
 import confetti from 'canvas-confetti';
 import {
   Play,
@@ -107,6 +108,17 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
   const [showDesempateModal, setShowDesempateModal] = useState<boolean>(false);
   const [desempateCard, setDesempateCard] = useState<LoteriaCard | null>(null);
+
+  // Progressive Web App (PWA) status
+  const [canInstallPwa, setCanInstallPwa] = useState<boolean>(false);
+  const [isPwaInstalled, setIsPwaInstalled] = useState<boolean>(() => isStandalone());
+
+  useEffect(() => {
+    return subscribePWA((canInstall) => {
+      setCanInstallPwa(canInstall);
+      setIsPwaInstalled(isStandalone());
+    });
+  }, []);
 
   // Secret 4-tap on title to open admin PIN prompt
   const titleTapCountRef = useRef(0);
@@ -310,14 +322,21 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     }
   };
 
-  // Probar voz con "¡Buenas!" o "Bingo!"
+  // Probar voz con una carta de ejemplo y entonación real
   const handleTestVoice = async (voiceToTest: VoiceId = selectedVoiceId) => {
+    audioCantador.unlock();
     setIsTestingVoice(true);
-    await audioCantador.speakSpecial('buenas', voiceToTest, speechRate);
+    const sampleCard = shuffledDeck[currentIndex >= 0 ? currentIndex : 0] || cards[0];
+    const cardTitle = sampleCard?.name || (language === 'en' ? 'The Rooster' : 'El Gallo');
+    const sampleText = language === 'en'
+      ? `Number 1. ${cardTitle}!`
+      : `¡Número 1. ${cardTitle}!`;
+    await audioCantador.announceCard(sampleText, voiceToTest, speechRate, selectedVoiceURI);
     setIsTestingVoice(false);
   };
 
   const handleStartRound = () => {
+    audioCantador.unlock();
     if (applauseTimerRef.current) {
       clearTimeout(applauseTimerRef.current);
     }
@@ -332,6 +351,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   };
 
   const handleNextCard = () => {
+    audioCantador.unlock();
     if (applauseTimerRef.current) {
       clearTimeout(applauseTimerRef.current);
     }
@@ -349,6 +369,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   };
 
   const handlePrevCard = () => {
+    audioCantador.unlock();
     if (applauseTimerRef.current) {
       clearTimeout(applauseTimerRef.current);
     }
@@ -362,6 +383,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   };
 
   const handleRestart = () => {
+    audioCantador.unlock();
     setIsPlaying(false);
     setIsAnnouncing(false);
     announcementTokenRef.current++;
@@ -380,6 +402,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   };
 
   const handleTogglePlayPause = () => {
+    audioCantador.unlock();
     if (currentIndex === -1) {
       handleStartRound();
       return;
@@ -436,6 +459,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
   // Celebrar ganador con ¡BUENAS!
   const handleBuenasWin = async () => {
+    audioCantador.unlock();
     setIsPlaying(false);
     setIsAnnouncing(false);
     announcementTokenRef.current++;
@@ -461,6 +485,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   };
 
   const handleDesempateCartaMayor = () => {
+    audioCantador.unlock();
     setIsPlaying(false);
     const pool = shuffledDeck.slice(currentIndex + 1).length > 0
       ? shuffledDeck.slice(currentIndex + 1)
@@ -841,7 +866,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-stone-200 transition-colors"
             >
               <Volume2 className="w-4 h-4 text-stone-600" />
-              {isTestingVoice ? '...' : language === 'en' ? '🔊 Listen sample: "Bingo!"' : '🔊 Escuchar ejemplo: "¡Buenas!"'}
+              {isTestingVoice ? '...' : language === 'en' ? '🔊 Test Caller Voice (Sample Card)' : '🔊 Probar Voz del Cantador (Ejemplo de Carta)'}
             </button>
 
             {/* Voz del sistema si está disponible */}
@@ -939,6 +964,34 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                   className="w-4 h-4 rounded border-stone-300 text-amber-700 focus:ring-amber-700 accent-amber-700 cursor-pointer"
                 />
               </label>
+            </div>
+
+            {/* ================= ESTADO E INSTALACIÓN PWA ================= */}
+            <div className="pt-2 border-t border-stone-100">
+              {isPwaInstalled ? (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200/70">
+                  <span className="text-sm">📱</span>
+                  <span>{language === 'en' ? 'App Installed (Offline Mode Ready)' : 'App Instalada (Modo Offline Listo)'}</span>
+                </div>
+              ) : canInstallPwa ? (
+                <button
+                  onClick={async () => {
+                    const outcome = await promptPWAInstall();
+                    if (outcome === 'accepted') setIsPwaInstalled(true);
+                  }}
+                  className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-700 to-teal-800 hover:from-emerald-800 hover:to-teal-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                >
+                  <span className="text-sm">📲</span>
+                  <span>{language === 'en' ? 'Install App on this Device' : 'Instalar App en este Dispositivo'}</span>
+                </button>
+              ) : isIOS() ? (
+                <div className="p-2.5 rounded-xl bg-stone-50 text-stone-600 text-[11px] leading-snug border border-stone-200">
+                  <span className="font-bold text-stone-800 block mb-0.5">📲 {language === 'en' ? 'Install on iPhone/iPad' : 'Instalar en iPhone/iPad'}:</span>
+                  {language === 'en'
+                    ? 'Tap the Share icon (square with arrow up) in Safari, then select "Add to Home Screen".'
+                    : 'Toca el icono Compartir (cuadrado con flecha arriba) en Safari y selecciona "Agregar al inicio".'}
+                </div>
+              ) : null}
             </div>
 
             {/* ================= SECCIÓN SUTIL Y NO NOTORIA DE ADMINISTRACIÓN ================= */}

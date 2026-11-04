@@ -1,9 +1,10 @@
 // Bulletproof Audio and Voice Narrator Engine for Loteria
-// Supports 4 distinct high-quality offline character voices:
-// 1. "dona_plantas" - Voz Femenina Cálida y Tradicional
-// 2. "don_fermin"   - Cantador de Feria (Voz Masculina Grave)
-// 3. "sobrina"      - Voz Femenina Juvenil y Alegre
-// 4. "locutor"      - Voz Masculina Radiofónica / Posada
+// Optimized for Production (PWA & GitHub Pages) using direct Web Speech API
+// Features 4 distinct character profiles with pitch/rate acoustic modeling:
+// 1. "dona_plantas" - Voz Cálida y Tradicional (Femenina)
+// 2. "don_fermin"   - Cantador de Feria (Masculina Grave y Enérgica)
+// 3. "sobrina"      - Voz Juvenil (Alegre y Brillante)
+// 4. "locutor"      - Locutor Radiofónico (Masculina Clara y Pausada)
 
 export type VoiceId = 
   | 'dona_plantas' | 'don_fermin' | 'sobrina' | 'locutor'
@@ -15,36 +16,51 @@ export interface VoiceProfile {
   gender: string;
   desc: string;
   badge: string;
+  pitch: number;
+  rateMultiplier: number;
+  preferredKeywords: string[];
 }
 
 export const SPANISH_VOICES: VoiceProfile[] = [
   {
     id: 'dona_plantas',
-    name: 'Dalia (México)',
+    name: 'Dalia • Tradicional',
     gender: 'Femenina',
-    desc: 'Mujer mexicana, entonación cálida y tradicional',
-    badge: '🇲🇽 México • Mujer'
+    desc: 'Tono cálido, amigable y tradicional de lotería familiar',
+    badge: '🇲🇽 México • Cálida',
+    pitch: 1.04,
+    rateMultiplier: 0.96,
+    preferredKeywords: ['dalia', 'paulina', 'sabina', 'monica', 'helena', 'paloma', 'laura', 'es-mx', 'es-us', 'es-419']
   },
   {
     id: 'don_fermin',
-    name: 'Jorge (México)',
+    name: 'Don Fermín • Gritón',
     gender: 'Masculina',
-    desc: 'Hombre mexicano, cantador tradicional',
-    badge: '🇲🇽 México • Hombre'
+    desc: 'Voz grave, potente y festiva típica de las ferias populares',
+    badge: '🇲🇽 México • Grave',
+    pitch: 0.82,
+    rateMultiplier: 1.05,
+    preferredKeywords: ['jorge', 'juan', 'diego', 'raul', 'carlos', 'miguel', 'es-mx', 'es-es']
   },
   {
     id: 'sobrina',
-    name: 'Elvira (España)',
+    name: 'La Sobrina • Juvenil',
     gender: 'Femenina',
-    desc: 'Mujer de España, acento castellano bien marcado',
-    badge: '🇪🇸 España • Mujer'
+    desc: 'Voz vivaz, ágil y alegre para partidas dinámicas',
+    badge: '🇲🇽 Juvenil • Alegre',
+    pitch: 1.18,
+    rateMultiplier: 1.06,
+    preferredKeywords: ['elvira', 'helena', 'laura', 'lucia', 'es-es', 'es-419']
   },
   {
     id: 'locutor',
-    name: 'Gonzalo (Colombia)',
+    name: 'El Locutor • Radiofónico',
     gender: 'Masculina',
-    desc: 'Hombre colombiano, timbre y cadencia clara',
-    badge: '🇨🇴 Colombia • Hombre'
+    desc: 'Cadencia pausada, elocuente y muy clara para salones grandes',
+    badge: '📻 Locutor • Claro',
+    pitch: 0.90,
+    rateMultiplier: 0.90,
+    preferredKeywords: ['gonzalo', 'alvaro', 'carlos', 'pablo', 'es-co', 'es-mx']
   }
 ];
 
@@ -53,29 +69,41 @@ export const ENGLISH_VOICES: VoiceProfile[] = [
     id: 'jenny_us',
     name: 'Jenny (US)',
     gender: 'Female',
-    desc: 'American female, clear, lively and welcoming tone',
-    badge: '🇺🇸 US • Female'
+    desc: 'Clear, lively and welcoming caller tone',
+    badge: '🇺🇸 US • Female',
+    pitch: 1.05,
+    rateMultiplier: 1.0,
+    preferredKeywords: ['jenny', 'samantha', 'zira', 'en-us']
   },
   {
     id: 'guy_us',
     name: 'Guy (US)',
     gender: 'Male',
-    desc: 'American male, enthusiastic bingo/lottery caller',
-    badge: '🇺🇸 US • Male'
+    desc: 'Enthusiastic and energetic lottery caller',
+    badge: '🇺🇸 US • Male',
+    pitch: 0.88,
+    rateMultiplier: 1.04,
+    preferredKeywords: ['guy', 'david', 'mark', 'en-us']
   },
   {
     id: 'sonia_uk',
     name: 'Sonia (UK)',
     gender: 'Female',
-    desc: 'British female, crisp and friendly accent',
-    badge: '🇬🇧 UK • Female'
+    desc: 'Crisp and friendly British accent',
+    badge: '🇬🇧 UK • Female',
+    pitch: 1.05,
+    rateMultiplier: 0.98,
+    preferredKeywords: ['sonia', 'libby', 'en-gb']
   },
   {
     id: 'ryan_uk',
     name: 'Ryan (UK)',
     gender: 'Male',
-    desc: 'British male, engaging and polite lottery caller',
-    badge: '🇬🇧 UK • Male'
+    desc: 'Engaging, polite and clear caller',
+    badge: '🇬🇧 UK • Male',
+    pitch: 0.90,
+    rateMultiplier: 0.96,
+    preferredKeywords: ['ryan', 'oliver', 'george', 'en-gb']
   }
 ];
 
@@ -96,10 +124,11 @@ class AudioCantador {
   private currentAudioResolve: ((val: boolean) => void) | null = null;
   private currentWebSpeechResolve: ((val: boolean) => void) | null = null;
   private currentCountdownTimer: number | null = null;
-  private preloadCache: Map<string, HTMLAudioElement> = new Map();
+  private watchdogTimer: number | null = null;
   private applauseAudio: HTMLAudioElement | null = null;
   private shuffleAudio: HTMLAudioElement | null = null;
   private audioCtx: AudioContext | null = null;
+  private isUnlocked: boolean = false;
 
   private getAudioContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -110,36 +139,42 @@ class AudioCantador {
       }
     }
     if (this.audioCtx && this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
+      this.audioCtx.resume().catch(() => {});
     }
     return this.audioCtx;
   }
 
-  // Pre-fetch TTS audio in background so when card is called, playback starts with 0ms delay
-  preloadCard(textToSpeak: string, voiceId: VoiceId = 'dona_plantas'): void {
-    if (typeof window === 'undefined' || !textToSpeak.trim()) return;
-    const proxyUrl = `/api/tts?q=${encodeURIComponent(textToSpeak)}&voice=${encodeURIComponent(voiceId)}`;
-    if (this.preloadCache.has(proxyUrl)) return;
+  /**
+   * Desbloquea síncronamente el motor de audio y Web Speech API en móviles (iOS Safari / Android Chrome).
+   * Debe ejecutarse en el manejador directo de un clic del usuario (ej. "¡Buenas! Iniciar").
+   */
+  unlock(): void {
+    if (typeof window === 'undefined') return;
 
-    try {
-      const audio = new Audio();
-      audio.preload = 'auto';
-      audio.src = proxyUrl;
-      this.preloadCache.set(proxyUrl, audio);
-      // Keep cache bounded
-      if (this.preloadCache.size > 30) {
-        const firstKey = this.preloadCache.keys().next().value;
-        if (firstKey) this.preloadCache.delete(firstKey);
-      }
-    } catch (e) {
+    // Desbloquear AudioContext
+    this.getAudioContext();
+
+    // Desbloquear SpeechSynthesis
+    if ('speechSynthesis' in window && !this.isUnlocked) {
       try {
-        fetch(proxyUrl).catch(() => {});
-      } catch (e2) {}
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        // Emitir utterance silencioso para habilitar permisos en móvil
+        const silentUtterance = new SpeechSynthesisUtterance('');
+        silentUtterance.volume = 0;
+        window.speechSynthesis.speak(silentUtterance);
+        this.isUnlocked = true;
+      } catch (_) {}
     }
   }
 
-  // Play an audio URL with Promise resolution when finished.
-  // onCountdownReady fires when the audio enters its final 1.0s to start timer early.
+  // Pre-calentamiento compatible con versiones anteriores
+  preloadCard(_textToSpeak: string, _voiceId: VoiceId = 'dona_plantas'): void {
+    // En Web Speech API nativa no se requiere descarga externa por proxy
+  }
+
+  // Reproduce un archivo de audio estático local con promesa de término
   playAudioUrl(url: string, rate: number = 1.0, onCountdownReady?: () => void): Promise<boolean> {
     return new Promise((resolve) => {
       try {
@@ -180,7 +215,7 @@ class AudioCantador {
           const duration = audio.duration;
           if (!duration || isNaN(duration) || duration <= 0) return;
 
-          // Entrar en cuenta regresiva en el último segundo de audio (compensando silencios de cola)
+          // Entrar en cuenta regresiva en el último segundo de audio
           const leadSeconds = 1.0;
           const triggerAtTime = Math.max(0.3, duration - leadSeconds);
           const timeUntilTriggerSec = (triggerAtTime - audio.currentTime) / (audio.playbackRate || 1.0);
@@ -243,7 +278,53 @@ class AudioCantador {
     });
   }
 
-  // Speak using device Web Speech API (fallback for custom cards & offline environments)
+  // Encuentra la mejor voz disponible en el dispositivo según el perfil y preferencia
+  private findBestVoice(voiceId: VoiceId, voiceURI?: string): SpeechSynthesisVoice | null {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    // 1. Si el usuario seleccionó una voz específica por URI en la configuración
+    if (voiceURI) {
+      const explicit = voices.find((v) => v.voiceURI === voiceURI);
+      if (explicit) return explicit;
+    }
+
+    const allProfiles = [...SPANISH_VOICES, ...ENGLISH_VOICES];
+    const profile = allProfiles.find((p) => p.id === voiceId) || SPANISH_VOICES[0];
+    const isEnglish = profile.id.endsWith('_us') || profile.id.endsWith('_uk');
+    const targetLangPrefix = isEnglish ? 'en' : 'es';
+
+    // Filtrar voces del idioma correspondiente
+    const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(targetLangPrefix));
+    if (langVoices.length === 0) {
+      return voices[0] || null;
+    }
+
+    // 2. Buscar por palabras clave del perfil (nombres de voz conocidos y variantes regionales)
+    for (const kw of profile.preferredKeywords) {
+      const match = langVoices.find((v) => {
+        const name = v.name.toLowerCase();
+        const lang = v.lang.toLowerCase().replace('_', '-');
+        return name.includes(kw) || lang.includes(kw);
+      });
+      if (match) return match;
+    }
+
+    // 3. Priorizar acentos mexicanos / latinos si es español
+    if (!isEnglish) {
+      const mxVoice = langVoices.find((v) => v.lang.toLowerCase().includes('mx') || v.lang.toLowerCase().includes('419'));
+      if (mxVoice) return mxVoice;
+    }
+
+    return langVoices[0];
+  }
+
+  /**
+   * Narración directa mediante Web Speech API con modulación acústica de tono (pitch) y velocidad (rate)
+   * e inmunidad a bloqueos con Watchdog Timer.
+   */
   speakWebSpeech(
     text: string,
     voiceURI?: string,
@@ -268,6 +349,12 @@ class AudioCantador {
           this.currentCountdownTimer = null;
         }
 
+        if (this.watchdogTimer) {
+          clearTimeout(this.watchdogTimer);
+          this.watchdogTimer = null;
+        }
+
+        // Cancelar síntesis previa de forma segura
         window.speechSynthesis.cancel();
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
@@ -295,6 +382,10 @@ class AudioCantador {
             clearTimeout(this.currentCountdownTimer);
             this.currentCountdownTimer = null;
           }
+          if (this.watchdogTimer) {
+            clearTimeout(this.watchdogTimer);
+            this.watchdogTimer = null;
+          }
           if (this.currentWebSpeechResolve === cleanupAndResolve) {
             this.currentWebSpeechResolve = null;
           }
@@ -303,57 +394,61 @@ class AudioCantador {
 
         this.currentWebSpeechResolve = cleanupAndResolve;
 
+        // Pequeño timeout de 30ms para permitir que Chromium procese cancel() antes de speak()
         setTimeout(() => {
           const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = rate;
+          const allProfiles = [...SPANISH_VOICES, ...ENGLISH_VOICES];
+          const profile = allProfiles.find((p) => p.id === voiceId) || SPANISH_VOICES[0];
 
-          const isEnglish = voiceId.endsWith('_us') || voiceId.endsWith('_uk');
-          const defaultLang = isEnglish
-            ? (voiceId.endsWith('_uk') ? 'en-GB' : 'en-US')
-            : (voiceId === 'sobrina' ? 'es-ES' : voiceId === 'locutor' ? 'es-CO' : 'es-MX');
+          // Modulación acústica según el personaje
+          utterance.pitch = profile.pitch;
+          const effectiveRate = Math.max(0.65, Math.min(1.5, rate * profile.rateMultiplier));
+          utterance.rate = effectiveRate;
 
-          const voices = window.speechSynthesis.getVoices();
-          if (voiceURI) {
-            const chosen = voices.find(v => v.voiceURI === voiceURI);
-            if (chosen) {
-              utterance.voice = chosen;
-              utterance.lang = chosen.lang || defaultLang;
-            } else {
-              utterance.lang = defaultLang;
-            }
+          // Asignar mejor voz del dispositivo
+          const selectedVoice = this.findBestVoice(voiceId, voiceURI);
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            utterance.lang = selectedVoice.lang;
           } else {
-            // Find best matching voice for target language
-            const matchingVoice = voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith(defaultLang.toLowerCase())) ||
-              voices.find(v => v.lang.toLowerCase().startsWith(isEnglish ? 'en' : 'es'));
-            if (matchingVoice) {
-              utterance.voice = matchingVoice;
-              utterance.lang = matchingVoice.lang;
-            } else {
-              utterance.lang = defaultLang;
-            }
+            const isEnglish = profile.id.endsWith('_us') || profile.id.endsWith('_uk');
+            utterance.lang = isEnglish ? 'en-US' : 'es-MX';
           }
 
-          // Estimar duración para disparar en el último segundo (~15 caracteres por segundo)
-          const estimatedDurationSec = Math.max(1.0, (text.length / 15) / (rate || 1.0));
-          const triggerDelayMs = Math.max(300, (estimatedDurationSec - 1.0) * 1000);
+          // Programar cuenta regresiva en el último segundo (~14 caracteres por segundo)
+          const estimatedDurationSec = Math.max(1.0, (text.length / 14) / effectiveRate);
+          const triggerDelayMs = Math.max(200, (estimatedDurationSec - 0.9) * 1000);
           this.currentCountdownTimer = window.setTimeout(() => {
             fireCountdown();
           }, triggerDelayMs);
 
+          // Watchdog Anti-Congelamiento: si el navegador móvil no emite onend, continuar
+          const maxSafetyMs = Math.max(3000, estimatedDurationSec * 1000 + 2000);
+          this.watchdogTimer = window.setTimeout(() => {
+            console.warn('[audioCantador] Watchdog activado para:', text);
+            cleanupAndResolve(true);
+          }, maxSafetyMs);
+
           utterance.onend = () => cleanupAndResolve(true);
-          utterance.onerror = () => cleanupAndResolve(false);
+          utterance.onerror = (e) => {
+            // Ignorar errores por interrupción manual
+            if (e.error === 'interrupted' || e.error === 'canceled') {
+              cleanupAndResolve(false);
+            } else {
+              console.warn('[audioCantador] Speech error:', e);
+              cleanupAndResolve(false);
+            }
+          };
 
           window.speechSynthesis.speak(utterance);
-        }, 20);
+        }, 30);
       } catch (e) {
         resolve(false);
       }
     });
   }
 
-  // Announce a card dynamically so ANY custom deck is pronounced with its real name.
-  // Resolves as a Promise when the spoken audio has finished playing.
-  // onCountdownReady fires when the audio enters its final 1.0s.
+  // Anuncia la carta usando síntesis de voz nativa optimizada (0ms delay y offline)
   async announceCard(
     textToSpeak: string,
     voiceId: VoiceId = 'dona_plantas',
@@ -361,20 +456,19 @@ class AudioCantador {
     systemVoiceURI?: string,
     onCountdownReady?: () => void
   ): Promise<boolean> {
-    // 1. Try same-origin TTS proxy with the specific voiceId
-    const proxyUrl = `/api/tts?q=${encodeURIComponent(textToSpeak)}&voice=${encodeURIComponent(voiceId)}`;
-    const proxyPlayed = await this.playAudioUrl(proxyUrl, rate, onCountdownReady);
-    if (proxyPlayed) return true;
-
-    // 2. Fallback to Web Speech API (device voice synthesis in proper language)
-    const webSpeechOk = await this.speakWebSpeech(textToSpeak, systemVoiceURI, rate, onCountdownReady, voiceId);
-    if (webSpeechOk) return true;
-
-    return false;
+    if (!textToSpeak.trim()) {
+      if (onCountdownReady) onCountdownReady();
+      return true;
+    }
+    return this.speakWebSpeech(textToSpeak, systemVoiceURI, rate, onCountdownReady, voiceId);
   }
 
-  // Speak special victory/game phrases (primarily "¡Buenas!" or "Bingo!")
-  async speakSpecial(specialKey: 'loteria' | 'buenas' | 'desempate' | 'comenzar', voiceId: VoiceId = 'dona_plantas', rate: number = 1.0) {
+  // Frases especiales ("¡Buenas!", "¡Lotería!"): utiliza primero archivos MP3 estáticos locales
+  async speakSpecial(
+    specialKey: 'loteria' | 'buenas' | 'desempate' | 'comenzar',
+    voiceId: VoiceId = 'dona_plantas',
+    rate: number = 1.0
+  ): Promise<void> {
     const isEnglishVoice = voiceId.endsWith('_us') || voiceId.endsWith('_uk');
     const phrases: Record<string, { es: string; en: string }> = {
       'buenas': { es: '¡Buenas!', en: 'Bingo! We have a winner!' },
@@ -386,12 +480,7 @@ class AudioCantador {
       ? (isEnglishVoice ? phrases[specialKey].en : phrases[specialKey].es)
       : (specialKey === 'buenas' ? '¡Buenas!' : '¡Lotería!');
 
-    // First try dynamic TTS endpoint so voice matches chosen persona
-    const proxyUrl = `/api/tts?q=${encodeURIComponent(phrase)}&voice=${encodeURIComponent(voiceId)}`;
-    const ok = await this.playAudioUrl(proxyUrl, rate);
-    if (ok) return;
-
-    // Fallbacks to static assets
+    // 1. Probar audio estático del personaje
     const primaryUrl = getAssetUrl(`audio/voices/${voiceId}/${specialKey}.mp3`);
     const okStatic = await this.playAudioUrl(primaryUrl, rate);
     if (okStatic) return;
@@ -400,12 +489,12 @@ class AudioCantador {
     const ok2 = await this.playAudioUrl(specialUrl, rate);
     if (ok2) return;
 
-    if (specialKey === 'buenas') {
-      const okBuenas = await this.playAudioUrl(getAssetUrl('audio/buenas.mp3'), rate);
-      if (okBuenas) return;
-    }
+    // 2. Probar audio estático genérico (ej. public/audio/buenas.mp3, public/audio/loteria.mp3)
+    const genericUrl = getAssetUrl(`audio/${specialKey}.mp3`);
+    const okGeneric = await this.playAudioUrl(genericUrl, rate);
+    if (okGeneric) return;
 
-    // Ultimate fallback for pure static hosting without backend: Web Speech API
+    // 3. Narración mediante Web Speech API
     await this.speakWebSpeech(phrase, undefined, rate, undefined, voiceId);
   }
 
@@ -413,6 +502,10 @@ class AudioCantador {
     if (this.currentCountdownTimer) {
       clearTimeout(this.currentCountdownTimer);
       this.currentCountdownTimer = null;
+    }
+    if (this.watchdogTimer) {
+      clearTimeout(this.watchdogTimer);
+      this.watchdogTimer = null;
     }
     if (this.currentAudioResolve) {
       this.currentAudioResolve(false);
@@ -434,7 +527,7 @@ class AudioCantador {
     }
   }
 
-  // Play realistic card shuffle sound
+  // Reproduce sonido de barajeado de cartas
   playShuffleSound(volume: number = 0.85): void {
     try {
       this.stopShuffle();
@@ -463,12 +556,12 @@ class AudioCantador {
     }
   }
 
-  // Procedural Web Audio card riffle shuffle fallback
+  // Efecto procedural de barajado con Web Audio API
   playProceduralShuffle(): void {
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
       const now = ctx.currentTime;
       const numSnaps = 26;
@@ -498,7 +591,7 @@ class AudioCantador {
     } catch (e) {}
   }
 
-  // Play celebratory crowd applause & cheer
+  // Reproduce aplausos y vítores
   playApplause(volume: number = 0.9): void {
     try {
       if (this.applauseAudio) {
@@ -530,7 +623,7 @@ class AudioCantador {
     }
   }
 
-  // Procedural Web Audio applause fallback
+  // Aplausos sintéticos en caso de que el archivo mp3 no cargue
   playProceduralApplause(): void {
     try {
       const ctx = this.getAudioContext();
@@ -541,7 +634,6 @@ class AudioCantador {
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
 
-      // Generate bursty noise simulating many individuals clapping
       for (let i = 0; i < bufferSize; i++) {
         data[i] = (Math.random() * 2 - 1);
       }
@@ -569,8 +661,8 @@ class AudioCantador {
     } catch (e) {}
   }
 
-  // Card bell chime
-  playCardChime() {
+  // Campana tradicional al cantar cada carta
+  playCardChime(): void {
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
@@ -579,8 +671,8 @@ class AudioCantador {
       const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
-      osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.1); // C6
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.1);
 
       gain.gain.setValueAtTime(0.18, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
@@ -593,8 +685,7 @@ class AudioCantador {
     } catch (e) {}
   }
 
-  // Fanfare / celebration alias
-  playFanfare() {
+  playFanfare(): void {
     this.playApplause();
   }
 }
