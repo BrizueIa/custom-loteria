@@ -201,8 +201,8 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         <div
           className={`w-full text-center z-10 ${
             isCompactTable
-              ? `pt-0 pb-0 ${style.numberPosition === 'top-right' ? 'pr-2.5 pl-0.5' : style.numberPosition === 'top-left' ? 'pl-2.5 pr-0.5' : 'px-0.5'}`
-              : 'px-4 pt-1 pb-1'
+              ? `pt-0.5 pb-0 ${style.numberPosition === 'top-right' ? 'pr-2.5 pl-0.5' : style.numberPosition === 'top-left' ? 'pl-2.5 pr-0.5' : 'px-0.5'}`
+              : `pt-2 sm:pt-2.5 pb-1 ${style.numberPosition === 'top-right' ? 'pr-9 pl-3' : style.numberPosition === 'top-left' ? 'pl-9 pr-3' : 'px-4'}`
           }`}
         >
           <h4
@@ -211,6 +211,12 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
           >
             {card.name}
           </h4>
+          {/* Optional Tagline when name is on top */}
+          {style.showTaglineOnCard && !isCompactTable && card.tagline && (
+            <p className="text-[10px] sm:text-xs text-stone-500 italic line-clamp-1 mt-0.5 font-serif">
+              {card.tagline}
+            </p>
+          )}
         </div>
       )}
 
@@ -230,7 +236,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
           className={`w-full text-center z-10 ${
             isCompactTable
               ? `pt-0 pb-0.5 ${style.numberPosition === 'bottom-right' ? 'pr-2.5 pl-0.5' : style.numberPosition === 'bottom-left' ? 'pl-2.5 pr-0.5' : 'px-0.5'}`
-              : 'px-2 pt-0.5 pb-1'
+              : `pt-0.5 pb-2 sm:pb-2.5 ${style.numberPosition === 'bottom-right' ? 'pr-9 pl-3' : style.numberPosition === 'bottom-left' ? 'pl-9 pr-3' : 'px-4'}`
           }`}
         >
           <h4
@@ -241,7 +247,9 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
           </h4>
           {/* Optional Tagline */}
           {style.showTaglineOnCard && !isCompactTable && card.tagline && (
-            <p className="text-[10px] text-stone-500 italic line-clamp-1 mt-0.5">{card.tagline}</p>
+            <p className="text-[10px] sm:text-xs text-stone-500 italic line-clamp-1 mt-0.5 font-serif">
+              {card.tagline}
+            </p>
           )}
         </div>
       )}

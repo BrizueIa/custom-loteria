@@ -198,19 +198,23 @@ async function drawCardToCanvas(
   }
   ctx.fillText(card.number.toString(), numX, numY);
 
+  const hasTagline = Boolean(style.showTaglineOnCard && card.tagline && card.tagline.trim());
+
   // Position and Heights
-  let nameCenterY = height - 22;
+  let nameCenterY = height - (hasTagline ? 28 : 22);
+  let taglineCenterY = height - 14;
   let imgTop = 36;
-  let imgHeight = height - 68;
+  let imgHeight = height - (hasTagline ? 76 : 68);
 
   if (style.namePosition === 'top') {
-    nameCenterY = 26;
-    imgTop = 46;
-    imgHeight = height - 60;
+    nameCenterY = 24;
+    taglineCenterY = 36;
+    imgTop = hasTagline ? 48 : 42;
+    imgHeight = height - (hasTagline ? 66 : 60);
   }
 
   // Draw Adaptive Name (Full, wrapping, never truncated!)
-  const maxTextWidth = width - 36;
+  const maxTextWidth = width - 42;
   drawAdaptiveText(
     ctx,
     card.name.toUpperCase(),
@@ -221,6 +225,15 @@ async function drawCardToCanvas(
     '"Playfair Display", Georgia, serif',
     style.textColor || '#1C1917'
   );
+
+  // Draw Tagline if enabled
+  if (hasTagline && card.tagline) {
+    ctx.font = 'italic 8px "Playfair Display", Georgia, serif';
+    ctx.fillStyle = '#78716c';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(card.tagline.trim(), width / 2, taglineCenterY, maxTextWidth);
+  }
 
   // Draw Card Image preserving true aspect ratio (object-fit: contain)
   try {
