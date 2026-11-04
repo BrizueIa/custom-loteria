@@ -179,7 +179,7 @@ function MainApp() {
       {/* Main Content Area */}
       <main className="flex-1 w-full mx-auto">
         {activeTab === 'generator' && canAccessGenerator ? (
-          <div className="max-w-4xl mx-auto p-2.5 sm:p-4">
+          <div className="w-full max-w-7xl mx-auto p-2.5 sm:p-4 lg:p-6">
             <GeneratorView
               cards={cards}
               cardStyle={cardStyle}

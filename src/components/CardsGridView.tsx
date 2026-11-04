@@ -36,24 +36,24 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-3 pb-20">
+    <div className="w-full max-w-7xl mx-auto space-y-4 pb-24 px-1 sm:px-2">
       {/* Super Compact Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-stone-800">54 {t('cards')}</span>
+          <span className="text-xs sm:text-sm font-bold text-stone-800">54 {t('cards')}</span>
           <button
             onClick={() => setShowHelp(!showHelp)}
-            className="text-stone-400 hover:text-emerald-800 p-0.5"
+            className="text-stone-400 hover:text-emerald-800 p-1 rounded-md transition-colors cursor-pointer"
             title={t('instructions_title')}
           >
             <HelpCircle className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <button
             onClick={() => batchInputRef.current?.click()}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 rounded-xl text-xs sm:text-sm font-semibold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
             title={t('batch_upload_photos')}
           >
             <Upload className="w-3.5 h-3.5 text-emerald-700" />
@@ -71,7 +71,7 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
           {onClearAllImages && (
             <button
               onClick={onClearAllImages}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-rose-50 border border-stone-200 hover:border-rose-200 text-stone-700 hover:text-rose-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white hover:bg-rose-50 border border-stone-200 hover:border-rose-200 text-stone-700 hover:text-rose-700 rounded-xl text-xs sm:text-sm font-semibold shadow-2xs transition-all cursor-pointer"
               title={t('clear_all_photos')}
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-500" />
@@ -82,7 +82,7 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
           {onResetToDefaultDeck && (
             <button
               onClick={onResetToDefaultDeck}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600 rounded-xl text-xs sm:text-sm font-semibold shadow-2xs transition-all cursor-pointer"
               title={t('reset_default_deck')}
             >
               <RotateCcw className="w-3 h-3 text-stone-500" />
@@ -94,25 +94,30 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
 
       {/* Optional / Dismissible Help Banner */}
       {showHelp && (
-        <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-950 flex items-start justify-between gap-2 animate-in fade-in">
-          <p>
+        <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-emerald-950 flex items-start justify-between gap-3 animate-in fade-in">
+          <p className="leading-relaxed">
             {t('instructions_text')}
           </p>
           <button
             onClick={() => setShowHelp(false)}
-            className="text-emerald-700 hover:text-emerald-950 p-0.5"
+            className="text-emerald-700 hover:text-emerald-950 p-0.5 rounded cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Grid of 54 cards (Optimized 3 cols on mobile, 4-6 on tablet/desktop) */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+      {/* Grid of 54 cards:
+          - Mobile (<640px): 3 columns (3 x 18 = 54)
+          - Tablet (640-768px): 4 columns
+          - Laptop / Medium desktop (768-1280px): 6 columns (6 x 9 = 54)
+          - Large widescreen desktop (>=1280px): 9 columns (9 x 6 = 54, exactly 6 uniform rows)
+      */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-9 gap-2 sm:gap-2.5 lg:gap-3">
         {cards.map((card, idx) => (
           <div
             key={card.id}
-            className="group relative flex flex-col items-center bg-white rounded-xl p-1 border border-stone-200/90 hover:border-emerald-600 hover:shadow-sm transition-all cursor-pointer"
+            className="group relative flex flex-col items-center bg-white rounded-2xl p-1.5 sm:p-2 border border-stone-200/90 hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer"
           >
             <div
               onClick={() => onSelectCard(idx)}
@@ -121,19 +126,20 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
               <CardPreview
                 card={card}
                 style={cardStyle}
-                isCompactTable={true}
+                variant="grid"
                 className="w-full"
               />
             </div>
 
             {/* Quick swap number selector */}
-            <div className="w-full mt-1 pt-0.5 border-t border-stone-100 flex items-center justify-between px-1">
-              <span className="text-[10px] font-mono font-bold text-stone-400">#{card.number}</span>
+            <div className="w-full mt-1.5 pt-1 border-t border-stone-100 flex items-center justify-between px-1">
+              <span className="text-[10px] sm:text-xs font-mono font-bold text-stone-400">#{card.number}</span>
               <select
                 value={card.number}
                 onChange={(e) => onSwapNumber(card.id, parseInt(e.target.value, 10))}
                 onClick={(e) => e.stopPropagation()}
-                className="text-[10px] font-mono font-bold bg-stone-50 text-stone-700 border border-stone-200 rounded px-1 py-0.2 focus:outline-none"
+                className="text-[10px] sm:text-xs font-mono font-bold bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-colors cursor-pointer"
+                title="Cambiar número de carta"
               >
                 {cards.map(c => (
                   <option key={c.number} value={c.number}>
