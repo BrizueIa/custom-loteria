@@ -98,11 +98,60 @@ async function drawCardToCanvas(
 
   ctx.scale(2, 2);
 
-  // Background
+  // 1. Solid Card Background
   ctx.fillStyle = style.cardBgColor || '#FFFFFF';
   ctx.fillRect(0, 0, width, height);
 
-  // Draw Elaborate Frame Styles
+  const hasTagline = Boolean(style.showTaglineOnCard && card.tagline && card.tagline.trim());
+
+  // Layout Dimensions & Geometry
+  let nameCenterY = height - (hasTagline ? 28 : 22);
+  let taglineCenterY = height - 14;
+  let imgTop = 36;
+  let imgHeight = height - (hasTagline ? 76 : 68);
+
+  if (style.namePosition === 'top') {
+    nameCenterY = 24;
+    taglineCenterY = 36;
+    imgTop = hasTagline ? 48 : 42;
+    imgHeight = height - (hasTagline ? 66 : 60);
+  }
+
+  // 2. Draw Card Image FIRST (Layer 2 - below borders and text)
+  try {
+    const img = await loadImage(card.image);
+    const imgMargin = 16;
+    const availWidth = width - imgMargin * 2;
+    const availHeight = imgHeight;
+
+    const imgNaturalW = img.naturalWidth || img.width || 1;
+    const imgNaturalH = img.naturalHeight || img.height || 1;
+    const imgAspect = imgNaturalW / imgNaturalH;
+    const availAspect = availWidth / availHeight;
+
+    let drawWidth = availWidth;
+    let drawHeight = availHeight;
+    let drawX = imgMargin;
+    let drawY = imgTop;
+
+    if (imgAspect > availAspect) {
+      // Imagen más ancha que la caja: ajustar ancho y centrar verticalmente
+      drawWidth = availWidth;
+      drawHeight = availWidth / imgAspect;
+      drawY = imgTop + (availHeight - drawHeight) / 2;
+    } else {
+      // Imagen más alta que la caja: ajustar alto y centrar horizontalmente
+      drawHeight = availHeight;
+      drawWidth = availHeight * imgAspect;
+      drawX = imgMargin + (availWidth - drawWidth) / 2;
+    }
+
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+  } catch (err) {
+    console.error('Error loading image for card', card.number, err);
+  }
+
+  // 3. Draw Elaborate Frame Styles (Layer 3 - on top of image)
   ctx.strokeStyle = style.borderColor || '#1C1917';
 
   if (style.frameStyle === 'talavera') {
@@ -165,6 +214,7 @@ async function drawCardToCanvas(
       ctx.beginPath();
       ctx.moveTo(cx, cy - sz);
       ctx.lineTo(cx + sz, cy);
+      ctx.lineTo(cx + sz, cy);
       ctx.lineTo(cx, cy + sz);
       ctx.lineTo(cx - sz, cy);
       ctx.closePath();
@@ -176,10 +226,14 @@ async function drawCardToCanvas(
     drawDiamond(width - 12, height - 12, 4);
   }
 
-  // Draw Card Number
-  ctx.fillStyle = style.textColor || '#1C1917';
+  // 4. Draw Card Number (Layer 4 - on top with crisp pill background)
   ctx.font = 'bold 15px "Cinzel", "Times New Roman", serif';
   ctx.textBaseline = 'top';
+
+  const numText = card.number.toString();
+  const numMetrics = ctx.measureText(numText);
+  const numPadX = 3;
+  const numPadY = 1.5;
 
   let numX = 14;
   let numY = 14;
@@ -196,24 +250,16 @@ async function drawCardToCanvas(
   } else {
     ctx.textAlign = 'left';
   }
-  ctx.fillText(card.number.toString(), numX, numY);
 
-  const hasTagline = Boolean(style.showTaglineOnCard && card.tagline && card.tagline.trim());
+  // Subtle clean pill behind number for guaranteed high contrast
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.90)';
+  const pillX = ctx.textAlign === 'right' ? numX - numMetrics.width - numPadX : numX - numPadX;
+  ctx.fillRect(pillX, numY - numPadY, numMetrics.width + numPadX * 2, 17 + numPadY * 2);
 
-  // Position and Heights
-  let nameCenterY = height - (hasTagline ? 28 : 22);
-  let taglineCenterY = height - 14;
-  let imgTop = 36;
-  let imgHeight = height - (hasTagline ? 76 : 68);
+  ctx.fillStyle = style.textColor || '#1C1917';
+  ctx.fillText(numText, numX, numY);
 
-  if (style.namePosition === 'top') {
-    nameCenterY = 24;
-    taglineCenterY = 36;
-    imgTop = hasTagline ? 48 : 42;
-    imgHeight = height - (hasTagline ? 66 : 60);
-  }
-
-  // Draw Adaptive Name (Full, wrapping, never truncated!)
+  // 5. Draw Adaptive Name & Tagline (Layer 5 - on top of everything)
   const maxTextWidth = width - 42;
   drawAdaptiveText(
     ctx,
@@ -226,47 +272,12 @@ async function drawCardToCanvas(
     style.textColor || '#1C1917'
   );
 
-  // Draw Tagline if enabled
   if (hasTagline && card.tagline) {
     ctx.font = 'italic 8px "Playfair Display", Georgia, serif';
     ctx.fillStyle = '#78716c';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(card.tagline.trim(), width / 2, taglineCenterY, maxTextWidth);
-  }
-
-  // Draw Card Image preserving true aspect ratio (object-fit: contain)
-  try {
-    const img = await loadImage(card.image);
-    const imgMargin = 16;
-    const availWidth = width - imgMargin * 2;
-    const availHeight = imgHeight;
-
-    const imgNaturalW = img.naturalWidth || img.width || 1;
-    const imgNaturalH = img.naturalHeight || img.height || 1;
-    const imgAspect = imgNaturalW / imgNaturalH;
-    const availAspect = availWidth / availHeight;
-
-    let drawWidth = availWidth;
-    let drawHeight = availHeight;
-    let drawX = imgMargin;
-    let drawY = imgTop;
-
-    if (imgAspect > availAspect) {
-      // Imagen más ancha que la caja: ajustar ancho y centrar verticalmente
-      drawWidth = availWidth;
-      drawHeight = availWidth / imgAspect;
-      drawY = imgTop + (availHeight - drawHeight) / 2;
-    } else {
-      // Imagen más alta que la caja: ajustar alto y centrar horizontalmente
-      drawHeight = availHeight;
-      drawWidth = availHeight * imgAspect;
-      drawX = imgMargin + (availWidth - drawWidth) / 2;
-    }
-
-    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-  } catch (err) {
-    console.error('Error loading image for card', card.number, err);
   }
 
   return canvas.toDataURL('image/jpeg', 0.95);

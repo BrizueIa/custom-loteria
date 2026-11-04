@@ -25,6 +25,9 @@ interface BoardGeneratorSettingsProps {
   cards: LoteriaCard[];
   cardStyle: CardStyleConfig;
   config: BoardConfig;
+  boards?: GeneratedBoard[];
+  onUpdateBoards?: (boards: GeneratedBoard[]) => void;
+  onRegenerateBoards?: () => void;
   onChangeConfig: (newConfig: BoardConfig) => void;
   onBack: () => void;
   onNext: () => void;
@@ -46,6 +49,9 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   cards,
   cardStyle,
   config,
+  boards,
+  onUpdateBoards,
+  onRegenerateBoards,
   onChangeConfig,
   onBack,
   onNext,
@@ -54,9 +60,19 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   onCompleteInitialTour,
 }) => {
   const { t, language } = useLanguage();
-  const [generatedBoards, setGeneratedBoards] = useState<GeneratedBoard[]>(() => {
+  const [localBoards, setLocalBoards] = useState<GeneratedBoard[]>(() => {
     return generateBoards(cards, config);
   });
+  const generatedBoards = boards && boards.length > 0 ? boards : localBoards;
+
+  const updateBoards = (newBoards: GeneratedBoard[]) => {
+    if (onUpdateBoards) {
+      onUpdateBoards(newBoards);
+    } else {
+      setLocalBoards(newBoards);
+    }
+  };
+
   const [previewBoardIndex, setPreviewBoardIndex] = useState<number>(0);
 
   // Top header collapsible state
@@ -111,7 +127,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     const updated = { ...config, rows: p.rows, cols: p.cols };
     onChangeConfig(updated);
     try {
-      setGeneratedBoards(generateBoards(cards, updated));
+      updateBoards(generateBoards(cards, updated));
     } catch (err: any) {
       alert(err.message);
     }
@@ -163,12 +179,17 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   ];
 
   const handleRegenerate = () => {
-    try {
-      const boards = generateBoards(cards, config);
-      setGeneratedBoards(boards);
+    if (onRegenerateBoards) {
+      onRegenerateBoards();
       setPreviewBoardIndex(0);
-    } catch (e: any) {
-      alert(e.message || 'Error');
+    } else {
+      try {
+        const b = generateBoards(cards, config);
+        updateBoards(b);
+        setPreviewBoardIndex(0);
+      } catch (e: any) {
+        alert(e.message || 'Error');
+      }
     }
   };
 
@@ -721,7 +742,11 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 onChange={(e) => {
                   const updated = { ...config, allowDuplicates: e.target.checked };
                   onChangeConfig(updated);
-                  setGeneratedBoards(generateBoards(cards, updated));
+                  try {
+                    updateBoards(generateBoards(cards, updated));
+                  } catch (err: any) {
+                    alert(err.message);
+                  }
                 }}
                 className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
               />

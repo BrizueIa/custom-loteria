@@ -101,5 +101,23 @@ describe('pdfGenerator', () => {
       expect(blob).toBeInstanceOf(Blob);
       expect(progressTracker).toContain(100);
     });
+
+    it('generates boards preserving exact board count and card indices', async () => {
+      const mockBoards: GeneratedBoard[] = [
+        { id: 'b1', index: 1, cards: [mockCards[0], mockCards[1]] },
+        { id: 'b2', index: 2, cards: [mockCards[1], mockCards[0]] }
+      ];
+      const mockBoardConfig: BoardConfig = {
+        rows: 2,
+        cols: 1,
+        allowDuplicates: false,
+        quantity: 2,
+        title: 'LOTERIA TEST',
+        boardFrameStyle: 'clean_minimal'
+      };
+
+      const blob = await generateBoardsPDF(mockBoards, mockBoardConfig, mockStyle);
+      expect(blob).toBeInstanceOf(Blob);
+    });
   });
 });

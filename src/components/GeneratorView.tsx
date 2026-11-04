@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { LoteriaCard, CardStyleConfig, BoardConfig, GeneratorStep } from '../types/loteria';
+import React, { useState, useEffect } from 'react';
+import { LoteriaCard, CardStyleConfig, BoardConfig, GeneratorStep, GeneratedBoard } from '../types/loteria';
 import { SwipeCardEditor } from './SwipeCardEditor';
 import { CardsGridView } from './CardsGridView';
 import { CardStyleSelector } from './CardStyleSelector';
 import { BoardGeneratorSettings } from './BoardGeneratorSettings';
 import { DownloadPDFView } from './DownloadPDFView';
-import { swapCardNumbers } from '../utils/loteriaEngine';
+import { swapCardNumbers, generateBoards } from '../utils/loteriaEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder, DEFAULT_CARDS } from '../data/defaultCards';
 import { exportDeckToJson, validateAndParseDeckJson } from '../utils/deckIO';
@@ -42,6 +42,57 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
   const [hasCompletedCardStyleTour, setHasCompletedCardStyleTour] = useState(false);
   const [hasCompletedBoardTour, setHasCompletedBoardTour] = useState(false);
+
+  // Synchronized persistent boards state (ensures preview and downloaded PDF are 100% identical)
+  const [generatedBoards, setGeneratedBoards] = useState<GeneratedBoard[]>(() => {
+    try {
+      return generateBoards(cards, boardConfig);
+    } catch {
+      return [];
+    }
+  });
+
+  const handleRegenerateBoards = (newConfig?: BoardConfig) => {
+    try {
+      const cfg = newConfig || boardConfig;
+      const newBoards = generateBoards(cards, cfg);
+      setGeneratedBoards(newBoards);
+    } catch (e: any) {
+      console.error('Error generating boards:', e);
+    }
+  };
+
+  // Sync board cards when cards in deck update (e.g. photos changed or numbers swapped)
+  useEffect(() => {
+    setGeneratedBoards(prev => {
+      if (!prev || prev.length === 0) {
+        try {
+          return generateBoards(cards, boardConfig);
+        } catch {
+          return [];
+        }
+      }
+      const cardMap = new Map(cards.map(c => [c.id, c]));
+      return prev.map(board => ({
+        ...board,
+        cards: board.cards.map(c => cardMap.get(c.id) || c)
+      }));
+    });
+  }, [cards]);
+
+  const handleUpdateBoardConfig = (newConfig: BoardConfig) => {
+    const dimensionsChanged =
+      newConfig.rows !== boardConfig.rows ||
+      newConfig.cols !== boardConfig.cols ||
+      newConfig.quantity !== boardConfig.quantity ||
+      newConfig.allowDuplicates !== boardConfig.allowDuplicates;
+
+    onUpdateBoardConfig(newConfig);
+
+    if (dimensionsChanged) {
+      handleRegenerateBoards(newConfig);
+    }
+  };
 
   const handleUpdateCard = (updated: LoteriaCard) => {
     const newCards = cards.map(c => (c.id === updated.id ? updated : c));
@@ -315,7 +366,10 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           cards={cards}
           cardStyle={cardStyle}
           config={boardConfig}
-          onChangeConfig={onUpdateBoardConfig}
+          boards={generatedBoards}
+          onUpdateBoards={setGeneratedBoards}
+          onRegenerateBoards={() => handleRegenerateBoards()}
+          onChangeConfig={handleUpdateBoardConfig}
           onBack={() => setCurrentStep('card_style')}
           onNext={() => setCurrentStep('download_pdf')}
           onGoToGame={onGoToGame}
@@ -330,6 +384,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           cards={cards}
           cardStyle={cardStyle}
           boardConfig={boardConfig}
+          boards={generatedBoards}
+          onRegenerateBoards={() => handleRegenerateBoards()}
           onBack={() => setCurrentStep('board_config')}
           onGoToGame={onGoToGame}
         />

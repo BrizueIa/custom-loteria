@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { BoardConfig, LoteriaCard, CardStyleConfig } from '../types/loteria';
+import { BoardConfig, LoteriaCard, CardStyleConfig, GeneratedBoard } from '../types/loteria';
 import { generateBoards } from '../utils/loteriaEngine';
 import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
+import { CardPreview } from './CardPreview';
 import { exportDeckToJson } from '../utils/deckIO';
-import { FileDown, Play, ArrowLeft, Sparkles, CheckCircle2 } from 'lucide-react';
+import { FileDown, Play, ArrowLeft, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface DownloadPDFViewProps {
   cards: LoteriaCard[];
   cardStyle: CardStyleConfig;
   boardConfig: BoardConfig;
+  boards?: GeneratedBoard[];
+  onRegenerateBoards?: () => void;
   onBack: () => void;
   onGoToGame: () => void;
 }
@@ -18,6 +21,8 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
   cards,
   cardStyle,
   boardConfig,
+  boards,
+  onRegenerateBoards,
   onBack,
   onGoToGame,
 }) => {
@@ -26,6 +31,10 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
   const [isGeneratingCardsPDF, setIsGeneratingCardsPDF] = useState(false);
   const [isGeneratingBoardsPDF, setIsGeneratingBoardsPDF] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
+  const [previewBoardIdx, setPreviewBoardIdx] = useState(0);
+
+  const activeBoards = boards && boards.length > 0 ? boards : generateBoards(cards, boardConfig);
+  const currentPreviewBoard = activeBoards[previewBoardIdx] || activeBoards[0];
 
   const handleDownloadCardsPDF = async () => {
     try {
@@ -50,8 +59,8 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
     try {
       setIsGeneratingBoardsPDF(true);
       setPdfProgress(0);
-      const boards = generateBoards(cards, boardConfig);
-      const blob = await generateBoardsPDF(boards, boardConfig, cardStyle, (pct) => setPdfProgress(pct), paperSize);
+      const boardsToExport = activeBoards;
+      const blob = await generateBoardsPDF(boardsToExport, boardConfig, cardStyle, (pct) => setPdfProgress(pct), paperSize);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -134,6 +143,86 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
           {isGeneratingCardsPDF ? t('generating_pdf', { progress: pdfProgress }) : t('download_deck_pdf')}
         </button>
       </div>
+
+      {/* Board Confirmation & Live Preview */}
+      {currentPreviewBoard && (
+        <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-stone-900 text-sm">
+                {language === 'en' ? 'Boards to be printed' : 'Tablas exactas a imprimir'}
+              </span>
+              <span className="bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-md border border-emerald-200 text-[10px]">
+                {activeBoards.length} {activeBoards.length === 1 ? (language === 'en' ? 'board' : 'tabla') : (language === 'en' ? 'boards' : 'tablas')}
+              </span>
+            </div>
+
+            {onRegenerateBoards && (
+              <button
+                type="button"
+                onClick={onRegenerateBoards}
+                className="flex items-center gap-1 text-[11px] font-bold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                title={language === 'en' ? 'Shuffle combinations' : 'Revolver combinaciones'}
+              >
+                <RefreshCw className="w-3 h-3 text-stone-500" />
+                <span>{language === 'en' ? 'Shuffle' : 'Revolver'}</span>
+              </button>
+            )}
+          </div>
+
+          <p className="text-[11px] text-stone-500 leading-snug">
+            {language === 'en'
+              ? 'These exact cards will be printed in your PDF in the exact order shown.'
+              : 'Estas cartas exactas se imprimirán en tu PDF en el mismo orden que ves aquí:'}
+          </p>
+
+          <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/80">
+            <div className="flex items-center justify-between mb-2 text-[10px] text-stone-600 font-medium">
+              <span className="font-bold text-stone-800">
+                {language === 'en' ? 'Board' : 'Tabla'} #{currentPreviewBoard.index} ({currentPreviewBoard.cards.length} {t('cards').toLowerCase()})
+              </span>
+              {activeBoards.length > 1 && (
+                <div className="flex items-center gap-1 font-mono">
+                  <button
+                    type="button"
+                    disabled={previewBoardIdx <= 0}
+                    onClick={() => setPreviewBoardIdx(p => p - 1)}
+                    className="px-1.5 py-0.5 text-stone-600 hover:text-stone-900 bg-white rounded border border-stone-200 disabled:opacity-30 cursor-pointer"
+                  >
+                    ◀
+                  </button>
+                  <span className="px-1 text-[11px]">{previewBoardIdx + 1} / {activeBoards.length}</span>
+                  <button
+                    type="button"
+                    disabled={previewBoardIdx >= activeBoards.length - 1}
+                    onClick={() => setPreviewBoardIdx(p => p + 1)}
+                    className="px-1.5 py-0.5 text-stone-600 hover:text-stone-900 bg-white rounded border border-stone-200 disabled:opacity-30 cursor-pointer"
+                  >
+                    ▶
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="grid gap-1"
+              style={{
+                gridTemplateColumns: `repeat(${boardConfig.cols}, minmax(0, 1fr))`
+              }}
+            >
+              {currentPreviewBoard.cards.map((c) => (
+                <CardPreview
+                  key={c.id}
+                  card={c}
+                  style={cardStyle}
+                  variant="board"
+                  className="w-full"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Card 2: Tablas PDF */}
       <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3">
