@@ -21,7 +21,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
 }) => {
   const { t } = useLanguage();
   const [showFullPreview, setShowFullPreview] = useState(false);
-  const [openSection, setOpenSection] = useState<'frame' | 'number' | 'name' | null>(null);
+  const [openSection, setOpenSection] = useState<'frame' | 'number' | 'name' | null>('frame');
 
   const toggleSection = (s: 'frame' | 'number' | 'name') => {
     setOpenSection((prev) => (prev === s ? null : s));
@@ -150,7 +150,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                   key={f.id}
                   onClick={() => {
                     onChange({ ...config, frameStyle: f.id });
-                    setOpenSection(null); // Auto-colapsa al seleccionar
+                    setOpenSection('number'); // Auto-despliega el siguiente (Número)
                   }}
                   className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
                     config.frameStyle === f.id
@@ -200,7 +200,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                   key={pos.id}
                   onClick={() => {
                     onChange({ ...config, numberPosition: pos.id });
-                    setOpenSection(null); // Auto-colapsa al seleccionar
+                    setOpenSection('name'); // Auto-despliega el siguiente (Nombre)
                   }}
                   className={`p-2 rounded-lg border text-center text-[11px] font-semibold transition-all cursor-pointer ${
                     config.numberPosition === pos.id

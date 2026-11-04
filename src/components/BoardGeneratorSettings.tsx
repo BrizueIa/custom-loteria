@@ -58,8 +58,8 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   // Top header collapsible state
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
-  // Auto-collapsing accordion section state
-  const [openSection, setOpenSection] = useState<'header' | 'frame' | 'color' | 'grid' | null>(null);
+  // Auto-collapsing accordion section state - Starts with 'header' open for guided wizard
+  const [openSection, setOpenSection] = useState<'header' | 'frame' | 'color' | 'grid' | null>('header');
 
   const toggleSection = (s: 'header' | 'frame' | 'color' | 'grid') => {
     setOpenSection((prev) => (prev === s ? null : s));
@@ -417,10 +417,11 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             <div className="flex justify-end pt-1">
               <button
                 type="button"
-                onClick={() => setOpenSection(null)}
-                className="px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                onClick={() => setOpenSection('frame')}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold cursor-pointer transition-colors"
               >
-                {language === 'en' ? 'Done' : 'Listo'}
+                <span>{language === 'en' ? 'Next: Frame' : 'Siguiente: Marco'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -463,7 +464,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                     type="button"
                     onClick={() => {
                       onChangeConfig({ ...config, boardFrameStyle: f.id });
-                      setOpenSection(null); // Auto-colapsa al seleccionar
+                      setOpenSection('color'); // Colapsa marco y despliega siguiente (Color)
                     }}
                     className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
                       isSelected
@@ -527,7 +528,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                     title={palette.label}
                     onClick={() => {
                       onChangeConfig({ ...config, boardBorderColor: palette.hex });
-                      setOpenSection(null); // Auto-colapsa al seleccionar
+                      setOpenSection('grid'); // Colapsa color y despliega siguiente (Cuadrícula)
                     }}
                     className={`w-9 h-9 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
                       isSelected ? 'scale-110 border-stone-900 shadow-sm' : 'border-white hover:scale-105'
