@@ -28,7 +28,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     return generateBoards(cards, config);
   });
   const [previewBoardIndex, setPreviewBoardIndex] = useState<number>(0);
-  const [cardsPerPage, setCardsPerPage] = useState<2 | 4 | 9>(2);
+  const cardsPerPage = 4;
   const [isGeneratingCardsPDF, setIsGeneratingCardsPDF] = useState(false);
   const [isGeneratingBoardsPDF, setIsGeneratingBoardsPDF] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
@@ -231,20 +231,17 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               {t('print_pdf_section')}
             </p>
 
-            {/* PDF 1 */}
+            {/* PDF 1: Baraja de 54 Cartas */}
             <div className="p-3 rounded-xl border border-stone-200 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-stone-900">{t('pdf_deck_title')}</span>
-                <select
-                  value={cardsPerPage}
-                  onChange={(e) => setCardsPerPage(parseInt(e.target.value, 10) as any)}
-                  className="bg-white border border-stone-300 rounded px-1.5 py-0.5 text-xs text-stone-700"
-                >
-                  <option value={2}>{t('cards_2_per_sheet')}</option>
-                  <option value={4}>{t('cards_4_per_sheet')}</option>
-                  <option value={9}>{t('cards_9_per_sheet')}</option>
-                </select>
+                <span className="bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-md border border-emerald-200 text-[11px]">
+                  {t('cards_4_per_sheet')}
+                </span>
               </div>
+              <p className="text-[11px] text-stone-500">
+                {t('cards_per_page_hint')}
+              </p>
               <button
                 disabled={isGeneratingCardsPDF}
                 onClick={handleDownloadCardsPDF}

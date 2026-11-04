@@ -245,12 +245,12 @@ async function drawCardToCanvas(
 }
 
 /**
- * PDF 1: 54 Cards (Cartas de baraja)
+ * PDF 1: 54 Cards (Cartas de baraja - Formato estándar 4 por hoja)
  */
 export async function generateCardsPDF(
   cards: LoteriaCard[],
   style: CardStyleConfig,
-  cardsPerPage: 2 | 4 | 9 = 2,
+  _cardsPerPage: number = 4,
   onProgress?: (pct: number) => void
 ): Promise<Blob> {
   const doc = new jsPDF({
@@ -262,23 +262,20 @@ export async function generateCardsPDF(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  let cols = 1;
-  let rows = 2;
-  if (cardsPerPage === 4) {
-    cols = 2;
-    rows = 2;
-  } else if (cardsPerPage === 9) {
-    cols = 3;
-    rows = 3;
-  }
+  // Formato óptimo fijado a 4 cartas por hoja (2x2 cuadrícula)
+  const cols = 2;
+  const rows = 2;
 
   const marginX = 14;
   const marginY = 14;
-  const usableWidth = pageWidth - marginX * 2;
-  const usableHeight = pageHeight - marginY * 2;
+  const cellWidth = (pageWidth - marginX * 2) / cols;
+  const cellHeight = (pageHeight - marginY * 2) / rows;
 
-  const cardWidthMm = usableWidth / cols - 6;
-  const cardHeightMm = usableHeight / rows - 6;
+  // Dimensiones exactas con proporción 300:420 (~0.714) para corte perfecto
+  const cardWidthMm = 84;
+  const cardHeightMm = 117.6;
+  const offsetX = (cellWidth - cardWidthMm) / 2;
+  const offsetY = (cellHeight - cardHeightMm) / 2;
 
   const totalCards = cards.length;
   let cardIndex = 0;
@@ -291,15 +288,15 @@ export async function generateCardsPDF(
         if (cardIndex >= totalCards) break;
 
         const card = cards[cardIndex];
-        const x = marginX + c * (cardWidthMm + 6) + 3;
-        const y = marginY + r * (cardHeightMm + 6) + 3;
+        const x = marginX + c * cellWidth + offsetX;
+        const y = marginY + r * cellHeight + offsetY;
 
         const dataUrl = await drawCardToCanvas(card, style, 300, 420);
         doc.addImage(dataUrl, 'JPEG', x, y, cardWidthMm, cardHeightMm);
 
-        // Cutting guide
-        doc.setDrawColor(210, 210, 210);
-        doc.setLineWidth(0.1);
+        // Guía de corte sutil
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.15);
         doc.rect(x, y, cardWidthMm, cardHeightMm);
 
         cardIndex++;
