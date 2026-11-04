@@ -29,6 +29,8 @@ interface BoardGeneratorSettingsProps {
   onBack: () => void;
   onNext: () => void;
   onGoToGame: () => void;
+  initialTourDone?: boolean;
+  onCompleteInitialTour?: () => void;
 }
 
 const BOARD_COLOR_PALETTES = [
@@ -48,6 +50,8 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   onBack,
   onNext,
   onGoToGame,
+  initialTourDone = false,
+  onCompleteInitialTour,
 }) => {
   const { t, language } = useLanguage();
   const [generatedBoards, setGeneratedBoards] = useState<GeneratedBoard[]>(() => {
@@ -58,11 +62,65 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   // Top header collapsible state
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
-  // Auto-collapsing accordion section state - Starts with 'header' open for guided wizard
-  const [openSection, setOpenSection] = useState<'header' | 'frame' | 'color' | 'grid' | null>('header');
+  // Auto-collapsing accordion section state - Starts with 'header' open for guided wizard on first time
+  const [autoGuidedStep, setAutoGuidedStep] = useState<'header' | 'frame' | 'color' | 'grid' | null>(
+    initialTourDone ? null : 'header'
+  );
+  const [openSection, setOpenSection] = useState<'header' | 'frame' | 'color' | 'grid' | null>(
+    initialTourDone ? null : 'header'
+  );
 
   const toggleSection = (s: 'header' | 'frame' | 'color' | 'grid') => {
-    setOpenSection((prev) => (prev === s ? null : s));
+    if (openSection === s) {
+      setOpenSection(null);
+    } else {
+      setOpenSection(s);
+    }
+    // Any manual click on a section header disables auto-advancing (enters exploration mode)
+    setAutoGuidedStep(null);
+  };
+
+  const handleNextHeader = () => {
+    if (autoGuidedStep === 'header') {
+      setOpenSection('frame');
+      setAutoGuidedStep('frame');
+    } else {
+      setOpenSection(null);
+    }
+  };
+
+  const handleSelectBoardFrame = (frameId: BoardFrameStyle) => {
+    onChangeConfig({ ...config, boardFrameStyle: frameId });
+    if (autoGuidedStep === 'frame') {
+      setOpenSection('color');
+      setAutoGuidedStep('color');
+    }
+    // In exploration mode, section remains open for live preview
+  };
+
+  const handleSelectBoardColor = (hex: string) => {
+    onChangeConfig({ ...config, boardBorderColor: hex });
+    if (autoGuidedStep === 'color') {
+      setOpenSection('grid');
+      setAutoGuidedStep('grid');
+    }
+    // In exploration mode, section remains open for live preview
+  };
+
+  const handleSelectGridPreset = (p: { rows: number; cols: number }) => {
+    const updated = { ...config, rows: p.rows, cols: p.cols };
+    onChangeConfig(updated);
+    try {
+      setGeneratedBoards(generateBoards(cards, updated));
+    } catch (err: any) {
+      alert(err.message);
+    }
+    if (autoGuidedStep === 'grid') {
+      setOpenSection(null);
+      setAutoGuidedStep(null);
+      onCompleteInitialTour?.();
+    }
+    // In exploration mode, section remains open for live preview
   };
 
   const presets = [
@@ -414,21 +472,35 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               />
             </div>
 
-            <div className="flex justify-end pt-1">
+            <div className="flex items-center justify-between pt-2 mt-1 border-t border-stone-200/60">
+              <span className="text-[10px] text-stone-500 italic">
+                {autoGuidedStep === 'header'
+                  ? (language === 'en' ? 'Set titles and continue' : 'Configura títulos y continúa')
+                  : (language === 'en' ? 'Titles update live' : 'Títulos en vivo')}
+              </span>
               <button
                 type="button"
-                onClick={() => setOpenSection('frame')}
-                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                onClick={handleNextHeader}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
               >
-                <span>{language === 'en' ? 'Next: Frame' : 'Siguiente: Marco'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                {autoGuidedStep === 'header' ? (
+                  <>
+                    <span>{language === 'en' ? 'Next: Frame' : 'Siguiente: Marco'}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{t('done')}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* 4. Section 2: Marco del Tablero (Auto-colapsa al seleccionar) */}
+      {/* 4. Section 2: Marco del Tablero (Auto-colapsa al seleccionar en paso guiado y prueba libre al reabrir) */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
         <button
           type="button"
@@ -462,10 +534,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                   <button
                     key={f.id}
                     type="button"
-                    onClick={() => {
-                      onChangeConfig({ ...config, boardFrameStyle: f.id });
-                      setOpenSection('color'); // Colapsa marco y despliega siguiente (Color)
-                    }}
+                    onClick={() => handleSelectBoardFrame(f.id)}
                     className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
                       isSelected
                         ? 'border-stone-900 bg-stone-900 text-white shadow-xs font-bold'
@@ -483,11 +552,35 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 );
               })}
             </div>
+
+            {/* Sub-footer for open frame section */}
+            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">
+              <span className="text-[10px] text-stone-500 italic">
+                {autoGuidedStep === 'frame'
+                  ? (language === 'en' ? 'Choose board frame to continue' : 'Elige marco para avanzar')
+                  : (language === 'en' ? 'Tap frames to test in preview' : 'Toca marcos para probar en vivo')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (autoGuidedStep === 'frame') {
+                    setOpenSection('color');
+                    setAutoGuidedStep('color');
+                  } else {
+                    setOpenSection(null);
+                  }
+                }}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{autoGuidedStep === 'frame' ? (language === 'en' ? 'Next' : 'Siguiente') : t('done')}</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* 5. Section 3: Color del Marco (Auto-colapsa al seleccionar) */}
+      {/* 5. Section 3: Color del Marco (Auto-colapsa al seleccionar en paso guiado y prueba libre al reabrir) */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
         <button
           type="button"
@@ -526,10 +619,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                     key={palette.hex}
                     type="button"
                     title={palette.label}
-                    onClick={() => {
-                      onChangeConfig({ ...config, boardBorderColor: palette.hex });
-                      setOpenSection('grid'); // Colapsa color y despliega siguiente (Cuadrícula)
-                    }}
+                    onClick={() => handleSelectBoardColor(palette.hex)}
                     className={`w-9 h-9 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
                       isSelected ? 'scale-110 border-stone-900 shadow-sm' : 'border-white hover:scale-105'
                     }`}
@@ -540,11 +630,35 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 );
               })}
             </div>
+
+            {/* Sub-footer for open color section */}
+            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">
+              <span className="text-[10px] text-stone-500 italic">
+                {autoGuidedStep === 'color'
+                  ? (language === 'en' ? 'Choose color to continue' : 'Elige color para avanzar')
+                  : (language === 'en' ? 'Tap colors to test in preview' : 'Toca colores para probar en vivo')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (autoGuidedStep === 'color') {
+                    setOpenSection('grid');
+                    setAutoGuidedStep('grid');
+                  } else {
+                    setOpenSection(null);
+                  }
+                }}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{autoGuidedStep === 'color' ? (language === 'en' ? 'Next' : 'Siguiente') : t('done')}</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* 6. Section 4: Tamaño de Cuadrícula (Auto-colapsa al elegir preset) */}
+      {/* 6. Section 4: Tamaño de Cuadrícula (Auto-colapsa al elegir preset en paso guiado y prueba libre al reabrir) */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
         <button
           type="button"
@@ -578,16 +692,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                   <button
                     key={p.label}
                     type="button"
-                    onClick={() => {
-                      const updated = { ...config, rows: p.rows, cols: p.cols };
-                      onChangeConfig(updated);
-                      try {
-                        setGeneratedBoards(generateBoards(cards, updated));
-                      } catch (err: any) {
-                        alert(err.message);
-                      }
-                      setOpenSection(null); // Auto-colapsa al seleccionar
-                    }}
+                    onClick={() => handleSelectGridPreset(p)}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
                       isSelected
                         ? 'border-stone-900 bg-stone-900 text-white'
@@ -620,6 +725,27 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 }}
                 className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
               />
+            </div>
+
+            {/* Sub-footer for open grid section */}
+            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">
+              <span className="text-[10px] text-stone-500 italic">
+                {autoGuidedStep === 'grid'
+                  ? (language === 'en' ? 'Select dimensions to finish' : 'Elige tamaño para finalizar')
+                  : (language === 'en' ? 'Tap preset to test in preview' : 'Toca opción para probar en vivo')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenSection(null);
+                  setAutoGuidedStep(null);
+                  onCompleteInitialTour?.();
+                }}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{t('done')}</span>
+              </button>
             </div>
           </div>
         )}

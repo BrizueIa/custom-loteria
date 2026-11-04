@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CardStyleConfig, FrameStyle, NumberPosition, NamePosition, LoteriaCard } from '../types/loteria';
 import { CardPreview } from './CardPreview';
-import { ArrowLeft, ArrowRight, Eye, X, ChevronDown, ChevronUp, LayoutTemplate, Hash, Type } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, X, ChevronDown, ChevronUp, LayoutTemplate, Hash, Type, Check } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface CardStyleSelectorProps {
@@ -10,6 +10,8 @@ interface CardStyleSelectorProps {
   sampleCard: LoteriaCard;
   onBack: () => void;
   onNext: () => void;
+  initialTourDone?: boolean;
+  onCompleteInitialTour?: () => void;
 }
 
 export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
@@ -18,13 +20,56 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   sampleCard,
   onBack,
   onNext,
+  initialTourDone = false,
+  onCompleteInitialTour,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [showFullPreview, setShowFullPreview] = useState(false);
-  const [openSection, setOpenSection] = useState<'frame' | 'number' | 'name' | null>('frame');
+
+  // Guided walkthrough only on first time if initialTourDone is false
+  const [autoGuidedStep, setAutoGuidedStep] = useState<'frame' | 'number' | 'name' | null>(
+    initialTourDone ? null : 'frame'
+  );
+  const [openSection, setOpenSection] = useState<'frame' | 'number' | 'name' | null>(
+    initialTourDone ? null : 'frame'
+  );
 
   const toggleSection = (s: 'frame' | 'number' | 'name') => {
-    setOpenSection((prev) => (prev === s ? null : s));
+    if (openSection === s) {
+      setOpenSection(null);
+    } else {
+      setOpenSection(s);
+    }
+    // Any manual click on a section header disables auto-advancing (enters exploration mode)
+    setAutoGuidedStep(null);
+  };
+
+  const handleSelectFrame = (frameId: FrameStyle) => {
+    onChange({ ...config, frameStyle: frameId });
+    if (autoGuidedStep === 'frame') {
+      setOpenSection('number');
+      setAutoGuidedStep('number');
+    }
+    // In exploration mode (autoGuidedStep !== 'frame'), keep section open so user can test styles
+  };
+
+  const handleSelectNumber = (posId: NumberPosition) => {
+    onChange({ ...config, numberPosition: posId });
+    if (autoGuidedStep === 'number') {
+      setOpenSection('name');
+      setAutoGuidedStep('name');
+    }
+    // In exploration mode, keep section open so user can test corners
+  };
+
+  const handleSelectName = (namePos: NamePosition) => {
+    onChange({ ...config, namePosition: namePos });
+    if (autoGuidedStep === 'name') {
+      setOpenSection(null);
+      setAutoGuidedStep(null);
+      onCompleteInitialTour?.();
+    }
+    // In exploration mode, keep section open so user can test positions
   };
 
   const frameOptions: Array<{ id: FrameStyle; label: string; desc: string }> = [
@@ -145,29 +190,56 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         {openSection === 'frame' && (
           <div className="p-3 pt-1 border-t border-stone-100 bg-stone-50/40">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {frameOptions.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => {
-                    onChange({ ...config, frameStyle: f.id });
-                    setOpenSection('number'); // Auto-despliega el siguiente (Número)
-                  }}
-                  className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
-                    config.frameStyle === f.id
-                      ? 'border-emerald-800 bg-emerald-50/80 ring-1 ring-emerald-800 text-emerald-950 font-bold'
-                      : 'border-stone-200 hover:border-stone-300 bg-white text-stone-700'
-                  }`}
-                >
-                  <p className="text-xs">{f.label}</p>
-                  <p className="text-[10px] text-stone-500 font-normal mt-0.5 line-clamp-1">{f.desc}</p>
-                </button>
-              ))}
+              {frameOptions.map((f) => {
+                const isSelected = config.frameStyle === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => handleSelectFrame(f.id)}
+                    className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-emerald-800 bg-emerald-50/80 ring-1 ring-emerald-800 text-emerald-950 font-bold'
+                        : 'border-stone-200 hover:border-stone-300 bg-white text-stone-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs">{f.label}</p>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-emerald-800 shrink-0 ml-1" />}
+                    </div>
+                    <p className="text-[10px] text-stone-500 font-normal mt-0.5 line-clamp-1">{f.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sub-footer for open section */}
+            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">
+              <span className="text-[10px] text-stone-500 italic">
+                {autoGuidedStep === 'frame'
+                  ? (language === 'en' ? 'Choose a frame to continue' : 'Elige un marco para avanzar')
+                  : (language === 'en' ? 'Tap frames to test in preview' : 'Toca opciones para probar en vivo')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (autoGuidedStep === 'frame') {
+                    setOpenSection('number');
+                    setAutoGuidedStep('number');
+                  } else {
+                    setOpenSection(null);
+                  }
+                }}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{autoGuidedStep === 'frame' ? (language === 'en' ? 'Next' : 'Siguiente') : t('done')}</span>
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* 2. Posición del Número (Colapsable con auto-minimización al elegir) */}
+      {/* 2. Posición del Número (Colapsable con auto-minimización en primer paso y prueba libre al reabrir) */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
         <button
           type="button"
@@ -195,28 +267,52 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         {openSection === 'number' && (
           <div className="p-3 pt-1 border-t border-stone-100 bg-stone-50/40">
             <div className="grid grid-cols-4 gap-1.5">
-              {numberPositions.map((pos) => (
-                <button
-                  key={pos.id}
-                  onClick={() => {
-                    onChange({ ...config, numberPosition: pos.id });
-                    setOpenSection('name'); // Auto-despliega el siguiente (Nombre)
-                  }}
-                  className={`p-2 rounded-lg border text-center text-[11px] font-semibold transition-all cursor-pointer ${
-                    config.numberPosition === pos.id
-                      ? 'border-emerald-800 bg-emerald-800 text-white'
-                      : 'border-stone-200 text-stone-600 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  {pos.label}
-                </button>
-              ))}
+              {numberPositions.map((pos) => {
+                const isSelected = config.numberPosition === pos.id;
+                return (
+                  <button
+                    key={pos.id}
+                    onClick={() => handleSelectNumber(pos.id)}
+                    className={`p-2 rounded-lg border text-center text-[11px] font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
+                        : 'border-stone-200 text-stone-600 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    {pos.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sub-footer for open section */}
+            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">
+              <span className="text-[10px] text-stone-500 italic">
+                {autoGuidedStep === 'number'
+                  ? (language === 'en' ? 'Select position to continue' : 'Elige posición para avanzar')
+                  : (language === 'en' ? 'Tap corners to test in preview' : 'Toca esquinas para probar en vivo')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (autoGuidedStep === 'number') {
+                    setOpenSection('name');
+                    setAutoGuidedStep('name');
+                  } else {
+                    setOpenSection(null);
+                  }
+                }}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{autoGuidedStep === 'number' ? (language === 'en' ? 'Next' : 'Siguiente') : t('done')}</span>
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* 3. Posición del Nombre (Colapsable con auto-minimización al elegir) */}
+      {/* 3. Posición del Nombre (Colapsable con auto-minimización en primer paso y prueba libre al reabrir) */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
         <button
           type="button"
@@ -244,22 +340,43 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         {openSection === 'name' && (
           <div className="p-3 pt-1 border-t border-stone-100 bg-stone-50/40">
             <div className="grid grid-cols-2 gap-2">
-              {namePositions.map((nPos) => (
-                <button
-                  key={nPos.id}
-                  onClick={() => {
-                    onChange({ ...config, namePosition: nPos.id });
-                    setOpenSection(null); // Auto-colapsa al seleccionar
-                  }}
-                  className={`p-2 rounded-lg border text-center text-xs font-semibold transition-all cursor-pointer ${
-                    config.namePosition === nPos.id
-                      ? 'border-emerald-800 bg-emerald-800 text-white'
-                      : 'border-stone-200 text-stone-600 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  {nPos.label}
-                </button>
-              ))}
+              {namePositions.map((nPos) => {
+                const isSelected = config.namePosition === nPos.id;
+                return (
+                  <button
+                    key={nPos.id}
+                    onClick={() => handleSelectName(nPos.id)}
+                    className={`p-2 rounded-lg border text-center text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
+                        : 'border-stone-200 text-stone-600 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    {nPos.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sub-footer for open section */}
+            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">
+              <span className="text-[10px] text-stone-500 italic">
+                {autoGuidedStep === 'name'
+                  ? (language === 'en' ? 'Select position to finish' : 'Elige posición para finalizar')
+                  : (language === 'en' ? 'Tap position to test in preview' : 'Toca posición para probar en vivo')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenSection(null);
+                  setAutoGuidedStep(null);
+                  onCompleteInitialTour?.();
+                }}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{t('done')}</span>
+              </button>
             </div>
           </div>
         )}

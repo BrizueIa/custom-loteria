@@ -35,6 +35,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   const [currentStep, setCurrentStep] = useState<GeneratorStep>('cards_input');
   const [subView, setSubView] = useState<'grid' | 'swipe'>('grid');
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
+  const [hasCompletedCardStyleTour, setHasCompletedCardStyleTour] = useState(false);
+  const [hasCompletedBoardTour, setHasCompletedBoardTour] = useState(false);
 
   const handleUpdateCard = (updated: LoteriaCard) => {
     const newCards = cards.map(c => (c.id === updated.id ? updated : c));
@@ -222,6 +224,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           sampleCard={cards[activeCardIndex] || cards[0]}
           onBack={() => setCurrentStep('cards_input')}
           onNext={() => setCurrentStep('board_config')}
+          initialTourDone={hasCompletedCardStyleTour}
+          onCompleteInitialTour={() => setHasCompletedCardStyleTour(true)}
         />
       )}
 
@@ -235,6 +239,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           onBack={() => setCurrentStep('card_style')}
           onNext={() => setCurrentStep('download_pdf')}
           onGoToGame={onGoToGame}
+          initialTourDone={hasCompletedBoardTour}
+          onCompleteInitialTour={() => setHasCompletedBoardTour(true)}
         />
       )}
 
