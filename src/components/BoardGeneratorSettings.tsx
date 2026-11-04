@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import { BoardConfig, LoteriaCard, CardStyleConfig, GeneratedBoard, BoardFrameStyle } from '../types/loteria';
 import { generateBoards } from '../utils/loteriaEngine';
-import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
 import { CardPreview } from './CardPreview';
 import {
-  FileDown,
-  Play,
-  RefreshCw,
   ArrowLeft,
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -19,7 +16,8 @@ import {
   Type,
   Grid,
   Layers,
-  Sparkles
+  RefreshCw,
+  Play
 } from 'lucide-react';
 import { useLanguage, TranslationKey } from '../i18n/LanguageContext';
 
@@ -29,6 +27,7 @@ interface BoardGeneratorSettingsProps {
   config: BoardConfig;
   onChangeConfig: (newConfig: BoardConfig) => void;
   onBack: () => void;
+  onNext: () => void;
   onGoToGame: () => void;
 }
 
@@ -47,6 +46,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   config,
   onChangeConfig,
   onBack,
+  onNext,
   onGoToGame,
 }) => {
   const { t, language } = useLanguage();
@@ -54,13 +54,16 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     return generateBoards(cards, config);
   });
   const [previewBoardIndex, setPreviewBoardIndex] = useState<number>(0);
-  const cardsPerPage = 4;
-  const [isGeneratingCardsPDF, setIsGeneratingCardsPDF] = useState(false);
-  const [isGeneratingBoardsPDF, setIsGeneratingBoardsPDF] = useState(false);
-  const [pdfProgress, setPdfProgress] = useState(0);
 
-  // Top header collapsible state: can be collapsed to focus purely on the board
+  // Top header collapsible state
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+
+  // Auto-collapsing accordion section state
+  const [openSection, setOpenSection] = useState<'header' | 'frame' | 'color' | 'grid' | null>(null);
+
+  const toggleSection = (s: 'header' | 'frame' | 'color' | 'grid') => {
+    setOpenSection((prev) => (prev === s ? null : s));
+  };
 
   const presets = [
     { label: `3 × 3 (9 ${t('cards').toLowerCase()})`, rows: 3, cols: 3 },
@@ -111,158 +114,107 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     }
   };
 
-  const handleDownloadCardsPDF = async () => {
-    try {
-      setIsGeneratingCardsPDF(true);
-      setPdfProgress(0);
-      const blob = await generateCardsPDF(cards, cardStyle, cardsPerPage, (pct) => setPdfProgress(pct));
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `deck-54-cards-${cardsPerPage}-per-sheet.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert('Error generating cards PDF.');
-    } finally {
-      setIsGeneratingCardsPDF(false);
-    }
-  };
-
-  const handleDownloadBoardsPDF = async () => {
-    try {
-      setIsGeneratingBoardsPDF(true);
-      setPdfProgress(0);
-      const blob = await generateBoardsPDF(generatedBoards, config, cardStyle, (pct) => setPdfProgress(pct));
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `loteria-boards-${generatedBoards.length}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert('Error generating boards PDF.');
-    } finally {
-      setIsGeneratingBoardsPDF(false);
-    }
-  };
-
   const currentPreviewBoard = generatedBoards[previewBoardIndex] || generatedBoards[0];
   const activeFrameStyle = config.boardFrameStyle || 'traditional_gallo';
   const activeBorderColor = config.boardBorderColor || '#164E3D';
 
+  const activePalette =
+    BOARD_COLOR_PALETTES.find((p) => p.hex.toLowerCase() === activeBorderColor.toLowerCase()) || {
+      hex: activeBorderColor,
+      label: language === 'en' ? 'Custom' : 'Personalizado',
+    };
+  const activeFrame = frameOptions.find((f) => f.id === activeFrameStyle) || frameOptions[0];
+
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-5 pb-20">
-      {/* 1. Top Header Banner (Collapsible to maximize space) */}
+    <div className="w-full max-w-md mx-auto space-y-3 pb-24">
+      {/* 1. Header Collapsible Strip */}
       {!isHeaderCollapsed ? (
-        <div className="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
+        <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 shadow-2xs flex items-center justify-between gap-2 transition-all">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-stone-900 leading-tight">
-                {t('board_format_and_pdf')}
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">
+                3. {language === 'en' ? 'Boards Configuration' : 'Configuración de Tablas'}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsHeaderCollapsed(true)}
-                className="text-stone-400 hover:text-stone-700 p-1 rounded-md hover:bg-stone-100 transition-colors cursor-pointer"
-                title={language === 'en' ? 'Collapse header' : 'Ocultar información'}
+                className="text-stone-400 hover:text-stone-700 p-0.5 rounded hover:bg-stone-100 transition-colors cursor-pointer"
+                title="Ocultar cabecera"
               >
-                <ChevronUp className="w-4 h-4" />
+                <ChevronUp className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
-              {t('board_format_desc')}
+            <p className="text-[11px] text-stone-500 mt-0.5 leading-tight truncate">
+              {language === 'en' ? 'Customize board title, frame and grid' : 'Personaliza título, marco y cuadrícula'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              {t('back')}
-            </button>
-            <button
-              onClick={onGoToGame}
-              className="flex items-center gap-2 px-4 py-2 bg-stone-900 hover:bg-black text-white rounded-xl font-bold text-xs shadow-xs transition-colors cursor-pointer"
-            >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              {t('go_to_game')}
-            </button>
-          </div>
+          <button
+            onClick={onGoToGame}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-stone-900 hover:bg-black text-white rounded-xl font-bold text-[11px] shadow-2xs transition-colors cursor-pointer shrink-0"
+          >
+            <Play className="w-3 h-3 fill-white" />
+            <span>{t('play')}</span>
+          </button>
         </div>
       ) : (
-        <div className="bg-white border border-stone-200/80 rounded-xl px-4 py-2 shadow-2xs flex items-center justify-between transition-all">
-          <div className="flex items-center gap-2">
+        <div className="bg-white border border-stone-200/80 rounded-xl px-3 py-1.5 shadow-2xs flex items-center justify-between transition-all">
+          <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-stone-800">
-              {t('board_format_and_pdf')}
+              3. {language === 'en' ? 'Boards' : 'Tablas'}
             </span>
             <button
               type="button"
               onClick={() => setIsHeaderCollapsed(false)}
-              className="text-stone-500 hover:text-stone-900 p-1 rounded-md hover:bg-stone-100 transition-colors cursor-pointer flex items-center gap-1 text-[11px]"
-              title={language === 'en' ? 'Expand header' : 'Mostrar información'}
+              className="text-stone-500 hover:text-stone-900 p-0.5 rounded hover:bg-stone-100 transition-colors cursor-pointer"
+              title="Mostrar cabecera"
             >
               <ChevronDown className="w-3.5 h-3.5" />
-              <span className="text-[11px] text-stone-500">{language === 'en' ? 'Show info' : 'Mostrar info'}</span>
             </button>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-3 h-3" />
-              {t('back')}
-            </button>
-            <button
-              onClick={onGoToGame}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-black text-white rounded-lg font-bold text-xs shadow-xs transition-colors cursor-pointer"
-            >
-              <Play className="w-3 h-3 fill-white" />
-              {t('go_to_game')}
-            </button>
-          </div>
+          <button
+            onClick={onGoToGame}
+            className="flex items-center gap-1 px-2.5 py-1 bg-stone-900 hover:bg-black text-white rounded-lg font-bold text-[11px] shadow-2xs transition-colors cursor-pointer"
+          >
+            <Play className="w-3 h-3 fill-white" />
+            <span>{t('play')}</span>
+          </button>
         </div>
       )}
 
-      {/* 2. Board Preview at TOP (Identical flow to Step 2 for Cards) */}
-      <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs flex flex-col items-center">
+      {/* 2. Board Preview at TOP (Proportion 22:31, Fits Mobile Screen) */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-3 shadow-2xs flex flex-col items-center">
         {/* Navigation Bar for Boards */}
-        <div className="w-full max-w-md flex items-center justify-between mb-3 px-1 text-xs">
-          <span className="font-mono text-stone-500 uppercase tracking-widest text-[11px] font-semibold">
+        <div className="w-full flex items-center justify-between mb-2 px-1 text-xs">
+          <span className="font-mono text-stone-500 uppercase tracking-widest text-[10px] font-semibold">
             {t('board_preview')}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               disabled={previewBoardIndex <= 0}
               onClick={() => setPreviewBoardIndex(previewBoardIndex - 1)}
-              className="p-1.5 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg disabled:opacity-30 cursor-pointer transition-colors"
+              className="p-1 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-md disabled:opacity-30 cursor-pointer transition-colors"
               title="Tabla anterior"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="font-semibold text-stone-800 text-xs px-1">
+            <span className="font-semibold text-stone-800 text-[11px] px-1">
               {t('board_index_of', { current: previewBoardIndex + 1, total: generatedBoards.length })}
             </span>
             <button
               disabled={previewBoardIndex >= generatedBoards.length - 1}
               onClick={() => setPreviewBoardIndex(previewBoardIndex + 1)}
-              className="p-1.5 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg disabled:opacity-30 cursor-pointer transition-colors"
+              className="p-1 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-md disabled:opacity-30 cursor-pointer transition-colors"
               title="Siguiente tabla"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* Paper Sheet Preview Container (Ratio 22:31) */}
         {currentPreviewBoard && (
-          <div className="w-full max-w-md bg-stone-100/90 p-3 sm:p-5 rounded-2xl border border-stone-200/80 shadow-inner flex flex-col items-center justify-center">
+          <div className="w-full bg-stone-100/90 p-2.5 sm:p-3 rounded-xl border border-stone-200/80 shadow-inner flex flex-col items-center justify-center">
             <div
               className="w-full bg-white shadow-md transition-all relative overflow-hidden rounded-xs"
               style={{
@@ -270,21 +222,21 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 borderColor: activeFrameStyle !== 'none' ? activeBorderColor : '#E5E7EB',
                 borderWidth: activeFrameStyle === 'none' ? '1px' : activeFrameStyle === 'traditional_gallo' ? '3px' : '2px',
                 borderStyle: activeFrameStyle === 'none' ? 'dashed' : 'solid',
-                padding: activeFrameStyle === 'traditional_gallo' ? '4px' : activeFrameStyle === 'festive_banner' ? '0px' : '6px',
+                padding: activeFrameStyle === 'traditional_gallo' ? '3px' : activeFrameStyle === 'festive_banner' ? '0px' : '5px',
               }}
             >
               {/* Inner wrapper for traditional gallo / talavera */}
               <div
                 className={`relative h-full flex flex-col ${
                   activeFrameStyle === 'traditional_gallo'
-                    ? 'p-2 border'
+                    ? 'p-1.5 border'
                     : activeFrameStyle === 'festive_banner'
                     ? ''
                     : activeFrameStyle === 'talavera_frame'
-                    ? 'p-2 border'
+                    ? 'p-1.5 border'
                     : activeFrameStyle === 'clean_minimal'
-                    ? 'p-1.5'
-                    : 'p-1.5'
+                    ? 'p-1'
+                    : 'p-1'
                 }`}
                 style={{
                   borderColor:
@@ -296,46 +248,46 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 {/* Traditional corner diamond ornaments */}
                 {activeFrameStyle === 'traditional_gallo' && (
                   <>
-                    <span className="absolute -top-1 -left-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -bottom-1 -left-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -top-1 -left-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -bottom-1 -left-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -bottom-1 -right-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
                   </>
                 )}
 
                 {/* Talavera corner bracket squares */}
                 {activeFrameStyle === 'talavera_frame' && (
                   <>
-                    <span className="absolute top-0 left-0 w-2.5 h-2.5 border-r border-b" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute top-0 right-0 w-2.5 h-2.5 border-l border-b" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute bottom-0 left-0 w-2.5 h-2.5 border-r border-t" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 border-l border-t" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute top-0 left-0 w-2 h-2 border-r border-b" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute top-0 right-0 w-2 h-2 border-l border-b" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute bottom-0 left-0 w-2 h-2 border-r border-t" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute bottom-0 right-0 w-2 h-2 border-l border-t" style={{ borderColor: activeBorderColor }} />
                   </>
                 )}
 
                 {/* Header Layout */}
                 {activeFrameStyle === 'festive_banner' ? (
                   <div
-                    className="text-center py-2 px-3 mb-1.5 transition-colors shrink-0"
+                    className="text-center py-1.5 px-2 mb-1 transition-colors shrink-0"
                     style={{ backgroundColor: activeBorderColor }}
                   >
-                    <h2 className="font-loteria-title text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                    <h2 className="font-loteria-title text-xs font-black uppercase tracking-wider text-white">
                       {config.title || t('board_title_placeholder')}
                     </h2>
                     {config.subtitle && (
-                      <p className="text-[10px] italic text-amber-100 font-medium mt-0.5">
+                      <p className="text-[9px] italic text-amber-100 font-medium leading-none mt-0.5">
                         {config.subtitle}
                       </p>
                     )}
                     {config.showBoardNumber && (
-                      <span className="inline-block mt-0.5 font-mono text-[8px] text-white/90 uppercase tracking-widest bg-black/20 px-1.5 py-0.2 rounded-full">
+                      <span className="inline-block mt-0.5 font-mono text-[7px] text-white/90 uppercase tracking-widest bg-black/20 px-1 py-0.2 rounded-full leading-none">
                         {t('board_prefix')} #{currentPreviewBoard.index}
                       </span>
                     )}
                   </div>
                 ) : (
                   <div
-                    className={`text-center pb-1.5 mb-1.5 shrink-0 ${
+                    className={`text-center pb-1 mb-1 shrink-0 ${
                       activeFrameStyle === 'none' ? 'border-b border-stone-200' : 'border-b'
                     }`}
                     style={{
@@ -343,7 +295,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                     }}
                   >
                     <h2
-                      className="font-loteria-title text-xs sm:text-sm font-black uppercase tracking-wider transition-colors"
+                      className="font-loteria-title text-xs font-black uppercase tracking-wider transition-colors"
                       style={{
                         color: activeFrameStyle !== 'none' ? activeBorderColor : '#1C1917',
                       }}
@@ -351,12 +303,12 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                       {config.title || t('board_title_placeholder')}
                     </h2>
                     {config.subtitle && (
-                      <p className="text-[10px] italic text-stone-600 font-medium mt-0.5">
+                      <p className="text-[9px] italic text-stone-600 font-medium leading-none mt-0.5">
                         {config.subtitle}
                       </p>
                     )}
                     {config.showBoardNumber && (
-                      <span className="inline-block mt-0.5 font-mono text-[9px] text-stone-500 uppercase tracking-widest">
+                      <span className="inline-block mt-0.5 font-mono text-[8px] text-stone-500 uppercase tracking-widest leading-none">
                         {t('board_prefix')} #{currentPreviewBoard.index}
                       </span>
                     )}
@@ -365,7 +317,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
 
                 {/* Grid Layout inside preview */}
                 <div
-                  className={`grid gap-1 flex-1 ${activeFrameStyle === 'festive_banner' ? 'p-1.5' : ''}`}
+                  className={`grid gap-0.5 flex-1 ${activeFrameStyle === 'festive_banner' ? 'p-1' : ''}`}
                   style={{
                     gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`
                   }}
@@ -386,110 +338,186 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           </div>
         )}
 
-        {/* Compact Official Dimensions Note */}
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-stone-500">
-          <Info className="w-3.5 h-3.5 text-stone-400" />
-          <span>{t('official_dimensions_note')}</span>
+        <div className="mt-2 text-center text-[10px] text-stone-500 flex items-center justify-center gap-1">
+          <Info className="w-3 h-3 text-stone-400" />
+          <span>22×31 cm (proporción tradicional) • Baraja 5.2×7.8 cm</span>
         </div>
       </div>
 
-      {/* 3. Configuration Options (Below Preview for seamless visual feedback) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Card A: Títulos y Encabezado */}
-        <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3.5">
-          <div className="flex items-center gap-2 pb-1 border-b border-stone-100">
-            <Type className="w-4 h-4 text-stone-700" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800">
+      {/* 3. Section 1: Encabezado (Colapsable con botón listo o clic en barra) */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => toggleSection('header')}
+          className="w-full p-3 flex items-center justify-between text-left cursor-pointer hover:bg-stone-50/80 transition-colors"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Type className="w-4 h-4 text-stone-600 shrink-0" />
+            <span className="text-xs font-bold text-stone-900">
               1. {t('board_title_label')}
-            </h4>
+            </span>
           </div>
-
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-600 mb-1">
-              {t('board_title_label')}
-            </label>
-            <input
-              type="text"
-              value={config.title}
-              onChange={(e) => onChangeConfig({ ...config, title: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-stone-300 font-loteria-title text-sm font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900 bg-white"
-              placeholder={t('board_title_placeholder')}
-            />
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md truncate max-w-[140px]">
+              {config.title || t('board_title_placeholder')}
+            </span>
+            {openSection === 'header' ? (
+              <ChevronUp className="w-4 h-4 text-stone-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-stone-400" />
+            )}
           </div>
+        </button>
 
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-600 mb-1">
-              {t('board_subtitle_label')}
-            </label>
-            <input
-              type="text"
-              value={config.subtitle || ''}
-              onChange={(e) => onChangeConfig({ ...config, subtitle: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-800 focus:outline-none focus:ring-1 focus:ring-stone-900 bg-white"
-              placeholder={t('board_subtitle_placeholder')}
-            />
-          </div>
-
-          <div className="p-2.5 rounded-xl border border-stone-200 bg-stone-50/70 flex items-start justify-between gap-3">
+        {openSection === 'header' && (
+          <div className="p-3 pt-1 border-t border-stone-100 space-y-2.5 bg-stone-50/40">
             <div>
-              <p className="text-xs font-bold text-stone-900">
-                {t('show_board_number_label')}
-              </p>
-              <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
-                {t('show_board_number_hint')}
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={config.showBoardNumber ?? false}
-              onChange={(e) => onChangeConfig({ ...config, showBoardNumber: e.target.checked })}
-              className="mt-0.5 w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
-            />
-          </div>
-        </div>
-
-        {/* Card B: Marco y Color del Tablero */}
-        <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3.5">
-          <div className="flex items-center gap-2 pb-1 border-b border-stone-100">
-            <LayoutTemplate className="w-4 h-4 text-stone-700" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800">
-              2. {t('board_frame_style')}
-            </h4>
-          </div>
-
-          {/* Frame Style Grid */}
-          <div className="grid grid-cols-2 gap-1.5">
-            {frameOptions.map((f) => {
-              const isSelected = activeFrameStyle === f.id;
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => onChangeConfig({ ...config, boardFrameStyle: f.id })}
-                  className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-stone-900 bg-stone-900 text-white shadow-xs font-bold'
-                      : 'border-stone-200 text-stone-700 hover:border-stone-300 bg-white'
-                  }`}
-                >
-                  <p className="text-xs leading-tight">{t(f.nameKey)}</p>
-                  <p className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? 'text-stone-300' : 'text-stone-400'}`}>
-                    {t(f.descKey)}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Color Palette Swatches */}
-          <div className="pt-2 border-t border-stone-100">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Palette className="w-3.5 h-3.5 text-stone-600" />
-              <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
-                {t('board_color_theme')}
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
+                {t('board_title_label')}
               </label>
+              <input
+                type="text"
+                value={config.title}
+                onChange={(e) => onChangeConfig({ ...config, title: e.target.value })}
+                className="w-full px-3 py-1.5 rounded-xl border border-stone-300 font-loteria-title text-sm font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900 bg-white"
+                placeholder={t('board_title_placeholder')}
+              />
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
+                {t('board_subtitle_label')}
+              </label>
+              <input
+                type="text"
+                value={config.subtitle || ''}
+                onChange={(e) => onChangeConfig({ ...config, subtitle: e.target.value })}
+                className="w-full px-3 py-1.5 rounded-xl border border-stone-300 text-xs text-stone-800 focus:outline-none focus:ring-1 focus:ring-stone-900 bg-white"
+                placeholder={t('board_subtitle_placeholder')}
+              />
+            </div>
+
+            <div className="p-2 rounded-xl border border-stone-200 bg-white flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-bold text-stone-900">
+                  {t('show_board_number_label')}
+                </p>
+                <p className="text-[10px] text-stone-500 mt-0.5 leading-snug">
+                  {t('show_board_number_hint')}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={config.showBoardNumber ?? false}
+                onChange={(e) => onChangeConfig({ ...config, showBoardNumber: e.target.checked })}
+                className="mt-0.5 w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+              />
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setOpenSection(null)}
+                className="px-3 py-1 bg-stone-900 hover:bg-black text-white rounded-lg text-xs font-bold cursor-pointer transition-colors"
+              >
+                {language === 'en' ? 'Done' : 'Listo'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Section 2: Marco del Tablero (Auto-colapsa al seleccionar) */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => toggleSection('frame')}
+          className="w-full p-3 flex items-center justify-between text-left cursor-pointer hover:bg-stone-50/80 transition-colors"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <LayoutTemplate className="w-4 h-4 text-stone-600 shrink-0" />
+            <span className="text-xs font-bold text-stone-900">
+              2. {t('board_frame_style')}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">
+              {t(activeFrame.nameKey)}
+            </span>
+            {openSection === 'frame' ? (
+              <ChevronUp className="w-4 h-4 text-stone-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-stone-400" />
+            )}
+          </div>
+        </button>
+
+        {openSection === 'frame' && (
+          <div className="p-3 pt-1 border-t border-stone-100 space-y-1.5 bg-stone-50/40">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {frameOptions.map((f) => {
+                const isSelected = activeFrameStyle === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => {
+                      onChangeConfig({ ...config, boardFrameStyle: f.id });
+                      setOpenSection(null); // Auto-colapsa al seleccionar
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
+                      isSelected
+                        ? 'border-stone-900 bg-stone-900 text-white shadow-xs font-bold'
+                        : 'border-stone-200 text-stone-700 hover:border-stone-300 bg-white'
+                    }`}
+                  >
+                    <div>
+                      <p className="text-xs leading-tight">{t(f.nameKey)}</p>
+                      <p className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? 'text-stone-300' : 'text-stone-400'}`}>
+                        {t(f.descKey)}
+                      </p>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-white shrink-0 ml-1.5" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 5. Section 3: Color del Marco (Auto-colapsa al seleccionar) */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => toggleSection('color')}
+          className="w-full p-3 flex items-center justify-between text-left cursor-pointer hover:bg-stone-50/80 transition-colors"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Palette className="w-4 h-4 text-stone-600 shrink-0" />
+            <span className="text-xs font-bold text-stone-900">
+              3. {t('board_color_theme')}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className="w-3.5 h-3.5 rounded-full border border-stone-300 shadow-2xs shrink-0"
+              style={{ backgroundColor: activeBorderColor }}
+            />
+            <span className="text-[11px] font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">
+              {activePalette.label}
+            </span>
+            {openSection === 'color' ? (
+              <ChevronUp className="w-4 h-4 text-stone-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-stone-400" />
+            )}
+          </div>
+        </button>
+
+        {openSection === 'color' && (
+          <div className="p-3 pt-1 border-t border-stone-100 bg-stone-50/40">
+            <div className="flex items-center gap-2.5 flex-wrap py-1">
               {BOARD_COLOR_PALETTES.map((palette) => {
                 const isSelected = activeBorderColor.toLowerCase() === palette.hex.toLowerCase();
                 return (
@@ -497,8 +525,11 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                     key={palette.hex}
                     type="button"
                     title={palette.label}
-                    onClick={() => onChangeConfig({ ...config, boardBorderColor: palette.hex })}
-                    className={`w-8 h-8 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
+                    onClick={() => {
+                      onChangeConfig({ ...config, boardBorderColor: palette.hex });
+                      setOpenSection(null); // Auto-colapsa al seleccionar
+                    }}
+                    className={`w-9 h-9 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
                       isSelected ? 'scale-110 border-stone-900 shadow-sm' : 'border-white hover:scale-105'
                     }`}
                     style={{ backgroundColor: palette.hex }}
@@ -509,195 +540,147 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               })}
             </div>
           </div>
-        </div>
-
-        {/* Card C: Tamaño de Cuadrícula */}
-        <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3.5">
-          <div className="flex items-center gap-2 pb-1 border-b border-stone-100">
-            <Grid className="w-4 h-4 text-stone-700" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800">
-              3. {t('board_dimensions')}
-            </h4>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {presets.map((p) => {
-              const isSelected = config.rows === p.rows && config.cols === p.cols;
-              return (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => {
-                    const updated = { ...config, rows: p.rows, cols: p.cols };
-                    onChangeConfig(updated);
-                    try {
-                      setGeneratedBoards(generateBoards(cards, updated));
-                    } catch (err: any) {
-                      alert(err.message);
-                    }
-                  }}
-                  className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-stone-900 bg-stone-900 text-white'
-                      : 'border-stone-200 text-stone-700 hover:border-stone-300 bg-white'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Duplicates Rule */}
-          <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/60 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-stone-900">
-                {t('allow_duplicates')}
-              </p>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                {config.allowDuplicates ? t('duplicates_allowed') : t('duplicates_not_allowed')}
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={config.allowDuplicates}
-              onChange={(e) => {
-                const updated = { ...config, allowDuplicates: e.target.checked };
-                onChangeConfig(updated);
-                setGeneratedBoards(generateBoards(cards, updated));
-              }}
-              className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
-            />
-          </div>
-        </div>
-
-        {/* Card D: Cantidad de Tablas (Siempre expandido y disponible) */}
-        <div className="bg-white rounded-2xl border border-stone-200/90 p-4 shadow-2xs space-y-3.5">
-          <div className="flex items-center justify-between pb-1 border-b border-stone-100">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-stone-700" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800">
-                4. {t('board_quantity')}
-              </h4>
-            </div>
-            <span className="font-mono font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded text-xs">
-              {config.quantity} {t('boards_count')}
-            </span>
-          </div>
-
-          <div className="space-y-1.5 pt-1">
-            <input
-              type="range"
-              min={1}
-              max={60}
-              value={config.quantity}
-              onChange={(e) => onChangeConfig({ ...config, quantity: parseInt(e.target.value, 10) })}
-              className="w-full accent-stone-800 cursor-pointer"
-            />
-            <div className="flex justify-between text-[10px] text-stone-400 font-mono">
-              <span>1</span>
-              <span>15</span>
-              <span>30</span>
-              <span>60 tablas</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleRegenerate}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs transition-colors cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            {t('regenerate_boards')}
-          </button>
-        </div>
+        )}
       </div>
 
-      {/* 4. PASO FINAL: Exportar e Imprimir tus PDFs */}
-      <div className="bg-gradient-to-br from-stone-900 to-stone-950 text-white rounded-3xl p-5 sm:p-6 shadow-md border border-stone-800 space-y-4">
+      {/* 6. Section 4: Tamaño de Cuadrícula (Auto-colapsa al elegir preset) */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => toggleSection('grid')}
+          className="w-full p-3 flex items-center justify-between text-left cursor-pointer hover:bg-stone-50/80 transition-colors"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Grid className="w-4 h-4 text-stone-600 shrink-0" />
+            <span className="text-xs font-bold text-stone-900">
+              4. {t('board_dimensions')}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">
+              {config.rows} × {config.cols} ({config.rows * config.cols} {t('cards').toLowerCase()})
+            </span>
+            {openSection === 'grid' ? (
+              <ChevronUp className="w-4 h-4 text-stone-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-stone-400" />
+            )}
+          </div>
+        </button>
+
+        {openSection === 'grid' && (
+          <div className="p-3 pt-1 border-t border-stone-100 space-y-2.5 bg-stone-50/40">
+            <div className="grid grid-cols-2 gap-2">
+              {presets.map((p) => {
+                const isSelected = config.rows === p.rows && config.cols === p.cols;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      const updated = { ...config, rows: p.rows, cols: p.cols };
+                      onChangeConfig(updated);
+                      try {
+                        setGeneratedBoards(generateBoards(cards, updated));
+                      } catch (err: any) {
+                        alert(err.message);
+                      }
+                      setOpenSection(null); // Auto-colapsa al seleccionar
+                    }}
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-200 text-stone-700 hover:border-stone-300 bg-white'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Duplicates Rule */}
+            <div className="p-2.5 rounded-xl border border-stone-200 bg-white flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-stone-900">
+                  {t('allow_duplicates')}
+                </p>
+                <p className="text-[10px] text-stone-500 mt-0.5">
+                  {config.allowDuplicates ? t('duplicates_allowed') : t('duplicates_not_allowed')}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={config.allowDuplicates}
+                onChange={(e) => {
+                  const updated = { ...config, allowDuplicates: e.target.checked };
+                  onChangeConfig(updated);
+                  setGeneratedBoards(generateBoards(cards, updated));
+                }}
+                className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 7. Section 5: Cantidad de Tablas (Siempre visible) */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-3.5 shadow-2xs space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm sm:text-base font-bold text-white uppercase tracking-wider">
-              {language === 'en' ? 'Final Step: Print & Export PDFs' : 'Paso Final: Descargar Archivos de Impresión'}
-            </h3>
+            <Layers className="w-4 h-4 text-stone-600 shrink-0" />
+            <span className="text-xs font-bold text-stone-900">
+              5. {t('board_quantity')}
+            </span>
           </div>
-          <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-2.5 py-0.5 rounded-full">
-            {language === 'en' ? 'Ready to Print' : 'Listos para Imprimir'}
+          <span className="font-mono font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded text-xs">
+            {config.quantity} {t('boards_count')}
           </span>
         </div>
 
-        <p className="text-xs text-stone-400 max-w-xl">
-          {language === 'en'
-            ? 'Your 54 deck cards and custom boards are ready. Download the high-resolution vector PDFs below to cut and play:'
-            : 'Tu baraja de 54 cartas y tus tablas personalizadas están listas. Descarga los PDFs vectoriales en alta resolución para recortar y jugar:'}
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-          {/* PDF 1: Baraja de 54 Cartas */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 flex flex-col justify-between hover:border-white/20 transition-all">
-            <div>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-white text-sm">{t('pdf_deck_title')}</span>
-                <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-md border border-emerald-500/30 text-[10px]">
-                  {t('cards_4_per_sheet')}
-                </span>
-              </div>
-              <p className="text-[11px] text-stone-400 leading-relaxed">
-                {t('cards_per_page_hint')}
-              </p>
-            </div>
-            <button
-              disabled={isGeneratingCardsPDF}
-              onClick={handleDownloadCardsPDF}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-stone-100 text-stone-900 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
-            >
-              <FileDown className="w-4 h-4 text-stone-900" />
-              {isGeneratingCardsPDF ? t('generating_pdf', { progress: pdfProgress }) : t('download_deck_pdf')}
-            </button>
-          </div>
-
-          {/* PDF 2: Tablas de Lotería */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 flex flex-col justify-between hover:border-white/20 transition-all">
-            <div>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-white text-sm">
-                  {t('pdf_boards_title', { count: generatedBoards.length })}
-                </span>
-                <span className="text-[10px] text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold">
-                  22 × 31 cm
-                </span>
-              </div>
-              <p className="text-[11px] text-stone-400 leading-relaxed">
-                {language === 'en'
-                  ? 'Individual boards centered with authentic proportions and cutting crop guides.'
-                  : 'Tablas individuales centradas con proporciones auténticas y guías de recorte.'}
-              </p>
-            </div>
-            <button
-              disabled={isGeneratingBoardsPDF}
-              onClick={handleDownloadBoardsPDF}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-stone-100 text-stone-900 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
-            >
-              <FileDown className="w-4 h-4 text-stone-900" />
-              {isGeneratingBoardsPDF ? t('generating_pdf', { progress: pdfProgress }) : t('download_boards_pdf', { count: generatedBoards.length })}
-            </button>
+        <div className="space-y-1">
+          <input
+            type="range"
+            min={1}
+            max={60}
+            value={config.quantity}
+            onChange={(e) => onChangeConfig({ ...config, quantity: parseInt(e.target.value, 10) })}
+            className="w-full accent-stone-800 cursor-pointer"
+          />
+          <div className="flex justify-between text-[10px] text-stone-400 font-mono">
+            <span>1</span>
+            <span>15</span>
+            <span>30</span>
+            <span>60 tablas</span>
           </div>
         </div>
 
-        {/* Direct transition to play game */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10">
-          <span className="text-xs text-stone-400">
-            {language === 'en'
-              ? 'Ready to host the game? Start calling the cards online:'
-              : '¿Listo para jugar la partida? Comienza a cantar las cartas en vivo:'}
-          </span>
+        <button
+          type="button"
+          onClick={handleRegenerate}
+          className="w-full flex items-center justify-center gap-1.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          {t('regenerate_boards')}
+        </button>
+      </div>
+
+      {/* 8. Sticky Bottom Navigation Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-stone-200 z-20 flex justify-center">
+        <div className="w-full max-w-md flex items-center justify-between gap-3">
           <button
-            onClick={onGoToGame}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs shadow-md transition-colors cursor-pointer"
+            onClick={onBack}
+            className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 rounded-xl cursor-pointer"
           >
-            <Play className="w-3.5 h-3.5 fill-white" />
-            {t('go_to_game')}
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('back')}
+          </button>
+          <button
+            onClick={onNext}
+            className="flex-1 max-w-xs flex items-center justify-center gap-1.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-sm transition-transform active:scale-95 cursor-pointer"
+          >
+            <span>{language === 'en' ? 'Continue to Download' : 'Continuar a Descarga'}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { SwipeCardEditor } from './SwipeCardEditor';
 import { CardsGridView } from './CardsGridView';
 import { CardStyleSelector } from './CardStyleSelector';
 import { BoardGeneratorSettings } from './BoardGeneratorSettings';
+import { DownloadPDFView } from './DownloadPDFView';
 import { swapCardNumbers } from '../utils/loteriaEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder, DEFAULT_CARDS } from '../data/defaultCards';
@@ -93,7 +94,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   const steps = [
     { id: 'cards_input', label: t('step_cards') },
     { id: 'card_style', label: t('step_frames') },
-    { id: 'board_config', label: t('step_boards') }
+    { id: 'board_config', label: t('step_boards') },
+    { id: 'download_pdf', label: t('step_download') },
   ];
 
   return (
@@ -231,6 +233,18 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
           config={boardConfig}
           onChangeConfig={onUpdateBoardConfig}
           onBack={() => setCurrentStep('card_style')}
+          onNext={() => setCurrentStep('download_pdf')}
+          onGoToGame={onGoToGame}
+        />
+      )}
+
+      {/* STEP 4: DOWNLOAD PDF */}
+      {currentStep === 'download_pdf' && (
+        <DownloadPDFView
+          cards={cards}
+          cardStyle={cardStyle}
+          boardConfig={boardConfig}
+          onBack={() => setCurrentStep('board_config')}
           onGoToGame={onGoToGame}
         />
       )}

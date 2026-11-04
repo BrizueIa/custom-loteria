@@ -53,7 +53,7 @@ export interface GeneratedBoard {
 }
 
 export type AppTab = 'generator' | 'game';
-export type GeneratorStep = 'cards_input' | 'card_style' | 'board_config';
+export type GeneratorStep = 'cards_input' | 'card_style' | 'board_config' | 'download_pdf';
 
 export interface GameSettings {
   speechVoice: string | null;
