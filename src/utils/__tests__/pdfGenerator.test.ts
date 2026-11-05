@@ -17,6 +17,9 @@ const mockCtx = {
   measureText: vi.fn((text: string) => ({ width: text.length * 8 })),
   fillText: vi.fn(),
   drawImage: vi.fn(),
+  save: vi.fn(),
+  restore: vi.fn(),
+  globalAlpha: 1.0,
   font: '',
   fillStyle: '',
   strokeStyle: '',
@@ -226,6 +229,84 @@ describe('pdfGenerator', () => {
         });
         expect(blob).toBeInstanceOf(Blob);
       }
+    });
+
+    it('renders logo on cards in specified corner with opacity in drawCardToCanvas/generateCardsPDF', async () => {
+      mockCtx.drawImage.mockClear();
+
+      const logoStyle: CardStyleConfig = {
+        ...mockStyle,
+        logo: {
+          enabled: true,
+          image: 'data:image/png;base64,mocklogo',
+          position: 'top-right',
+          size: 'md',
+          opacity: 0.85,
+        },
+      };
+
+      const blob = await generateCardsPDF(mockCards, logoStyle, 4);
+      expect(blob).toBeInstanceOf(Blob);
+      // drawImage should be called for card illustration AND for the logo on each card
+      expect(mockCtx.drawImage).toHaveBeenCalled();
+      expect(mockCtx.drawImage.mock.calls.length).toBeGreaterThanOrEqual(mockCards.length * 2);
+    });
+
+    it('supports card dimension presets (9 per page, 6 per page, 16 per page, and custom cm)', async () => {
+      const presets: Array<CardStyleConfig['cardDimensions']> = [
+        { preset: '9_per_page' },
+        { preset: '6_per_page' },
+        { preset: '16_per_page' },
+        { preset: 'custom', widthCm: 6, heightCm: 9 },
+      ];
+
+      for (const dims of presets) {
+        const styleWithDims: CardStyleConfig = {
+          ...mockStyle,
+          cardDimensions: dims,
+        };
+        const blob = await generateCardsPDF(mockCards, styleWithDims, 4);
+        expect(blob).toBeInstanceOf(Blob);
+      }
+    });
+
+    it('applies custom board paper background color, text color, and board dimension presets in generateBoardsPDF', async () => {
+      const singleBoard: GeneratedBoard[] = [
+        { id: 'b1', index: 1, cards: [mockCards[0]] }
+      ];
+      const customBoardConfig: BoardConfig = {
+        rows: 1,
+        cols: 1,
+        allowDuplicates: false,
+        quantity: 1,
+        title: 'CUSTOM LOTERIA',
+        boardFrameStyle: 'traditional_gallo',
+        boardBgColor: '#FEF3C7', // Pastel amber
+        boardTextColor: '#991B1B', // Deep red
+        boardDimensions: {
+          preset: 'square',
+          widthCm: 20,
+          heightCm: 20,
+        },
+      };
+
+      const blob = await generateBoardsPDF(singleBoard, customBoardConfig, mockStyle);
+      expect(blob).toBeInstanceOf(Blob);
+
+      // Verify custom board presets like half_page and custom cm
+      const halfPageConfig: BoardConfig = {
+        ...customBoardConfig,
+        boardDimensions: { preset: 'half_page' },
+      };
+      const blobHalf = await generateBoardsPDF(singleBoard, halfPageConfig, mockStyle);
+      expect(blobHalf).toBeInstanceOf(Blob);
+
+      const customCmConfig: BoardConfig = {
+        ...customBoardConfig,
+        boardDimensions: { preset: 'custom', widthCm: 18, heightCm: 24 },
+      };
+      const blobCustom = await generateBoardsPDF(singleBoard, customCmConfig, mockStyle);
+      expect(blobCustom).toBeInstanceOf(Blob);
     });
   });
 });

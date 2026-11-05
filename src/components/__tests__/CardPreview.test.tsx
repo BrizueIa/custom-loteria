@@ -96,4 +96,25 @@ describe('CardPreview', () => {
     expect(screen.getByText('Vivero Señora de las Plantas')).toBeInTheDocument();
     expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
+
+  it('renders logo image with corner position class and opacity when logo is enabled', () => {
+    const styleWithLogo: CardStyleConfig = {
+      ...baseStyle,
+      logo: {
+        enabled: true,
+        image: 'data:image/png;base64,mockLogo',
+        position: 'bottom-right',
+        size: 'md',
+        opacity: 0.85,
+      },
+    };
+    render(<CardPreview card={mockCard} style={styleWithLogo} />);
+    const logoImg = screen.getByAltText('Logo');
+    expect(logoImg).toBeInTheDocument();
+    expect(logoImg.getAttribute('src')).toBe('data:image/png;base64,mockLogo');
+
+    const logoContainer = logoImg.parentElement;
+    expect(logoContainer?.className).toContain('bottom-1.5 right-1.5');
+    expect(logoContainer?.style.opacity).toBe('0.85');
+  });
 });

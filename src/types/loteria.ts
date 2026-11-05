@@ -19,6 +19,25 @@ export type FrameStyle =
 export type NumberPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 export type NamePosition = 'bottom' | 'top';
 
+export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type LogoSize = 'sm' | 'md' | 'lg';
+
+export interface CardLogoConfig {
+  enabled: boolean;
+  image: string; // Base64 data URL
+  position: LogoPosition;
+  size: LogoSize;
+  opacity?: number; // 0.1 to 1.0, default 1.0
+}
+
+export type CardDimensionPreset = '4_per_page' | '6_per_page' | '9_per_page' | '16_per_page' | 'custom';
+
+export interface CardDimensionsConfig {
+  preset: CardDimensionPreset;
+  widthCm?: number;
+  heightCm?: number;
+}
+
 export interface CardStyleConfig {
   frameStyle: FrameStyle;
   numberPosition: NumberPosition;
@@ -28,6 +47,8 @@ export interface CardStyleConfig {
   cardBgColor: string;
   textColor: string;
   fontFamily: 'serif' | 'sans' | 'display';
+  logo?: CardLogoConfig;
+  cardDimensions?: CardDimensionsConfig;
 }
 
 export type BoardFrameStyle = 
@@ -36,6 +57,14 @@ export type BoardFrameStyle =
   | 'talavera_frame'     // Marco con esquinas ornamentales Talavera
   | 'clean_minimal'      // Marco fino limpio moderno
   | 'none';              // Sin marco exterior
+
+export type BoardDimensionPreset = 'traditional' | 'full_page' | 'half_page' | 'square' | 'custom';
+
+export interface BoardDimensionsConfig {
+  preset: BoardDimensionPreset;
+  widthCm?: number;
+  heightCm?: number;
+}
 
 export interface BoardConfig {
   rows: number;
@@ -48,6 +77,9 @@ export interface BoardConfig {
   showBoardNumber?: boolean;
   boardFrameStyle?: BoardFrameStyle;
   boardBorderColor?: string;
+  boardBgColor?: string;
+  boardTextColor?: string;
+  boardDimensions?: BoardDimensionsConfig;
 }
 
 export interface GeneratedBoard {

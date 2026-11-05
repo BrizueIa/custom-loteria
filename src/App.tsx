@@ -36,7 +36,9 @@ const DEFAULT_BOARD_CONFIG: BoardConfig = {
   subtitle: '',
   showBoardNumber: false,
   boardFrameStyle: 'traditional_gallo',
-  boardBorderColor: '#164E3D'
+  boardBorderColor: '#164E3D',
+  boardBgColor: '#FFFFFF',
+  boardTextColor: '#164E3D'
 };
 
 function MainApp() {

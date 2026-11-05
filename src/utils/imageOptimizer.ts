@@ -329,3 +329,93 @@ export async function samplePixelColor(
     img.src = imageSrc;
   });
 }
+
+/**
+ * Optimizes a user-uploaded logo image while strictly preserving PNG/SVG transparency.
+ * Resizes down to a max bounding box (default 400x400) to keep memory lightweight.
+ */
+export async function optimizeLogoImage(
+  source: File | string,
+  maxDimension = 400
+): Promise<string> {
+  if (typeof source === 'string' && isSvgDataUrl(source)) {
+    return source;
+  }
+
+  let initialUrl = '';
+  if (typeof source === 'string') {
+    initialUrl = source;
+  } else {
+    if (source.type === 'image/svg+xml') {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve((e.target?.result as string) || '');
+        reader.onerror = reject;
+        reader.readAsDataURL(source);
+      });
+    }
+
+    initialUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve((e.target?.result as string) || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(source);
+    });
+  }
+
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return initialUrl;
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      resolve(initialUrl);
+    }, 2500);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    img.onload = () => {
+      clearTimeout(timer);
+      const nw = img.naturalWidth || img.width || 1;
+      const nh = img.naturalHeight || img.height || 1;
+
+      let tw = nw;
+      let th = nh;
+      if (tw > maxDimension || th > maxDimension) {
+        const ratio = Math.min(maxDimension / tw, maxDimension / th);
+        tw = Math.round(tw * ratio);
+        th = Math.round(th * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(initialUrl);
+        return;
+      }
+
+      // Do not fill background: preserve transparent alpha channel
+      ctx.clearRect(0, 0, tw, th);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, tw, th);
+
+      try {
+        const pngUrl = canvas.toDataURL('image/png');
+        resolve(pngUrl);
+      } catch {
+        resolve(initialUrl);
+      }
+    };
+
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(initialUrl);
+    };
+
+    img.src = initialUrl;
+  });
+}

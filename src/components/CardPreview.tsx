@@ -60,6 +60,37 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     return 'text-base sm:text-lg font-black leading-none';
   };
 
+  const getLogoPositionClass = () => {
+    const pos = style.logo?.position || 'top-right';
+    switch (pos) {
+      case 'top-left':
+        return isBoard ? 'top-0.5 left-0.5' : isGrid ? 'top-1 left-1' : 'top-1.5 left-1.5';
+      case 'top-right':
+        return isBoard ? 'top-0.5 right-0.5' : isGrid ? 'top-1 right-1' : 'top-1.5 right-1.5';
+      case 'bottom-left':
+        return isBoard ? 'bottom-0.5 left-0.5' : isGrid ? 'bottom-1 left-1' : 'bottom-1.5 left-1.5';
+      case 'bottom-right':
+        return isBoard ? 'bottom-0.5 right-0.5' : isGrid ? 'bottom-1 right-1' : 'bottom-1.5 right-1.5';
+    }
+  };
+
+  const getLogoSizeClass = () => {
+    const sz = style.logo?.size || 'md';
+    if (isBoard) {
+      if (sz === 'sm') return 'w-2.5 h-2.5';
+      if (sz === 'lg') return 'w-4.5 h-4.5';
+      return 'w-3.5 h-3.5';
+    }
+    if (isGrid) {
+      if (sz === 'sm') return 'w-4 h-4 sm:w-5 sm:h-5';
+      if (sz === 'lg') return 'w-7 h-7 sm:w-8 sm:h-8';
+      return 'w-5.5 h-5.5 sm:w-6.5 sm:h-6.5';
+    }
+    if (sz === 'sm') return 'w-8 h-8 sm:w-10 sm:h-10';
+    if (sz === 'lg') return 'w-14 h-14 sm:w-16 sm:h-16';
+    return 'w-11 h-11 sm:w-13 sm:h-13';
+  };
+
   // Dynamic font size so names adapt cleanly without awkward linebreaks
   const getNameFontSize = () => {
     const len = card.name.length;
@@ -213,10 +244,27 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     >
       {/* Inner Black-Bordered Frame filled with the absorbed card background color */}
       <div
-        style={{ backgroundColor: innerBgColor }}
+        style={{
+          backgroundColor: innerBgColor,
+          borderColor: style.borderColor || undefined,
+        }}
         className={`relative w-full h-full flex flex-col items-center justify-between overflow-hidden ${getInnerFrameClass()}`}
       >
         {renderOptionalInnerAccents()}
+
+        {/* Optional Logo in selected corner */}
+        {style.logo?.enabled && style.logo.image && (
+          <div
+            style={{ opacity: style.logo.opacity ?? 1 }}
+            className={`absolute ${getLogoPositionClass()} ${getLogoSizeClass()} z-25 pointer-events-none flex items-center justify-center p-0.5`}
+          >
+            <img
+              src={style.logo.image}
+              alt="Logo"
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+        )}
 
         {/* Card Number inside the black frame (hidden on Cover / Portada card #0) */}
         {!isCoverCard && (

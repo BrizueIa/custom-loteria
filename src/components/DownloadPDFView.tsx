@@ -237,7 +237,15 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
                 </p>
               </div>
               <span className="bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-md border border-emerald-200 text-[10px] shrink-0">
-                {t('cards_4_per_sheet')}
+                {cardStyle.cardDimensions?.preset === '9_per_page'
+                  ? (language === 'en' ? '9 per sheet (poker)' : '9 por hoja (póker)')
+                  : cardStyle.cardDimensions?.preset === '6_per_page'
+                  ? (language === 'en' ? '6 per sheet' : '6 por hoja')
+                  : cardStyle.cardDimensions?.preset === '16_per_page'
+                  ? (language === 'en' ? '16 per sheet (mini)' : '16 por hoja (mini)')
+                  : cardStyle.cardDimensions?.preset === 'custom'
+                  ? `${cardStyle.cardDimensions.widthCm} × ${cardStyle.cardDimensions.heightCm} cm`
+                  : t('cards_4_per_sheet')}
               </span>
             </div>
 
@@ -268,7 +276,15 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
             </p>
           </div>
           <span className="bg-amber-50 text-amber-900 font-bold px-2 py-0.5 rounded-md border border-amber-200 text-[10px] shrink-0">
-            22 × 31 cm
+            {boardConfig.boardDimensions?.preset === 'full_page'
+              ? (language === 'en' ? 'Full Page' : 'Hoja Completa')
+              : boardConfig.boardDimensions?.preset === 'half_page'
+              ? (language === 'en' ? 'Half Page' : 'Media Hoja')
+              : boardConfig.boardDimensions?.preset === 'square'
+              ? (language === 'en' ? 'Square 20×20 cm' : 'Cuadrada 20×20 cm')
+              : boardConfig.boardDimensions?.preset === 'custom'
+              ? `${boardConfig.boardDimensions.widthCm} × ${boardConfig.boardDimensions.heightCm} cm`
+              : '22 × 31 cm'}
           </span>
         </div>
 

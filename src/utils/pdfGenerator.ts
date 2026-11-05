@@ -213,9 +213,11 @@ async function drawCardToCanvas(
     console.error('Error loading image for card', card.number, err);
   }
 
-  // 5. Draw Inner Frame Border (Línea negra continua estilo Lotería Mexicana clásica)
+  // 5. Draw Inner Frame Border (Línea continua estilo Lotería Mexicana clásica o marco seleccionado)
+  const frameBorderColor = style.borderColor || '#141413';
+
   if (style.frameStyle === 'talavera') {
-    ctx.strokeStyle = '#141413';
+    ctx.strokeStyle = frameBorderColor;
     ctx.lineWidth = 2.2;
     ctx.strokeRect(innerX, innerY, innerW, innerH);
     ctx.lineWidth = 0.7;
@@ -223,12 +225,12 @@ async function drawCardToCanvas(
     ctx.strokeRect(innerX + 3.5, innerY + 3.5, innerW - 7, innerH - 7);
   } else if (style.frameStyle === 'botanical_litho') {
     ctx.lineWidth = 2.0;
-    ctx.strokeStyle = '#141413';
+    ctx.strokeStyle = frameBorderColor;
     ctx.strokeRect(innerX, innerY, innerW, innerH);
     ctx.lineWidth = 0.6;
     ctx.strokeStyle = 'rgba(20, 20, 19, 0.3)';
     ctx.strokeRect(innerX + 3, innerY + 3, innerW - 6, innerH - 6);
-    ctx.fillStyle = '#141413';
+    ctx.fillStyle = frameBorderColor;
     const drawRosette = (cx: number, cy: number) => {
       ctx.beginPath();
       ctx.arc(cx, cy, 2.0, 0, Math.PI * 2);
@@ -240,17 +242,51 @@ async function drawCardToCanvas(
     drawRosette(innerX + innerW - 4, innerY + innerH - 4);
   } else if (style.frameStyle === 'editorial_luxury') {
     ctx.lineWidth = 1.2;
-    ctx.strokeStyle = '#57534e';
+    ctx.strokeStyle = style.borderColor || '#57534e';
     ctx.strokeRect(innerX, innerY, innerW, innerH);
   } else if (style.frameStyle === 'organic_floral') {
     ctx.lineWidth = 2.0;
-    ctx.strokeStyle = '#064e3b';
+    ctx.strokeStyle = style.borderColor || '#064e3b';
     ctx.strokeRect(innerX, innerY, innerW, innerH);
   } else {
-    // classic_loteria: Pure crisp black line frame (like "LA DAMA")
+    // classic_loteria: Pure crisp line frame (like "LA DAMA")
     ctx.lineWidth = 2.4;
-    ctx.strokeStyle = '#141413';
+    ctx.strokeStyle = frameBorderColor;
     ctx.strokeRect(innerX, innerY, innerW, innerH);
+  }
+
+  // 5.5 Optional Logo in selected corner
+  if (style.logo?.enabled && style.logo.image) {
+    try {
+      const logoImg = await loadImage(style.logo.image);
+      const lNw = logoImg.naturalWidth || logoImg.width || 1;
+      const lNh = logoImg.naturalHeight || logoImg.height || 1;
+      const logoAspect = lNw / lNh;
+
+      const sizeScale = style.logo.size === 'sm' ? 0.16 : style.logo.size === 'lg' ? 0.30 : 0.23;
+      const logoW = Math.round(innerW * sizeScale);
+      const logoH = Math.round(logoW / logoAspect);
+
+      const cornerPad = Math.max(5, Math.round(innerW * 0.025));
+      let lx = innerX + cornerPad;
+      let ly = innerY + cornerPad;
+
+      if (style.logo.position === 'top-right') {
+        lx = innerX + innerW - logoW - cornerPad;
+      } else if (style.logo.position === 'bottom-left') {
+        ly = innerY + innerH - logoH - cornerPad;
+      } else if (style.logo.position === 'bottom-right') {
+        lx = innerX + innerW - logoW - cornerPad;
+        ly = innerY + innerH - logoH - cornerPad;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = style.logo.opacity ?? 1;
+      ctx.drawImage(logoImg, lx, ly, logoW, logoH);
+      ctx.restore();
+    } catch (e) {
+      console.error('Error drawing logo to canvas', e);
+    }
   }
 
   // 6. Draw Card Number inside the black frame (hidden on Cover / Portada card #0)
@@ -306,7 +342,7 @@ async function drawCardToCanvas(
 }
 
 /**
- * PDF 1: 54 Cards (Cartas de baraja - Formato estándar 4 por hoja)
+ * PDF 1: 54 Cards (Cartas de baraja con soporte de tamaños personalizados)
  */
 export async function generateCardsPDF(
   cards: LoteriaCard[],
@@ -324,18 +360,56 @@ export async function generateCardsPDF(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Formato óptimo fijado a 4 cartas por hoja (2x2 cuadrícula)
-  const cols = 2;
-  const rows = 2;
+  const marginX = 12;
+  const marginY = 12;
 
-  const marginX = 14;
-  const marginY = 14;
+  // Determine grid and card sizing from preset or custom dimensions
+  let cols = 2;
+  let rows = 2;
+  let cardWidthMm = 84;
+  let cardHeightMm = 117.6;
+
+  const preset = style.cardDimensions?.preset || (_cardsPerPage === 9 ? '9_per_page' : '4_per_page');
+
+  if (preset === '9_per_page') {
+    cols = 3;
+    rows = 3;
+    cardWidthMm = 58;
+    cardHeightMm = 81.2;
+  } else if (preset === '6_per_page') {
+    cols = 2;
+    rows = 3;
+    cardWidthMm = 76;
+    cardHeightMm = 106.4;
+  } else if (preset === '16_per_page') {
+    cols = 4;
+    rows = 4;
+    cardWidthMm = 44;
+    cardHeightMm = 61.6;
+  } else if (preset === 'custom' && style.cardDimensions?.widthCm && style.cardDimensions?.heightCm) {
+    const w = style.cardDimensions.widthCm * 10;
+    const h = style.cardDimensions.heightCm * 10;
+    cardWidthMm = w;
+    cardHeightMm = h;
+    cols = Math.max(1, Math.floor((pageWidth - marginX * 2) / Math.max(20, w)));
+    rows = Math.max(1, Math.floor((pageHeight - marginY * 2) / Math.max(20, h)));
+  }
+
   const cellWidth = (pageWidth - marginX * 2) / cols;
   const cellHeight = (pageHeight - marginY * 2) / rows;
 
-  // Dimensiones exactas con proporción 300:420 (~0.714) para corte perfecto
-  const cardWidthMm = 84;
-  const cardHeightMm = 117.6;
+  // Ensure card fits inside cell
+  if (cardWidthMm > cellWidth - 2) {
+    const scale = (cellWidth - 2) / cardWidthMm;
+    cardWidthMm = Math.round(cardWidthMm * scale * 10) / 10;
+    cardHeightMm = Math.round(cardHeightMm * scale * 10) / 10;
+  }
+  if (cardHeightMm > cellHeight - 2) {
+    const scale = (cellHeight - 2) / cardHeightMm;
+    cardWidthMm = Math.round(cardWidthMm * scale * 10) / 10;
+    cardHeightMm = Math.round(cardHeightMm * scale * 10) / 10;
+  }
+
   const offsetX = (cellWidth - cardWidthMm) / 2;
   const offsetY = (cellHeight - cardHeightMm) / 2;
 
@@ -394,23 +468,46 @@ export async function generateBoardsPDF(
   const borderColor = boardConfig.boardBorderColor || '#164E3D';
   const rgb = hexToRgb(borderColor);
 
+  const paperBgColor = boardConfig.boardBgColor || '#FFFFFF';
+  const paperRgb = hexToRgb(paperBgColor);
+
+  const textColorHex = boardConfig.boardTextColor || borderColor;
+  const textRgb = hexToRgb(textColorHex);
+  const hasCustomText = Boolean(boardConfig.boardTextColor);
+
   const title = (boardConfig.title || 'LOTERÍA MEXICANA').toUpperCase().trim();
   const subtitle = (boardConfig.subtitle || '').trim();
   const showNumber = Boolean(boardConfig.showBoardNumber);
 
-  // Proporción oficial tradicional de tablero: 22 cm / 31 cm (ratio ~0.709677)
-  // Se escala centrado en la hoja carta (21.59 x 27.94 cm) con márgenes profesionales de ~2 cm,
-  // dejando el tablero más pequeño y elegante con espacio para sujetar o recortar.
-  const OFFICIAL_RATIO = 22 / 31;
-  const maxAllowedH = pageHeight - 38; // ~19 mm margen arriba y abajo
-  const maxAllowedW = pageWidth - 42; // ~21 mm margen izq y der
+  // Proporción y medidas según preset o personalizado
+  const sizingPreset = boardConfig.boardDimensions?.preset || 'traditional';
+  let targetRatio = 22 / 31;
+  let customFrameW: number | null = null;
+  let customFrameH: number | null = null;
 
-  let frameW = maxAllowedW;
-  let frameH = frameW / OFFICIAL_RATIO;
+  if (sizingPreset === 'full_page') {
+    targetRatio = (pageWidth - 20) / (pageHeight - 24);
+  } else if (sizingPreset === 'half_page') {
+    targetRatio = 13.5 / 19.5;
+  } else if (sizingPreset === 'square') {
+    targetRatio = 1;
+  } else if (sizingPreset === 'custom' && boardConfig.boardDimensions?.widthCm && boardConfig.boardDimensions?.heightCm) {
+    const wMm = boardConfig.boardDimensions.widthCm * 10;
+    const hMm = boardConfig.boardDimensions.heightCm * 10;
+    targetRatio = wMm / hMm;
+    customFrameW = Math.min(wMm, pageWidth - 16);
+    customFrameH = customFrameW / targetRatio;
+  }
+
+  const maxAllowedH = pageHeight - (sizingPreset === 'full_page' ? 24 : 38);
+  const maxAllowedW = pageWidth - (sizingPreset === 'full_page' ? 20 : 42);
+
+  let frameW = customFrameW || maxAllowedW;
+  let frameH = customFrameH || frameW / targetRatio;
 
   if (frameH > maxAllowedH) {
     frameH = maxAllowedH;
-    frameW = frameH * OFFICIAL_RATIO;
+    frameW = frameH * targetRatio;
   }
 
   const frameX = (pageWidth - frameW) / 2;
@@ -433,6 +530,10 @@ export async function generateBoardsPDF(
     if (bIdx > 0) doc.addPage();
 
     const board = boards[bIdx];
+
+    // Relleno de fondo de la hoja del tablero
+    doc.setFillColor(paperRgb.r, paperRgb.g, paperRgb.b);
+    doc.rect(frameX, frameY, frameW, frameH, 'F');
 
     // 0. Guías de corte discretas en las 4 esquinas del tablero (estilo imprenta)
     doc.setDrawColor(200, 196, 192);
@@ -536,46 +637,50 @@ export async function generateBoardsPDF(
     // 2. Encabezado de la tabla (Título, Subtítulo opcional, Número de tabla condicional)
     const isBanner = frameStyle === 'festive_banner';
 
+    const titleR = isBanner ? (hasCustomText ? textRgb.r : 255) : textRgb.r;
+    const titleG = isBanner ? (hasCustomText ? textRgb.g : 255) : textRgb.g;
+    const titleB = isBanner ? (hasCustomText ? textRgb.b : 255) : textRgb.b;
+
     if (hasSub && showNumber) {
       doc.setFont('times', 'bold');
       doc.setFontSize(16);
-      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.setTextColor(titleR, titleG, titleB);
       doc.text(title, pageWidth / 2, frameY + 7.5, { align: 'center' });
 
       doc.setFont('times', 'italic');
       doc.setFontSize(9);
-      doc.setTextColor(isBanner ? 254 : 110, isBanner ? 243 : 105, isBanner ? 199 : 100);
+      doc.setTextColor(isBanner ? (hasCustomText ? textRgb.r : 254) : 110, isBanner ? (hasCustomText ? textRgb.g : 243) : 105, isBanner ? (hasCustomText ? textRgb.b : 199) : 100);
       doc.text(subtitle, pageWidth / 2, frameY + 13, { align: 'center' });
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
-      doc.setTextColor(isBanner ? 240 : 120, isBanner ? 240 : 113, isBanner ? 240 : 108);
+      doc.setTextColor(isBanner ? (hasCustomText ? textRgb.r : 240) : 120, isBanner ? (hasCustomText ? textRgb.g : 240) : 113, isBanner ? (hasCustomText ? textRgb.b : 240) : 108);
       doc.text(`TABLA #${board.index}`, pageWidth / 2, frameY + 18, { align: 'center' });
     } else if (hasSub) {
       doc.setFont('times', 'bold');
       doc.setFontSize(18);
-      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.setTextColor(titleR, titleG, titleB);
       doc.text(title, pageWidth / 2, frameY + 9, { align: 'center' });
 
       doc.setFont('times', 'italic');
       doc.setFontSize(9.5);
-      doc.setTextColor(isBanner ? 254 : 110, isBanner ? 243 : 105, isBanner ? 199 : 100);
+      doc.setTextColor(isBanner ? (hasCustomText ? textRgb.r : 254) : 110, isBanner ? (hasCustomText ? textRgb.g : 243) : 105, isBanner ? (hasCustomText ? textRgb.b : 199) : 100);
       doc.text(subtitle, pageWidth / 2, frameY + 16, { align: 'center' });
     } else if (showNumber) {
       doc.setFont('times', 'bold');
       doc.setFontSize(19);
-      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.setTextColor(titleR, titleG, titleB);
       doc.text(title, pageWidth / 2, frameY + 9.5, { align: 'center' });
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
-      doc.setTextColor(isBanner ? 240 : 120, isBanner ? 240 : 113, isBanner ? 240 : 108);
+      doc.setTextColor(isBanner ? (hasCustomText ? textRgb.r : 240) : 120, isBanner ? (hasCustomText ? textRgb.g : 240) : 113, isBanner ? (hasCustomText ? textRgb.b : 240) : 108);
       doc.text(`TABLA #${board.index}`, pageWidth / 2, frameY + 15.5, { align: 'center' });
     } else {
       // Solo título centrado
       doc.setFont('times', 'bold');
       doc.setFontSize(21);
-      doc.setTextColor(isBanner ? 255 : rgb.r, isBanner ? 255 : rgb.g, isBanner ? 255 : rgb.b);
+      doc.setTextColor(titleR, titleG, titleB);
       doc.text(title, pageWidth / 2, frameY + headerHeight / 2 + 2.5, { align: 'center' });
     }
 
