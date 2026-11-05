@@ -27,8 +27,12 @@ import {
   Play,
   FileText,
   Maximize2,
+  Pipette,
+  X,
 } from 'lucide-react';
 import { useLanguage, TranslationKey } from '../i18n/LanguageContext';
+import { ColorPickerExtras } from './ColorPickerExtras';
+import { saveRecentColor } from '../utils/recentColors';
 
 interface BoardGeneratorSettingsProps {
   cards: LoteriaCard[];
@@ -115,10 +119,26 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   );
 
   const [customGridMode, setCustomGridMode] = useState<boolean>(false);
-  const [customFrameColor, setCustomFrameColor] = useState<string>(config.boardBorderColor || '#164E3D');
   const [customTextColor, setCustomTextColor] = useState<string>(config.boardTextColor || config.boardBorderColor || '#164E3D');
-  const [customPaperColor, setCustomPaperColor] = useState<string>(config.boardBgColor || '#FFFFFF');
   const [isCustomTextColor, setIsCustomTextColor] = useState<boolean>(Boolean(config.boardTextColor && config.boardTextColor !== config.boardBorderColor));
+
+  type BoardEyedropperTarget = 'boardBorderColor' | 'boardTextColor' | 'boardBgColor' | null;
+  const [activeEyedropperTarget, setActiveEyedropperTarget] = useState<BoardEyedropperTarget>(null);
+
+  const handleBoardEyedropperPick = (hex: string) => {
+    if (!activeEyedropperTarget) return;
+    if (activeEyedropperTarget === 'boardBorderColor') {
+      handleSelectBoardColor(hex);
+    } else if (activeEyedropperTarget === 'boardTextColor') {
+      setIsCustomTextColor(true);
+      setCustomTextColor(hex);
+      onChangeConfig({ ...config, boardTextColor: hex });
+    } else if (activeEyedropperTarget === 'boardBgColor') {
+      handleSelectBoardPaperColor(hex);
+    }
+    saveRecentColor(hex);
+    setActiveEyedropperTarget(null);
+  };
 
   const toggleSection = (s: BoardSectionKey) => {
     if (openSection === s) {
@@ -149,7 +169,6 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   };
 
   const handleSelectBoardColor = (hex: string) => {
-    setCustomFrameColor(hex);
     const updated: BoardConfig = { ...config, boardBorderColor: hex };
     if (!isCustomTextColor) {
       updated.boardTextColor = hex;
@@ -163,7 +182,6 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   };
 
   const handleSelectBoardPaperColor = (hex: string) => {
-    setCustomPaperColor(hex);
     onChangeConfig({ ...config, boardBgColor: hex });
     if (autoGuidedStep === 'paper') {
       setOpenSection('grid');
@@ -389,6 +407,27 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           </div>
         </div>
 
+        {/* Active Eyedropper indicator banner */}
+        {activeEyedropperTarget && (
+          <div className="w-full mb-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Pipette className="w-4 h-4 text-amber-700 shrink-0 animate-bounce" />
+              <span className="leading-tight text-[11px]">
+                {language === 'en'
+                  ? 'Tap any card in the board to sample color'
+                  : 'Toca cualquier carta de la tabla para absorber su color'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveEyedropperTarget(null)}
+              className="p-1 text-amber-800 hover:text-amber-950 rounded-md cursor-pointer shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Paper Sheet Preview Container */}
         {currentPreviewBoard && (
           <div className="w-full bg-stone-100/90 p-2.5 sm:p-3 rounded-xl border border-stone-200/80 shadow-inner flex flex-col items-center justify-center">
@@ -519,6 +558,8 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                         style={cardStyle}
                         isCompactTable={true}
                         outerMarginColor={activePaperBgColor}
+                        isEyedropperActive={Boolean(activeEyedropperTarget)}
+                        onPickColor={handleBoardEyedropperPick}
                         className="w-full h-full"
                       />
                     </div>
@@ -790,19 +831,18 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                     </button>
                   );
                 })}
-                {/* Native frame color picker */}
-                <div className="flex items-center gap-1.5 ml-1">
-                  <input
-                    type="color"
-                    value={customFrameColor}
-                    onChange={(e) => {
-                      setCustomFrameColor(e.target.value);
-                      handleSelectBoardColor(e.target.value);
-                    }}
-                    className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                    title={t('custom_color')}
+                {/* Selector libre con Gotero y Recientes */}
+                <div className="w-full pt-1">
+                  <ColorPickerExtras
+                    currentColor={activeBorderColor}
+                    onChangeColor={(hex) => handleSelectBoardColor(hex)}
+                    onActivateEyedropper={() =>
+                      setActiveEyedropperTarget(
+                        activeEyedropperTarget === 'boardBorderColor' ? null : 'boardBorderColor'
+                      )
+                    }
+                    isEyedropperActive={activeEyedropperTarget === 'boardBorderColor'}
                   />
-                  <span className="text-[10px] font-mono text-stone-500">{activeBorderColor}</span>
                 </div>
               </div>
             </div>
@@ -863,19 +903,21 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                       </button>
                     );
                   })}
-                  {/* Native text color picker */}
-                  <div className="flex items-center gap-1.5 ml-1">
-                    <input
-                      type="color"
-                      value={customTextColor}
-                      onChange={(e) => {
-                        setCustomTextColor(e.target.value);
-                        onChangeConfig({ ...config, boardTextColor: e.target.value });
+                  {/* Selector libre con Gotero y Recientes */}
+                  <div className="w-full pt-1">
+                    <ColorPickerExtras
+                      currentColor={activeTextColor}
+                      onChangeColor={(hex) => {
+                        setCustomTextColor(hex);
+                        onChangeConfig({ ...config, boardTextColor: hex });
                       }}
-                      className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                      title={t('custom_color')}
+                      onActivateEyedropper={() =>
+                        setActiveEyedropperTarget(
+                          activeEyedropperTarget === 'boardTextColor' ? null : 'boardTextColor'
+                        )
+                      }
+                      isEyedropperActive={activeEyedropperTarget === 'boardTextColor'}
                     />
-                    <span className="text-[10px] font-mono text-stone-500">{activeTextColor}</span>
                   </div>
                 </div>
               )}
@@ -960,19 +1002,18 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                   </button>
                 );
               })}
-              {/* Native paper color picker */}
-              <div className="flex items-center gap-1.5 ml-1">
-                <input
-                  type="color"
-                  value={customPaperColor}
-                  onChange={(e) => {
-                    setCustomPaperColor(e.target.value);
-                    handleSelectBoardPaperColor(e.target.value);
-                  }}
-                  className="w-8 h-8 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                  title={t('custom_color')}
+              {/* Selector libre con Gotero y Recientes */}
+              <div className="w-full pt-1">
+                <ColorPickerExtras
+                  currentColor={activePaperBgColor}
+                  onChangeColor={(hex) => handleSelectBoardPaperColor(hex)}
+                  onActivateEyedropper={() =>
+                    setActiveEyedropperTarget(
+                      activeEyedropperTarget === 'boardBgColor' ? null : 'boardBgColor'
+                    )
+                  }
+                  isEyedropperActive={activeEyedropperTarget === 'boardBgColor'}
                 />
-                <span className="text-[10px] font-mono text-stone-500">{activePaperBgColor}</span>
               </div>
             </div>
 

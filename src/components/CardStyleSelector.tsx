@@ -29,8 +29,11 @@ import {
   Maximize2,
   Trash2,
   Upload,
+  Pipette,
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ColorPickerExtras } from './ColorPickerExtras';
+import { saveRecentColor } from '../utils/recentColors';
 
 type SectionKey = 'frame' | 'number' | 'name' | 'logo' | 'colors' | 'dimensions';
 
@@ -141,14 +144,24 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   };
 
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [customBorderColor, setCustomBorderColor] = useState(config.borderColor || '#141413');
-  const [customTextColor, setCustomTextColor] = useState(config.textColor || '#141413');
-  const [customOuterMarginColor, setCustomOuterMarginColor] = useState(config.cardOuterMarginColor || '#FFFFFF');
-  const [customOuterBorderColor, setCustomOuterBorderColor] = useState(
-    config.cardOuterBorderColor && config.cardOuterBorderColor !== 'none'
-      ? config.cardOuterBorderColor
-      : '#141413'
-  );
+
+  type CardEyedropperTarget = 'borderColor' | 'textColor' | 'cardOuterMarginColor' | 'cardOuterBorderColor' | null;
+  const [activeEyedropperTarget, setActiveEyedropperTarget] = useState<CardEyedropperTarget>(null);
+
+  const handleCardEyedropperPick = (hex: string) => {
+    if (!activeEyedropperTarget) return;
+    if (activeEyedropperTarget === 'borderColor') {
+      onChange({ ...config, borderColor: hex });
+    } else if (activeEyedropperTarget === 'textColor') {
+      onChange({ ...config, textColor: hex });
+    } else if (activeEyedropperTarget === 'cardOuterMarginColor') {
+      onChange({ ...config, cardOuterMarginColor: hex });
+    } else if (activeEyedropperTarget === 'cardOuterBorderColor') {
+      onChange({ ...config, cardOuterBorderColor: hex });
+    }
+    saveRecentColor(hex);
+    setActiveEyedropperTarget(null);
+  };
 
   // Guided walkthrough only on first time if initialTourDone is false
   const [autoGuidedStep, setAutoGuidedStep] = useState<SectionKey | null>(
@@ -298,10 +311,33 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         {/* Left Column: Live Card Preview & Switcher (Sticky on Desktop) */}
         <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:top-4 flex flex-col items-center">
           <div className="w-full bg-white rounded-2xl border border-stone-200 p-3 sm:p-5 shadow-2xs flex flex-col items-center justify-center gap-3">
+            {/* Active Eyedropper indicator banner */}
+            {activeEyedropperTarget && (
+              <div className="w-full max-w-xs px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Pipette className="w-4 h-4 text-amber-700 shrink-0 animate-bounce" />
+                  <span className="leading-tight text-[11px]">
+                    {language === 'en'
+                      ? 'Tap anywhere on the card preview image to sample color'
+                      : 'Toca la imagen en la vista previa para absorber su color'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveEyedropperTarget(null)}
+                  className="p-1 text-amber-800 hover:text-amber-950 rounded-md cursor-pointer shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             <div className="w-56 sm:w-64 aspect-[3/4] relative">
               <CardPreview
                 card={activeSampleCard}
                 style={config}
+                isEyedropperActive={Boolean(activeEyedropperTarget)}
+                onPickColor={handleCardEyedropperPick}
                 className="w-full h-full shadow-md"
               />
             </div>
@@ -959,7 +995,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                       type="button"
                       title={palette.label}
                       onClick={() => {
-                        setCustomBorderColor(palette.hex);
+                        saveRecentColor(palette.hex);
                         onChange({ ...config, borderColor: palette.hex });
                       }}
                       className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
@@ -973,19 +1009,18 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                     </button>
                   );
                 })}
-                {/* Native color picker for card border */}
-                <div className="flex items-center gap-1.5 ml-1">
-                  <input
-                    type="color"
-                    value={customBorderColor}
-                    onChange={(e) => {
-                      setCustomBorderColor(e.target.value);
-                      onChange({ ...config, borderColor: e.target.value });
+                {/* Selector libre con Gotero y Recientes */}
+                <div className="w-full pt-1">
+                  <ColorPickerExtras
+                    currentColor={config.borderColor || '#141413'}
+                    onChangeColor={(hex) => {
+                      onChange({ ...config, borderColor: hex });
                     }}
-                    className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                    title={t('custom_color')}
+                    onActivateEyedropper={() =>
+                      setActiveEyedropperTarget(activeEyedropperTarget === 'borderColor' ? null : 'borderColor')
+                    }
+                    isEyedropperActive={activeEyedropperTarget === 'borderColor'}
                   />
-                  <span className="text-[10px] font-mono text-stone-500">{config.borderColor || '#141413'}</span>
                 </div>
               </div>
             </div>
@@ -1005,7 +1040,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                       type="button"
                       title={palette.label}
                       onClick={() => {
-                        setCustomTextColor(palette.hex);
+                        saveRecentColor(palette.hex);
                         onChange({ ...config, textColor: palette.hex });
                       }}
                       className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
@@ -1019,19 +1054,18 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                     </button>
                   );
                 })}
-                {/* Native color picker for card text */}
-                <div className="flex items-center gap-1.5 ml-1">
-                  <input
-                    type="color"
-                    value={customTextColor}
-                    onChange={(e) => {
-                      setCustomTextColor(e.target.value);
-                      onChange({ ...config, textColor: e.target.value });
+                {/* Selector libre con Gotero y Recientes */}
+                <div className="w-full pt-1">
+                  <ColorPickerExtras
+                    currentColor={config.textColor || '#141413'}
+                    onChangeColor={(hex) => {
+                      onChange({ ...config, textColor: hex });
                     }}
-                    className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                    title={t('custom_color')}
+                    onActivateEyedropper={() =>
+                      setActiveEyedropperTarget(activeEyedropperTarget === 'textColor' ? null : 'textColor')
+                    }
+                    isEyedropperActive={activeEyedropperTarget === 'textColor'}
                   />
-                  <span className="text-[10px] font-mono text-stone-500">{config.textColor || '#141413'}</span>
                 </div>
               </div>
             </div>
@@ -1125,7 +1159,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                           type="button"
                           title={palette.label}
                           onClick={() => {
-                            setCustomOuterMarginColor(palette.hex);
+                            saveRecentColor(palette.hex);
                             onChange({ ...config, cardOuterMarginColor: palette.hex });
                           }}
                           className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer shadow-2xs ${
@@ -1139,19 +1173,20 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                         </button>
                       );
                     })}
-                    {/* Native color picker for outer margin */}
-                    <div className="flex items-center gap-1.5 ml-1">
-                      <input
-                        type="color"
-                        value={customOuterMarginColor}
-                        onChange={(e) => {
-                          setCustomOuterMarginColor(e.target.value);
-                          onChange({ ...config, cardOuterMarginColor: e.target.value });
+                    {/* Selector libre con Gotero y Recientes */}
+                    <div className="w-full pt-1">
+                      <ColorPickerExtras
+                        currentColor={config.cardOuterMarginColor || '#FFFFFF'}
+                        onChangeColor={(hex) => {
+                          onChange({ ...config, cardOuterMarginColor: hex });
                         }}
-                        className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                        title={t('custom_color')}
+                        onActivateEyedropper={() =>
+                          setActiveEyedropperTarget(
+                            activeEyedropperTarget === 'cardOuterMarginColor' ? null : 'cardOuterMarginColor'
+                          )
+                        }
+                        isEyedropperActive={activeEyedropperTarget === 'cardOuterMarginColor'}
                       />
-                      <span className="text-[10px] font-mono text-stone-500">{config.cardOuterMarginColor || '#FFFFFF'}</span>
                     </div>
                   </div>
                 </div>
@@ -1184,7 +1219,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                       type="button"
                       title={p.label}
                       onClick={() => {
-                        setCustomOuterBorderColor(p.hex);
+                        saveRecentColor(p.hex);
                         onChange({ ...config, cardOuterBorderColor: p.hex });
                       }}
                       className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -1210,7 +1245,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                   type="button"
                   onClick={() => {
                     const c = config.borderColor || '#141413';
-                    setCustomOuterBorderColor(c);
+                    saveRecentColor(c);
                     onChange({ ...config, cardOuterBorderColor: c });
                   }}
                   className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -1243,21 +1278,26 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                   <span>{t('card_outer_border_none')}</span>
                 </button>
 
-                {/* Native color picker for outer border */}
-                <div className="flex items-center gap-1.5 ml-1">
-                  <input
-                    type="color"
-                    value={customOuterBorderColor}
-                    onChange={(e) => {
-                      setCustomOuterBorderColor(e.target.value);
-                      onChange({ ...config, cardOuterBorderColor: e.target.value });
+                {/* Selector libre con Gotero y Recientes */}
+                <div className="w-full pt-1">
+                  <ColorPickerExtras
+                    currentColor={
+                      config.cardOuterBorderColor === 'none'
+                        ? '#141413'
+                        : config.cardOuterBorderColor || '#D6D3D1'
+                    }
+                    onChangeColor={(hex) => {
+                      onChange({ ...config, cardOuterBorderColor: hex });
                     }}
-                    className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                    title={t('custom_color')}
+                    onActivateEyedropper={() =>
+                      setActiveEyedropperTarget(
+                        activeEyedropperTarget === 'cardOuterBorderColor'
+                          ? null
+                          : 'cardOuterBorderColor'
+                      )
+                    }
+                    isEyedropperActive={activeEyedropperTarget === 'cardOuterBorderColor'}
                   />
-                  <span className="text-[10px] font-mono text-stone-500">
-                    {config.cardOuterBorderColor === 'none' ? 'none' : config.cardOuterBorderColor || '#D6D3D1'}
-                  </span>
                 </div>
               </div>
             </div>

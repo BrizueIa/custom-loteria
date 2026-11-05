@@ -12,10 +12,12 @@ import {
   X,
   Pipette,
   Sparkles,
+  Check,
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder } from '../data/defaultCards';
 import { optimizeImage, extractBackgroundColorFromImage } from '../utils/imageOptimizer';
+import { useRecentColors } from '../utils/recentColors';
 
 interface SwipeCardEditorProps {
   cards: LoteriaCard[];
@@ -40,6 +42,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [isEyedropperActive, setIsEyedropperActive] = useState(false);
+  const { recentColors, addColor } = useRecentColors();
   const currentCard = cards[currentIndex] || cards[0];
   const isCoverCard = currentCard.number === 0 || Boolean(currentCard.isCover);
   const playableCards = cards.filter(c => c.number > 0 && !c.isCover);
@@ -70,6 +73,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
           backgroundColor: autoBg,
           featherEdges: true,
         });
+        if (autoBg) addColor(autoBg);
       }
     } catch (err) {
       console.error('Error optimizing image:', err);
@@ -92,6 +96,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
       ...currentCard,
       backgroundColor: autoBg,
     });
+    if (autoBg) addColor(autoBg);
     setIsEyedropperActive(false);
   };
 
@@ -100,6 +105,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
       ...currentCard,
       backgroundColor: hexColor,
     });
+    addColor(hexColor);
     setIsEyedropperActive(false);
   };
 
@@ -298,12 +304,14 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
             <input
               type="color"
               value={activeBgColor}
-              onChange={(e) =>
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase();
                 onUpdateCard({
                   ...currentCard,
-                  backgroundColor: e.target.value.toUpperCase(),
-                })
-              }
+                  backgroundColor: val,
+                });
+                addColor(val);
+              }}
               className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
             />
             <span className="font-mono text-[10px] font-bold text-stone-600 uppercase">
@@ -311,6 +319,49 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
             </span>
           </label>
         </div>
+
+        {/* Fila de Colores Recientes para absorber o reutilizar en cartas */}
+        {recentColors.length > 0 && (
+          <div className="flex items-center gap-1.5 pt-1.5 border-t border-stone-100 flex-wrap">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400 shrink-0">
+              {t('recent_colors_label')}
+            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {recentColors.map((hex) => {
+                const isSelected = activeBgColor.toLowerCase() === hex.toLowerCase();
+                const isLight = hex.toUpperCase() === '#FFFFFF' || hex.toUpperCase() === '#FEF3C7' || hex.toUpperCase() === '#FEF9E7';
+                return (
+                  <button
+                    key={`recent-card-${hex}`}
+                    type="button"
+                    onClick={() => {
+                      onUpdateCard({
+                        ...currentCard,
+                        backgroundColor: hex,
+                      });
+                      addColor(hex);
+                    }}
+                    className={`w-5 h-5 rounded-full border transition-transform flex items-center justify-center cursor-pointer shadow-3xs ${
+                      isSelected
+                        ? 'scale-115 border-stone-900 ring-1 ring-stone-900 shadow-2xs'
+                        : 'border-stone-300 hover:scale-110'
+                    }`}
+                    style={{ backgroundColor: hex }}
+                    title={`${hex} (${language === 'en' ? 'Click to apply' : 'Clic para aplicar'})`}
+                  >
+                    {isSelected && (
+                      <Check
+                        className={`w-2.5 h-2.5 ${
+                          isLight ? 'text-stone-950 font-black' : 'text-white'
+                        } drop-shadow-xs`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Toggle para suavizar orillas de la imagen */}
         <label className="flex items-center justify-between pt-1.5 border-t border-stone-100 text-[11px] text-stone-600 cursor-pointer select-none">
