@@ -8,7 +8,7 @@ import { DownloadPDFView } from './DownloadPDFView';
 import { swapCardNumbers, generateBoards } from '../utils/loteriaEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder, DEFAULT_CARDS } from '../data/defaultCards';
-import { exportDeckToJson, validateAndParseDeckJson } from '../utils/deckIO';
+import { exportDeckToJson, validateAndParseDeckJson, parseBatchFilename } from '../utils/deckIO';
 import { optimizeImage, isSvgDataUrl, extractBackgroundColorFromImage } from '../utils/imageOptimizer';
 import { Images, LayoutGrid, Volume2, Lock, Globe, Download, Upload, QrCode } from 'lucide-react';
 
@@ -107,55 +107,105 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   };
 
   const handleBatchUpload = async (files: FileList) => {
-    const fileArray = Array.from(files).slice(0, cards.length);
-    if (fileArray.length === 0) return;
+    const rawFiles = Array.from(files);
+    if (rawFiles.length === 0) return;
 
-    let startIdx = 0;
-    const firstEmptyIdx = cards.findIndex(c => isSvgDataUrl(c.image));
-    if (firstEmptyIdx > 0 && firstEmptyIdx < cards.length) {
-      const targetCard = cards[firstEmptyIdx];
-      const label = targetCard.number === 0 ? 'Tapa / Portada' : `#${targetCard.number}`;
-      const fillFromEmpty = window.confirm(
-        language === 'en'
-          ? `Add these photos starting from empty card ${label}? (Click Cancel to replace from the first card)`
-          : `¿Deseas agregar estas fotos a partir de la carta vacía ${label}? (Pulsa Cancelar para reemplazar desde el inicio)`
-      );
-      if (fillFromEmpty) {
-        startIdx = firstEmptyIdx;
-      }
-    }
+    // Natural numeric sort: 1.png, 2.png, ..., 9.png, 10.png
+    const fileArray = rawFiles.sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    );
 
     const newCards = [...cards];
     let loadedCount = 0;
 
-    for (let i = 0; i < fileArray.length; i++) {
-      const targetIndex = (startIdx + i) % cards.length;
-      const file = fileArray[i];
-      try {
-        const dataUrl = await optimizeImage(file);
-        if (dataUrl && newCards[targetIndex]) {
-          const autoBg = await extractBackgroundColorFromImage(dataUrl);
-          const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-          newCards[targetIndex] = {
-            ...newCards[targetIndex],
-            name: cleanName || newCards[targetIndex].name,
-            image: dataUrl,
-            backgroundColor: autoBg,
-            featherEdges: true
-          };
-          loadedCount++;
+    // Analyze filenames to detect if files contain explicit card numbers
+    const parsedFiles = fileArray.map((file) => ({
+      file,
+      parsed: parseBatchFilename(file.name)
+    }));
+
+    const hasNumberedFiles = parsedFiles.some((item) => item.parsed.cardNumber !== null);
+
+    if (hasNumberedFiles) {
+      // Direct Number Matching Mode:
+      // Maps each file directly to the card matching its number.
+      // If the file is only a number (e.g. "1.png"), the card's existing name is safely preserved.
+      for (const { file, parsed } of parsedFiles) {
+        if (parsed.cardNumber === null) continue;
+        const targetIndex = newCards.findIndex((c) => c.number === parsed.cardNumber);
+        if (targetIndex === -1) continue;
+
+        try {
+          const dataUrl = await optimizeImage(file);
+          if (dataUrl) {
+            const autoBg = await extractBackgroundColorFromImage(dataUrl);
+            newCards[targetIndex] = {
+              ...newCards[targetIndex],
+              name: parsed.customName ? parsed.customName : newCards[targetIndex].name,
+              image: dataUrl,
+              backgroundColor: autoBg,
+              featherEdges: true
+            };
+            loadedCount++;
+          }
+        } catch (err) {
+          console.error(`Error optimizing image ${file.name}:`, err);
         }
-      } catch (err) {
-        console.error('Error optimizing batch image:', err);
+      }
+    } else {
+      // Sequential Mode: target playable cards (card.number > 0), keeping Cover intact
+      const playableIndices = newCards
+        .map((c, idx) => (!c.isCover && c.number > 0 ? idx : -1))
+        .filter((idx) => idx !== -1);
+
+      if (playableIndices.length === 0) return;
+
+      let startPos = 0;
+      const firstEmptyPlayablePos = playableIndices.findIndex((idx) => isSvgDataUrl(newCards[idx].image));
+
+      if (firstEmptyPlayablePos > 0) {
+        const targetCard = newCards[playableIndices[firstEmptyPlayablePos]];
+        const fillFromEmpty = window.confirm(
+          language === 'en'
+            ? `Add these photos starting from empty card #${targetCard.number}? (Click Cancel to replace from card #1)`
+            : `¿Deseas agregar estas fotos a partir de la carta vacía #${targetCard.number}? (Pulsa Cancelar para reemplazar desde la carta #1)`
+        );
+        if (fillFromEmpty) {
+          startPos = firstEmptyPlayablePos;
+        }
+      }
+
+      for (let i = 0; i < Math.min(fileArray.length, playableIndices.length); i++) {
+        const targetIndex = playableIndices[(startPos + i) % playableIndices.length];
+        const file = fileArray[i];
+        try {
+          const dataUrl = await optimizeImage(file);
+          if (dataUrl) {
+            const autoBg = await extractBackgroundColorFromImage(dataUrl);
+            const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim();
+            newCards[targetIndex] = {
+              ...newCards[targetIndex],
+              name: cleanName || newCards[targetIndex].name,
+              image: dataUrl,
+              backgroundColor: autoBg,
+              featherEdges: true
+            };
+            loadedCount++;
+          }
+        } catch (err) {
+          console.error(`Error optimizing batch image ${file.name}:`, err);
+        }
       }
     }
 
-    onUpdateCards(newCards);
-    alert(
-      language === 'en'
-        ? `Successfully loaded and optimized ${loadedCount} photos.`
-        : `Se cargaron y optimizaron ${loadedCount} fotos para la baraja.`
-    );
+    if (loadedCount > 0) {
+      onUpdateCards(newCards);
+      alert(
+        language === 'en'
+          ? `Successfully loaded and optimized ${loadedCount} photos.`
+          : `Se cargaron y optimizaron ${loadedCount} fotos para la baraja.`
+      );
+    }
   };
 
   const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {

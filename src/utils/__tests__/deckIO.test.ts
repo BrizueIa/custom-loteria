@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sanitizeDeckFilename, validateAndParseDeckJson, exportDeckToJson } from '../deckIO';
+import { sanitizeDeckFilename, validateAndParseDeckJson, exportDeckToJson, parseBatchFilename } from '../deckIO';
 import { LoteriaCard, CardStyleConfig, BoardConfig } from '../../types/loteria';
 
 describe('deckIO', () => {
@@ -108,6 +108,48 @@ describe('deckIO', () => {
       expect(window.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
 
       createElementSpy.mockRestore();
+    });
+  });
+
+  describe('parseBatchFilename', () => {
+    it('parses pure number filenames preserving existing card name', () => {
+      expect(parseBatchFilename('1.png')).toEqual({ cardNumber: 1, customName: null });
+      expect(parseBatchFilename('01.jpg')).toEqual({ cardNumber: 1, customName: null });
+      expect(parseBatchFilename('10.png')).toEqual({ cardNumber: 10, customName: null });
+      expect(parseBatchFilename('54.webp')).toEqual({ cardNumber: 54, customName: null });
+      expect(parseBatchFilename('#7.png')).toEqual({ cardNumber: 7, customName: null });
+      expect(parseBatchFilename('0.png')).toEqual({ cardNumber: 0, customName: null });
+      expect(parseBatchFilename('#0.png')).toEqual({ cardNumber: 0, customName: null });
+    });
+
+    it('parses filenames with number and custom name', () => {
+      expect(parseBatchFilename('1 - La Aglaonema.png')).toEqual({
+        cardNumber: 1,
+        customName: 'La Aglaonema'
+      });
+      expect(parseBatchFilename('02_El_Albahacar.jpg')).toEqual({
+        cardNumber: 2,
+        customName: 'El Albahacar'
+      });
+      expect(parseBatchFilename('#3. La Alocasia.png')).toEqual({
+        cardNumber: 3,
+        customName: 'La Alocasia'
+      });
+      expect(parseBatchFilename('54-El Rosal.png')).toEqual({
+        cardNumber: 54,
+        customName: 'El Rosal'
+      });
+    });
+
+    it('parses freeform names without card number', () => {
+      expect(parseBatchFilename('monstera_deliciosa.png')).toEqual({
+        cardNumber: null,
+        customName: 'monstera deliciosa'
+      });
+      expect(parseBatchFilename('Mi Planta Favorita.jpeg')).toEqual({
+        cardNumber: null,
+        customName: 'Mi Planta Favorita'
+      });
     });
   });
 });

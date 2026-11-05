@@ -104,3 +104,38 @@ export function validateAndParseDeckJson(jsonContent: string): {
     return { success: false, error: `Error de sintaxis JSON: ${err.message || 'JSON inválido'}` };
   }
 }
+
+export interface ParsedBatchFile {
+  cardNumber: number | null;
+  customName: string | null;
+}
+
+/**
+ * Analyzes uploaded image filenames to intelligently extract card numbers and clean names.
+ * - Pure numbers (e.g. "1.png", "02.jpg", "#54.webp"): preserves the existing card name.
+ * - Number + name (e.g. "1 - La Aglaonema.png", "02_Albahacar.jpg"): extracts both.
+ * - Freeform text (e.g. "monstera.png"): extracts clean name without specific number.
+ */
+export function parseBatchFilename(filename: string): ParsedBatchFile {
+  const base = filename.replace(/\.[^/.]+$/, '').trim();
+
+  // Case 1: Pure number (e.g. "1", "02", "#14", "0", "#0")
+  const pureNumMatch = base.match(/^#?0*(\d+)$/);
+  if (pureNumMatch) {
+    return { cardNumber: parseInt(pureNumMatch[1], 10), customName: null };
+  }
+
+  // Case 2: Number followed by separator and name (e.g. "1 - La Aglaonema", "02_Albahacar", "3. Alocasia")
+  const numWithNameMatch = base.match(/^#?0*(\d+)[\s._-]+(.+)$/);
+  if (numWithNameMatch) {
+    const clean = numWithNameMatch[2].replace(/[-_]/g, ' ').trim();
+    return {
+      cardNumber: parseInt(numWithNameMatch[1], 10),
+      customName: clean || null
+    };
+  }
+
+  // Case 3: Freeform name without leading number
+  const clean = base.replace(/[-_]/g, ' ').trim();
+  return { cardNumber: null, customName: clean || null };
+}
