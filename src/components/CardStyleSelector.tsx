@@ -162,67 +162,74 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   const activeNamePos = namePositions.find((p) => p.id === config.namePosition) || namePositions[0];
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-3 pb-24">
-      {/* Live Preview Container (Top, Centered, Fits Mobile) */}
-      <div className="w-full bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-2xs flex flex-col items-center justify-center gap-2">
-        <div className="w-56 sm:w-64 aspect-[3/4] relative">
-          <CardPreview
-            card={activeSampleCard}
-            style={config}
-            className="w-full h-full shadow-md"
-          />
-        </div>
-
-        {/* Card switcher / selector to test any card */}
-        {cardList.length > 1 && (
-          <div className="w-full max-w-xs flex items-center justify-between gap-1 p-1 bg-stone-50 rounded-xl border border-stone-200">
-            <button
-              type="button"
-              onClick={handlePrevCard}
-              className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-              title={language === 'en' ? 'Previous sample card' : 'Carta de muestra anterior'}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            <div className="flex-1 min-w-0 flex items-center justify-center">
-              <select
-                value={activeSampleCard?.id}
-                onChange={(e) => setSelectedCardId(e.target.value)}
-                className="w-full bg-white border border-stone-200 rounded-lg px-2 py-1 text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-emerald-700 truncate cursor-pointer text-center"
-              >
-                {cardList.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.number === 0 || c.isCover
-                      ? `🎴 Portada: ${c.name}`
-                      : `#${c.number} ${c.name}`}
-                  </option>
-                ))}
-              </select>
+    <div className="w-full max-w-5xl mx-auto pb-24 px-1 sm:px-2">
+      {/* 2-Column Responsive Layout: Left = Sticky Preview, Right = Customization Controls */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start">
+        {/* Left Column: Live Card Preview & Switcher (Sticky on Desktop) */}
+        <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:top-4 flex flex-col items-center">
+          <div className="w-full bg-white rounded-2xl border border-stone-200 p-3 sm:p-5 shadow-2xs flex flex-col items-center justify-center gap-3">
+            <div className="w-56 sm:w-64 aspect-[3/4] relative">
+              <CardPreview
+                card={activeSampleCard}
+                style={config}
+                className="w-full h-full shadow-md"
+              />
             </div>
 
-            <button
-              type="button"
-              onClick={handleNextCard}
-              className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-              title={language === 'en' ? 'Next sample card' : 'Siguiente carta de muestra'}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+            {/* Card switcher / selector to test any card */}
+            {cardList.length > 1 && (
+              <div className="w-full max-w-xs flex items-center justify-between gap-1 p-1 bg-stone-50 rounded-xl border border-stone-200">
+                <button
+                  type="button"
+                  onClick={handlePrevCard}
+                  className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+                  title={language === 'en' ? 'Previous sample card' : 'Carta de muestra anterior'}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-        <div className="text-center text-xs text-stone-500 flex flex-col items-center gap-1">
-          <p className="font-bold text-stone-800 text-xs sm:text-sm">{t('card_preview_title')}</p>
-          <button
-            onClick={() => setShowFullPreview(true)}
-            className="flex items-center gap-1 px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-          >
-            <Eye className="w-3.5 h-3.5 text-emerald-700" />
-            <span>{t('final_preview')}</span>
-          </button>
+                <div className="flex-1 min-w-0 flex items-center justify-center">
+                  <select
+                    value={activeSampleCard?.id}
+                    onChange={(e) => setSelectedCardId(e.target.value)}
+                    className="w-full bg-white border border-stone-200 rounded-lg px-2 py-1 text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-emerald-700 truncate cursor-pointer text-center"
+                  >
+                    {cardList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.number === 0 || c.isCover
+                          ? `🎴 Portada: ${c.name}`
+                          : `#${c.number} ${c.name}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleNextCard}
+                  className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+                  title={language === 'en' ? 'Next sample card' : 'Siguiente carta de muestra'}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="text-center text-xs text-stone-500 flex flex-col items-center gap-1">
+              <p className="font-bold text-stone-800 text-xs sm:text-sm">{t('card_preview_title')}</p>
+              <button
+                onClick={() => setShowFullPreview(true)}
+                className="flex items-center gap-1 px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-emerald-700" />
+                <span>{t('final_preview')}</span>
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* Right Column: Controls & Configuration Accordions */}
+        <div className="lg:col-span-7 xl:col-span-7 space-y-3">
 
       {/* Modal de Vista Previa Final */}
       {showFullPreview && (
@@ -485,8 +492,28 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         />
       </div>
 
-      {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-stone-200 z-20 flex justify-center">
+      {/* Desktop inline footer actions (visible on lg screens) */}
+      <div className="hidden lg:flex items-center justify-between gap-3 pt-3">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>{t('back')}</span>
+        </button>
+        <button
+          onClick={onNext}
+          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-sm transition-transform active:scale-95 cursor-pointer"
+        >
+          <span>{t('next_boards')}</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  </div>
+
+      {/* Sticky Bottom Actions (Mobile only) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-stone-200 z-20 flex justify-center">
         <div className="w-full max-w-md flex items-center justify-between gap-3">
           <button
             onClick={onBack}

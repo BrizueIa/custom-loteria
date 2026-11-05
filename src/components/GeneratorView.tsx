@@ -269,7 +269,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   return (
     <div className="w-full space-y-3 pb-8">
       {/* Top Controls of Generator */}
-      <div className="flex flex-wrap items-center justify-between gap-2 max-w-2xl mx-auto bg-white/90 backdrop-blur-md rounded-2xl border border-stone-200/80 p-2 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 max-w-2xl lg:max-w-5xl mx-auto bg-white/90 backdrop-blur-md rounded-2xl border border-stone-200/80 p-2 shadow-2xs">
         <button
           onClick={onGoToGame}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
@@ -345,7 +345,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
       </div>
 
       {/* Super Compact Segmented Steps Navigation */}
-      <div className="max-w-md mx-auto flex items-center justify-between bg-white rounded-xl p-1 border border-stone-200 text-xs shadow-2xs">
+      <div className="max-w-md lg:max-w-2xl mx-auto flex items-center justify-between bg-white rounded-xl p-1 border border-stone-200 text-xs sm:text-sm shadow-2xs">
         {steps.map((st) => {
           const isActive = currentStep === st.id;
           return (

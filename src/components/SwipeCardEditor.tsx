@@ -105,13 +105,28 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
 
   const activeBgColor = currentCard.backgroundColor || cardStyle.cardBgColor || '#FFFFFF';
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        handlePrev();
+      } else if (e.key === 'ArrowRight') {
+        handleNext();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, cards.length]);
+
   return (
-    <div className="w-full max-w-xl mx-auto flex flex-col items-center">
+    <div className="w-full max-w-5xl mx-auto pb-12 px-1 sm:px-2">
       {/* Top action bar */}
-      <div className="w-full flex items-center justify-between mb-3 px-1">
+      <div className="w-full flex items-center justify-between mb-4 px-1">
         <button
           onClick={onOpenGrid}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
         >
           <LayoutGrid className="w-3.5 h-3.5 text-stone-600" />
           {t('view_grid_btn', { count: cards.length })}
@@ -120,7 +135,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowFullPreview(true)}
-            className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 text-xs font-semibold rounded-lg shadow-2xs"
+            className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 text-xs font-semibold rounded-lg shadow-2xs cursor-pointer"
             title={t('final_preview')}
           >
             <Eye className="w-3.5 h-3.5 text-emerald-700" />
@@ -143,7 +158,11 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
         </div>
       </div>
 
-      {/* Eyedropper active instruction banner */}
+      {/* Two-Column Grid on Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+        {/* Left Column: Carousel, Visual Card Preview, Photo & Color Controls */}
+        <div className="lg:col-span-6 xl:col-span-5 flex flex-col items-center lg:sticky lg:top-4">
+          {/* Eyedropper active instruction banner */}
       {isEyedropperActive && (
         <div className="w-full max-w-xs mb-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
           <div className="flex items-center gap-1.5">
@@ -313,32 +332,11 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
           />
         </label>
       </div>
+    </div>
 
-      {/* Modal de Vista Previa Final */}
-      {showFullPreview && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-stone-100 rounded-3xl p-5 max-w-sm w-full flex flex-col items-center relative shadow-2xl border border-stone-300">
-            <button
-              onClick={() => setShowFullPreview(false)}
-              className="absolute top-3 right-3 p-1.5 bg-white text-stone-700 hover:text-black rounded-full border border-stone-200 shadow-xs"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">
-              {t('final_preview')}
-            </span>
-            <div className="w-64 aspect-[3/4] relative">
-              <CardPreview card={currentCard} style={cardStyle} className="w-full h-full shadow-lg" />
-            </div>
-            <p className="text-[11px] text-stone-500 text-center mt-3">
-              Así es exactamente como se imprimirá y se verá en tus tablas PDF.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Card Details Editor */}
-      <div className="w-full bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-5 mt-3 shadow-2xs space-y-4">
+    {/* Right Column: Card Details Editor */}
+    <div className="lg:col-span-6 xl:col-span-7 space-y-4">
+      <div className="w-full bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">
         {/* Name input */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">
@@ -397,6 +395,44 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
           )}
         </div>
       </div>
+
+      {/* Desktop navigation hint */}
+      <div className="hidden lg:flex items-center justify-between p-3 bg-stone-50 border border-stone-200/80 rounded-xl text-stone-500 text-xs">
+        <span className="text-[11px]">
+          {language === 'en'
+            ? 'Tip: You can use the ← and → arrow keys to navigate between cards.'
+            : 'Tip: Puedes usar las flechas ← y → del teclado para navegar entre cartas.'}
+        </span>
+        <div className="flex items-center gap-1 font-mono text-[10px]">
+          <kbd className="px-1.5 py-0.5 bg-white border border-stone-200 rounded shadow-2xs font-semibold">←</kbd>
+          <kbd className="px-1.5 py-0.5 bg-white border border-stone-200 rounded shadow-2xs font-semibold">→</kbd>
+        </div>
+      </div>
     </div>
+  </div>
+
+  {/* Modal de Vista Previa Final */}
+  {showFullPreview && (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-stone-100 rounded-3xl p-5 max-w-sm w-full flex flex-col items-center relative shadow-2xl border border-stone-300">
+        <button
+          onClick={() => setShowFullPreview(false)}
+          className="absolute top-3 right-3 p-1.5 bg-white text-stone-700 hover:text-black rounded-full border border-stone-200 shadow-xs cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <span className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">
+          {t('final_preview')}
+        </span>
+        <div className="w-64 aspect-[3/4] relative">
+          <CardPreview card={currentCard} style={cardStyle} className="w-full h-full shadow-lg" />
+        </div>
+        <p className="text-[11px] text-stone-500 text-center mt-3">
+          Así es exactamente como se imprimirá y se verá en tus tablas PDF.
+        </p>
+      </div>
+    </div>
+  )}
+</div>
   );
 };
