@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { shuffleArray, swapCardNumbers, generateBoards } from '../loteriaEngine';
+import {
+  shuffleArray,
+  swapCardNumbers,
+  generateBoards,
+  getCardColorGroup,
+  arrangeCardsWithColorDispersion
+} from '../loteriaEngine';
 import { LoteriaCard, BoardConfig } from '../../types/loteria';
 
 describe('loteriaEngine', () => {
@@ -137,6 +143,84 @@ describe('loteriaEngine', () => {
       });
       expect(boards).toHaveLength(2);
       expect(boards[0].cards).toHaveLength(16);
+    });
+
+    it('generates up to 200 unique boards with balanced color quotas and zero orthogonal adjacent same-color cards', () => {
+      // Simulate the 54-card deck color distribution (16 blue, 16 pink, 15 yellow, 4 purple, 2 green, 1 orange)
+      const palette = [
+        ...Array(16).fill('#79E1F5'), // blue
+        ...Array(16).fill('#FC89A8'), // pink
+        ...Array(15).fill('#FDDD04'), // yellow
+        ...Array(4).fill('#CD8EE0'),  // purple
+        ...Array(2).fill('#9EEAA2'),  // green
+        ...Array(1).fill('#FDB083'),  // orange
+      ];
+
+      const coloredDeck: LoteriaCard[] = mockDeck.map((c, idx) => ({
+        ...c,
+        backgroundColor: palette[idx]
+      }));
+
+      const boards = generateBoards(coloredDeck, {
+        rows: 4,
+        cols: 4,
+        allowDuplicates: false,
+        balanceColors: true,
+        quantity: 200,
+        title: 'LOTERÍA 200'
+      });
+
+      expect(boards).toHaveLength(200);
+
+      const combinations = new Set<string>();
+      let orthogonalConflicts = 0;
+
+      for (const board of boards) {
+        expect(board.cards).toHaveLength(16);
+        const comboKey = [...board.cards].map(c => c.id).sort().join('-');
+        expect(combinations.has(comboKey)).toBe(false);
+        combinations.add(comboKey);
+
+        // Verify per-board color cap (max 5 of any single color family)
+        const groupCounts: Record<string, number> = {};
+        board.cards.forEach(c => {
+          const g = getCardColorGroup(c.backgroundColor);
+          groupCounts[g] = (groupCounts[g] || 0) + 1;
+        });
+        for (const count of Object.values(groupCounts)) {
+          expect(count).toBeLessThanOrEqual(5);
+        }
+
+        // Verify zero orthogonal neighbors share the same color family on 4x4 grid
+        for (let r = 0; r < 4; r++) {
+          for (let col = 0; col < 4; col++) {
+            const g = getCardColorGroup(board.cards[r * 4 + col].backgroundColor);
+            if (col + 1 < 4) {
+              const rightG = getCardColorGroup(board.cards[r * 4 + (col + 1)].backgroundColor);
+              if (g === rightG) orthogonalConflicts++;
+            }
+            if (r + 1 < 4) {
+              const downG = getCardColorGroup(board.cards[(r + 1) * 4 + col].backgroundColor);
+              if (g === downG) orthogonalConflicts++;
+            }
+          }
+        }
+      }
+
+      expect(orthogonalConflicts).toBe(0);
+    });
+
+    it('correctly classifies hex colors into perceptual color groups', () => {
+      expect(getCardColorGroup('#FC89A8')).toBe('pink');
+      expect(getCardColorGroup('#FD9393')).toBe('pink');
+      expect(getCardColorGroup('#FDB083')).toBe('orange');
+      expect(getCardColorGroup('#FDDD04')).toBe('yellow');
+      expect(getCardColorGroup('#9EEAA2')).toBe('green');
+      expect(getCardColorGroup('#79E1F5')).toBe('blue');
+      expect(getCardColorGroup('#CD8EE0')).toBe('purple');
+      expect(getCardColorGroup('#FFFFFF')).toBe('neutral');
+      expect(getCardColorGroup(undefined)).toBe('neutral');
+      expect(arrangeCardsWithColorDispersion([], 0, 0)).toEqual([]);
     });
   });
 });

@@ -758,6 +758,34 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               />
             </div>
 
+            {/* Color Balance & Dispersion Rule */}
+            <div className="p-2.5 rounded-xl border border-stone-200 bg-white flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-stone-900">
+                  {language === 'en' ? 'Balance & alternate colors' : 'Equilibrar y alternar colores'}
+                </p>
+                <p className="text-[10px] text-stone-500 mt-0.5">
+                  {language === 'en'
+                    ? 'Prevents adjacent same-colored cards & balances color variety'
+                    : 'Evita colores iguales juntos y equilibra la variedad en cada tabla'}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={config.balanceColors !== false}
+                onChange={(e) => {
+                  const updated = { ...config, balanceColors: e.target.checked };
+                  onChangeConfig(updated);
+                  try {
+                    updateBoards(generateBoards(cards, updated));
+                  } catch (err: any) {
+                    alert(err.message);
+                  }
+                }}
+                className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+              />
+            </div>
+
             {/* Sub-footer for open grid section */}
             <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">
               <span className="text-[10px] text-stone-500 italic">
@@ -800,17 +828,46 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           <input
             type="range"
             min={1}
-            max={60}
+            max={200}
             value={config.quantity}
             onChange={(e) => onChangeConfig({ ...config, quantity: parseInt(e.target.value, 10) })}
             className="w-full accent-stone-800 cursor-pointer"
           />
           <div className="flex justify-between text-[10px] text-stone-400 font-mono">
             <span>1</span>
-            <span>15</span>
-            <span>30</span>
-            <span>60 tablas</span>
+            <span>50</span>
+            <span>100</span>
+            <span>150</span>
+            <span>200 tablas</span>
           </div>
+        </div>
+
+        {/* Always-visible Color Balance & Dispersion toggle */}
+        <div className="p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/70 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-stone-900">
+              {language === 'en' ? '🎨 Balance & disperse colors' : '🎨 Equilibrio y dispersión de colores'}
+            </p>
+            <p className="text-[10px] text-stone-500 mt-0.5">
+              {language === 'en'
+                ? 'Varied palette without repeating adjacent colors'
+                : 'Mayor variedad sin repetir colores contiguos'}
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={config.balanceColors !== false}
+            onChange={(e) => {
+              const updated = { ...config, balanceColors: e.target.checked };
+              onChangeConfig(updated);
+              try {
+                updateBoards(generateBoards(cards, updated));
+              } catch (err: any) {
+                alert(err.message);
+              }
+            }}
+            className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer shrink-0"
+          />
         </div>
 
         <button

@@ -30,6 +30,7 @@ const DEFAULT_BOARD_CONFIG: BoardConfig = {
   rows: 4,
   cols: 4,
   allowDuplicates: false,
+  balanceColors: true,
   quantity: 20,
   title: 'LOTERÍA',
   subtitle: '',

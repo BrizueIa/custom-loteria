@@ -87,7 +87,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
       newConfig.rows !== boardConfig.rows ||
       newConfig.cols !== boardConfig.cols ||
       newConfig.quantity !== boardConfig.quantity ||
-      newConfig.allowDuplicates !== boardConfig.allowDuplicates;
+      newConfig.allowDuplicates !== boardConfig.allowDuplicates ||
+      (newConfig.balanceColors ?? true) !== (boardConfig.balanceColors ?? true);
 
     onUpdateBoardConfig(newConfig);
 

@@ -426,6 +426,9 @@ export async function generateBoardsPDF(
     doc.triangle(cx, cy + sz, cx + sz, cy, cx - sz, cy, 'F');
   };
 
+  // Cache rendered card data URLs so up to 200 boards only render the 54 unique cards once
+  const renderedCardCache = new Map<string, string>();
+
   for (let bIdx = 0; bIdx < totalBoards; bIdx++) {
     if (bIdx > 0) doc.addPage();
 
@@ -604,8 +607,13 @@ export async function generateBoardsPDF(
         const cellX = gridX + c * cellWidth + pad;
         const cellY = gridY + r * cellHeight + pad;
 
-        const cardDataUrl = await drawCardToCanvas(card, cardStyle, canvasPxW, canvasPxH);
-        doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH);
+        const cacheKey = `${card.id}-${canvasPxW}x${canvasPxH}`;
+        let cardDataUrl = renderedCardCache.get(cacheKey);
+        if (!cardDataUrl) {
+          cardDataUrl = await drawCardToCanvas(card, cardStyle, canvasPxW, canvasPxH);
+          renderedCardCache.set(cacheKey, cardDataUrl);
+        }
+        doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH, card.id, 'FAST');
 
         // Guía de separación limpia
         doc.setDrawColor(214, 211, 209);

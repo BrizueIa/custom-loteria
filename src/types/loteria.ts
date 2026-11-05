@@ -41,6 +41,7 @@ export interface BoardConfig {
   rows: number;
   cols: number;
   allowDuplicates: boolean;
+  balanceColors?: boolean;
   quantity: number;
   title: string;
   subtitle?: string;
