@@ -371,7 +371,12 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
         <CardStyleSelector
           config={cardStyle}
           onChange={onUpdateCardStyle}
-          sampleCard={cards[activeCardIndex] || cards[0]}
+          cards={cards}
+          sampleCard={
+            cards[activeCardIndex] && cards[activeCardIndex].number > 0 && !cards[activeCardIndex].isCover
+              ? cards[activeCardIndex]
+              : cards.find((c) => c.number === 1) || cards.find((c) => !c.isCover && c.number > 0) || cards[0]
+          }
           onBack={() => setCurrentStep('cards_input')}
           onNext={() => setCurrentStep('board_config')}
           initialTourDone={hasCompletedCardStyleTour}

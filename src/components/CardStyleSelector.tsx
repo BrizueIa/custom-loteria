@@ -1,13 +1,27 @@
 import React, { useState } from 'react';
 import { CardStyleConfig, FrameStyle, NumberPosition, NamePosition, LoteriaCard } from '../types/loteria';
 import { CardPreview } from './CardPreview';
-import { ArrowLeft, ArrowRight, Eye, X, ChevronDown, ChevronUp, LayoutTemplate, Hash, Type, Check } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  X,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  LayoutTemplate,
+  Hash,
+  Type,
+  Check
+} from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface CardStyleSelectorProps {
   config: CardStyleConfig;
   onChange: (updated: CardStyleConfig) => void;
-  sampleCard: LoteriaCard;
+  cards?: LoteriaCard[];
+  sampleCard?: LoteriaCard;
   onBack: () => void;
   onNext: () => void;
   initialTourDone?: boolean;
@@ -17,6 +31,7 @@ interface CardStyleSelectorProps {
 export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   config,
   onChange,
+  cards,
   sampleCard,
   onBack,
   onNext,
@@ -25,6 +40,36 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
 }) => {
   const { t, language } = useLanguage();
   const [showFullPreview, setShowFullPreview] = useState(false);
+
+  // Card sample selection logic:
+  // Never default to the cover card (#0 without visible number); default to Card #1 or first playable card
+  const cardList = cards && cards.length > 0 ? cards : sampleCard ? [sampleCard] : [];
+  const defaultPlayableCard =
+    (sampleCard && sampleCard.number > 0 && !sampleCard.isCover ? sampleCard : null) ||
+    cardList.find((c) => c.number === 1) ||
+    cardList.find((c) => !c.isCover && c.number > 0) ||
+    cardList[0];
+
+  const [selectedCardId, setSelectedCardId] = useState<string>(
+    () => defaultPlayableCard?.id || sampleCard?.id || ''
+  );
+
+  const activeSampleCard =
+    cardList.find((c) => c.id === selectedCardId) || defaultPlayableCard || sampleCard || cardList[0];
+
+  const currentCardIndex = cardList.findIndex((c) => c.id === activeSampleCard?.id);
+
+  const handlePrevCard = () => {
+    if (cardList.length === 0) return;
+    const nextIdx = (currentCardIndex - 1 + cardList.length) % cardList.length;
+    setSelectedCardId(cardList[nextIdx].id);
+  };
+
+  const handleNextCard = () => {
+    if (cardList.length === 0) return;
+    const nextIdx = (currentCardIndex + 1) % cardList.length;
+    setSelectedCardId(cardList[nextIdx].id);
+  };
 
   // Guided walkthrough only on first time if initialTourDone is false
   const [autoGuidedStep, setAutoGuidedStep] = useState<'frame' | 'number' | 'name' | null>(
@@ -122,11 +167,51 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
       <div className="w-full bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-2xs flex flex-col items-center justify-center gap-2">
         <div className="w-56 sm:w-64 aspect-[3/4] relative">
           <CardPreview
-            card={sampleCard}
+            card={activeSampleCard}
             style={config}
             className="w-full h-full shadow-md"
           />
         </div>
+
+        {/* Card switcher / selector to test any card */}
+        {cardList.length > 1 && (
+          <div className="w-full max-w-xs flex items-center justify-between gap-1 p-1 bg-stone-50 rounded-xl border border-stone-200">
+            <button
+              type="button"
+              onClick={handlePrevCard}
+              className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+              title={language === 'en' ? 'Previous sample card' : 'Carta de muestra anterior'}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="flex-1 min-w-0 flex items-center justify-center">
+              <select
+                value={activeSampleCard?.id}
+                onChange={(e) => setSelectedCardId(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-lg px-2 py-1 text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-emerald-700 truncate cursor-pointer text-center"
+              >
+                {cardList.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.number === 0 || c.isCover
+                      ? `🎴 Portada: ${c.name}`
+                      : `#${c.number} ${c.name}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNextCard}
+              className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+              title={language === 'en' ? 'Next sample card' : 'Siguiente carta de muestra'}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <div className="text-center text-xs text-stone-500 flex flex-col items-center gap-1">
           <p className="font-bold text-stone-800 text-xs sm:text-sm">{t('card_preview_title')}</p>
           <button
@@ -153,7 +238,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
               {t('final_preview')}
             </span>
             <div className="w-64 aspect-[3/4] relative">
-              <CardPreview card={sampleCard} style={config} className="w-full h-full shadow-lg" />
+              <CardPreview card={activeSampleCard} style={config} className="w-full h-full shadow-lg" />
             </div>
             <p className="text-[11px] text-stone-500 text-center mt-3">
               Proporción y marco idénticos al formato de impresión en PDF.
