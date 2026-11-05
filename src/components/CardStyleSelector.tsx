@@ -36,6 +36,8 @@ type SectionKey = 'frame' | 'number' | 'name' | 'logo' | 'colors' | 'dimensions'
 
 const CARD_COLOR_PALETTES = [
   { hex: '#141413', label: 'Negro Carbón (Clásico)' },
+  { hex: '#FFFFFF', label: 'Blanco Puro' },
+  { hex: '#FEF3C7', label: 'Crema Suave' },
   { hex: '#164E3D', label: 'Verde Tradicional' },
   { hex: '#991B1B', label: 'Rojo Patrio' },
   { hex: '#1E3A8A', label: 'Azul Talavera' },
@@ -56,8 +58,33 @@ const CARD_OUTER_MARGIN_PALETTES = [
   { hex: '#FCE7F3', label: 'Rosa Pastel' },
   { hex: '#E0F2FE', label: 'Azul Cielo' },
   { hex: '#FEF08A', label: 'Amarillo' },
+  { hex: '#991B1B', label: 'Rojo Patrio' },
   { hex: '#141413', label: 'Negro' },
 ];
+
+const CARD_OUTER_BORDER_PRESETS = [
+  { id: '#141413', label: 'Negro', hex: '#141413' },
+  { id: '#D6D3D1', label: 'Gris', hex: '#D6D3D1' },
+  { id: '#991B1B', label: 'Rojo', hex: '#991B1B' },
+  { id: '#164E3D', label: 'Verde', hex: '#164E3D' },
+  { id: '#1E3A8A', label: 'Azul', hex: '#1E3A8A' },
+  { id: '#FFFFFF', label: 'Blanco', hex: '#FFFFFF' },
+];
+
+const isLightColor = (hex?: string) => {
+  if (!hex) return false;
+  const h = hex.toUpperCase();
+  return (
+    h === '#FFFFFF' ||
+    h === '#FEF3C7' ||
+    h === '#FEF9E7' ||
+    h === '#FDFBF7' ||
+    h === '#DCFCE7' ||
+    h === '#E0F2FE' ||
+    h === '#FEF08A' ||
+    h === '#D6D3D1'
+  );
+};
 
 interface CardStyleSelectorProps {
   config: CardStyleConfig;
@@ -117,6 +144,11 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   const [customBorderColor, setCustomBorderColor] = useState(config.borderColor || '#141413');
   const [customTextColor, setCustomTextColor] = useState(config.textColor || '#141413');
   const [customOuterMarginColor, setCustomOuterMarginColor] = useState(config.cardOuterMarginColor || '#FFFFFF');
+  const [customOuterBorderColor, setCustomOuterBorderColor] = useState(
+    config.cardOuterBorderColor && config.cardOuterBorderColor !== 'none'
+      ? config.cardOuterBorderColor
+      : '#141413'
+  );
 
   // Guided walkthrough only on first time if initialTourDone is false
   const [autoGuidedStep, setAutoGuidedStep] = useState<SectionKey | null>(
@@ -855,7 +887,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         )}
       </div>
 
-      {/* 5. Colores de la Carta (Marco y Texto) */}
+      {/* 5. Colores y Bordes de la Carta */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
         <button
           type="button"
@@ -883,8 +915,24 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
             </span>
             <span
               className="w-3.5 h-3.5 rounded-full border border-stone-300 shadow-2xs shrink-0"
-              style={{ backgroundColor: config.cardOuterMarginColor || '#FFFFFF' }}
+              style={{
+                backgroundColor:
+                  config.cardOuterMarginMode === 'flush'
+                    ? 'transparent'
+                    : config.cardOuterMarginColor || '#FFFFFF',
+              }}
               title="Margen exterior"
+            />
+            <span
+              className="w-3.5 h-3.5 rounded-xs border shadow-2xs shrink-0"
+              style={{
+                borderColor:
+                  config.cardOuterBorderColor && config.cardOuterBorderColor !== 'none'
+                    ? config.cardOuterBorderColor
+                    : '#D6D3D1',
+                backgroundColor: 'transparent',
+              }}
+              title="Contorno exterior"
             />
             {openSection === 'colors' ? (
               <ChevronUp className="w-4 h-4 text-stone-400" />
@@ -895,8 +943,8 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
         </button>
 
         {openSection === 'colors' && (
-          <div className="p-3 pt-1 border-t border-stone-100 bg-stone-50/40 space-y-3">
-            {/* Color del Marco de la Carta */}
+          <div className="p-3 pt-1 border-t border-stone-100 bg-stone-50/40 space-y-3.5">
+            {/* A. Color del Marco Interior de la Carta */}
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1.5">
                 {t('border_color')}
@@ -904,9 +952,10 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
               <div className="flex items-center gap-2 flex-wrap py-1">
                 {CARD_COLOR_PALETTES.map((palette) => {
                   const isSelected = (config.borderColor || '#141413').toLowerCase() === palette.hex.toLowerCase();
+                  const light = isLightColor(palette.hex);
                   return (
                     <button
-                      key={palette.hex}
+                      key={`frame-${palette.hex}`}
                       type="button"
                       title={palette.label}
                       onClick={() => {
@@ -918,7 +967,9 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                       }`}
                       style={{ backgroundColor: palette.hex }}
                     >
-                      {isSelected && <Check className="w-3 h-3 text-white drop-shadow-sm" />}
+                      {isSelected && (
+                        <Check className={`w-3 h-3 ${light ? 'text-stone-900' : 'text-white'} drop-shadow-sm`} />
+                      )}
                     </button>
                   );
                 })}
@@ -939,7 +990,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
               </div>
             </div>
 
-            {/* Color del Texto de la Carta */}
+            {/* B. Color del Texto de la Carta (con Blanco #FFFFFF incluido) */}
             <div className="pt-2 border-t border-stone-200/60">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1.5">
                 {t('text_color')}
@@ -947,9 +998,10 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
               <div className="flex items-center gap-2 flex-wrap py-1">
                 {CARD_COLOR_PALETTES.map((palette) => {
                   const isSelected = (config.textColor || '#141413').toLowerCase() === palette.hex.toLowerCase();
+                  const light = isLightColor(palette.hex);
                   return (
                     <button
-                      key={palette.hex}
+                      key={`text-${palette.hex}`}
                       type="button"
                       title={palette.label}
                       onClick={() => {
@@ -961,7 +1013,9 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                       }`}
                       style={{ backgroundColor: palette.hex }}
                     >
-                      {isSelected && <Check className="w-3 h-3 text-white drop-shadow-sm" />}
+                      {isSelected && (
+                        <Check className={`w-3 h-3 ${light ? 'text-stone-900' : 'text-white'} drop-shadow-sm`} />
+                      )}
                     </button>
                   );
                 })}
@@ -982,48 +1036,228 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
               </div>
             </div>
 
-            {/* Color del Margen Exterior de la Carta (Paspartú) */}
-            <div className="pt-2 border-t border-stone-200/60">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
-                {t('card_outer_margin_color')}
-              </label>
-              <p className="text-[10px] text-stone-500 mb-1.5">
-                {t('card_outer_margin_desc')}
+            {/* C. Margen Exterior / Paspartú (Modos y Colores) */}
+            <div className="pt-2.5 border-t border-stone-200/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600">
+                  {t('card_outer_margin_mode_label')}
+                </label>
+                <span className="text-[10px] font-bold text-emerald-800">
+                  {config.cardOuterMarginMode === 'match_board'
+                    ? (language === 'en' ? 'Blended with board' : 'Fusionado con hoja')
+                    : config.cardOuterMarginMode === 'flush'
+                    ? (language === 'en' ? 'Flush' : 'Al ras')
+                    : (language === 'en' ? 'Solid Color' : 'Color Sólido')}
+                </span>
+              </div>
+
+              {/* Selector de Modo de Margen Exterior */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...config, cardOuterMarginMode: 'solid' })}
+                  className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                    (config.cardOuterMarginMode || 'solid') === 'solid'
+                      ? 'border-emerald-800 bg-emerald-800 text-white font-bold shadow-xs'
+                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <p className="text-xs leading-none">{t('margin_mode_solid')}</p>
+                  <p className={`text-[9px] mt-1 leading-tight ${
+                    (config.cardOuterMarginMode || 'solid') === 'solid' ? 'text-emerald-100' : 'text-stone-400'
+                  }`}>
+                    {language === 'en' ? 'Fixed color on deck & boards' : 'Color fijo en baraja y tablas'}
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...config, cardOuterMarginMode: 'match_board' })}
+                  className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                    config.cardOuterMarginMode === 'match_board'
+                      ? 'border-emerald-800 bg-emerald-800 text-white font-bold shadow-xs'
+                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <p className="text-xs leading-none">{t('margin_mode_match_board')}</p>
+                  <p className={`text-[9px] mt-1 leading-tight ${
+                    config.cardOuterMarginMode === 'match_board' ? 'text-emerald-100' : 'text-stone-400'
+                  }`}>
+                    {language === 'en' ? 'Uses board paper in tables' : 'Usa fondo de hoja en tablas'}
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...config, cardOuterMarginMode: 'flush' })}
+                  className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                    config.cardOuterMarginMode === 'flush'
+                      ? 'border-emerald-800 bg-emerald-800 text-white font-bold shadow-xs'
+                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <p className="text-xs leading-none">{t('margin_mode_flush')}</p>
+                  <p className={`text-[9px] mt-1 leading-tight ${
+                    config.cardOuterMarginMode === 'flush' ? 'text-emerald-100' : 'text-stone-400'
+                  }`}>
+                    {language === 'en' ? 'No mat padding' : 'Sin área de paspartú'}
+                  </p>
+                </button>
+              </div>
+
+              {/* Si es color sólido o match_board, selector de color */}
+              {config.cardOuterMarginMode !== 'flush' && (
+                <div className="pt-1.5">
+                  <p className="text-[10px] text-stone-500 mb-1.5">
+                    {config.cardOuterMarginMode === 'match_board'
+                      ? (language === 'en'
+                        ? 'Color for standalone deck cards (on boards, the sheet paper color is used automatically):'
+                        : 'Color para cartas de baraja (en tablas se usará automáticamente el color de la hoja):')
+                      : t('card_outer_margin_desc')}
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap py-1">
+                    {CARD_OUTER_MARGIN_PALETTES.map((palette) => {
+                      const isSelected = (config.cardOuterMarginColor || '#FFFFFF').toLowerCase() === palette.hex.toLowerCase();
+                      const light = isLightColor(palette.hex);
+                      return (
+                        <button
+                          key={`margin-${palette.hex}`}
+                          type="button"
+                          title={palette.label}
+                          onClick={() => {
+                            setCustomOuterMarginColor(palette.hex);
+                            onChange({ ...config, cardOuterMarginColor: palette.hex });
+                          }}
+                          className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer shadow-2xs ${
+                            isSelected ? 'scale-110 border-stone-900 shadow-xs' : 'border-stone-300 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: palette.hex }}
+                        >
+                          {isSelected && (
+                            <Check className={`w-3 h-3 ${light ? 'text-stone-900' : 'text-white'} drop-shadow-sm`} />
+                          )}
+                        </button>
+                      );
+                    })}
+                    {/* Native color picker for outer margin */}
+                    <div className="flex items-center gap-1.5 ml-1">
+                      <input
+                        type="color"
+                        value={customOuterMarginColor}
+                        onChange={(e) => {
+                          setCustomOuterMarginColor(e.target.value);
+                          onChange({ ...config, cardOuterMarginColor: e.target.value });
+                        }}
+                        className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
+                        title={t('custom_color')}
+                      />
+                      <span className="text-[10px] font-mono text-stone-500">{config.cardOuterMarginColor || '#FFFFFF'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* D. Contorno / Borde Exterior de la Tarjeta */}
+            <div className="pt-2.5 border-t border-stone-200/60 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600">
+                  {t('card_outer_border_title')}
+                </label>
+                <span className="text-[10px] font-bold text-stone-700 font-mono">
+                  {config.cardOuterBorderColor === 'none'
+                    ? t('card_outer_border_none')
+                    : config.cardOuterBorderColor || '#D6D3D1'}
+                </span>
+              </div>
+              <p className="text-[10px] text-stone-500 leading-tight">
+                {t('card_outer_border_desc')}
               </p>
+
               <div className="flex items-center gap-2 flex-wrap py-1">
-                {CARD_OUTER_MARGIN_PALETTES.map((palette) => {
-                  const isSelected = (config.cardOuterMarginColor || '#FFFFFF').toLowerCase() === palette.hex.toLowerCase();
+                {CARD_OUTER_BORDER_PRESETS.map((p) => {
+                  const currentBorder = config.cardOuterBorderColor ?? '#D6D3D1';
+                  const isSelected = currentBorder.toLowerCase() === p.hex.toLowerCase();
                   return (
                     <button
-                      key={`margin-${palette.hex}`}
+                      key={`border-preset-${p.id}`}
                       type="button"
-                      title={palette.label}
+                      title={p.label}
                       onClick={() => {
-                        setCustomOuterMarginColor(palette.hex);
-                        onChange({ ...config, cardOuterMarginColor: palette.hex });
+                        setCustomOuterBorderColor(p.hex);
+                        onChange({ ...config, cardOuterBorderColor: p.hex });
                       }}
-                      className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer shadow-2xs ${
-                        isSelected ? 'scale-110 border-stone-900 shadow-xs' : 'border-stone-300 hover:scale-105'
+                      className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'border-emerald-800 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-800 shadow-2xs font-bold'
+                          : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
                       }`}
-                      style={{ backgroundColor: palette.hex }}
                     >
-                      {isSelected && <Check className="w-3 h-3 text-stone-800 drop-shadow-sm" />}
+                      <span
+                        className="w-3 h-3 rounded-full border border-stone-300 shrink-0"
+                        style={{ backgroundColor: p.hex }}
+                      />
+                      <span>{p.label}</span>
+                      {isSelected && (
+                        <Check className="w-3 h-3 text-emerald-800 shrink-0" />
+                      )}
                     </button>
                   );
                 })}
-                {/* Native color picker for outer margin */}
+
+                {/* Botón: Mismo que el marco interior */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const c = config.borderColor || '#141413';
+                    setCustomOuterBorderColor(c);
+                    onChange({ ...config, cardOuterBorderColor: c });
+                  }}
+                  className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    config.cardOuterBorderColor &&
+                    config.cardOuterBorderColor.toLowerCase() === (config.borderColor || '#141413').toLowerCase()
+                      ? 'border-emerald-800 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-800 shadow-2xs font-bold'
+                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full border border-stone-300 shrink-0"
+                    style={{ backgroundColor: config.borderColor || '#141413' }}
+                  />
+                  <span>{t('same_as_frame')}</span>
+                </button>
+
+                {/* Botón: Sin contorno */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange({ ...config, cardOuterBorderColor: 'none' });
+                  }}
+                  className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    config.cardOuterBorderColor === 'none'
+                      ? 'border-emerald-800 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-800 shadow-2xs font-bold'
+                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <span className="w-3 h-3 rounded-full border border-dashed border-stone-400 shrink-0" />
+                  <span>{t('card_outer_border_none')}</span>
+                </button>
+
+                {/* Native color picker for outer border */}
                 <div className="flex items-center gap-1.5 ml-1">
                   <input
                     type="color"
-                    value={customOuterMarginColor}
+                    value={customOuterBorderColor}
                     onChange={(e) => {
-                      setCustomOuterMarginColor(e.target.value);
-                      onChange({ ...config, cardOuterMarginColor: e.target.value });
+                      setCustomOuterBorderColor(e.target.value);
+                      onChange({ ...config, cardOuterBorderColor: e.target.value });
                     }}
                     className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
                     title={t('custom_color')}
                   />
-                  <span className="text-[10px] font-mono text-stone-500">{config.cardOuterMarginColor || '#FFFFFF'}</span>
+                  <span className="text-[10px] font-mono text-stone-500">
+                    {config.cardOuterBorderColor === 'none' ? 'none' : config.cardOuterBorderColor || '#D6D3D1'}
+                  </span>
                 </div>
               </div>
             </div>

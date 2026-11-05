@@ -135,11 +135,15 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Returns crisp dark or white text color depending on background luminance
+ * Returns crisp dark or white text color depending on background luminance.
+ * If user explicitly provides a preferredColor, that color is strictly respected.
  */
 export function getContrastingTextColor(bgHex?: string, preferredColor?: string): string {
+  if (preferredColor && preferredColor.trim()) {
+    return preferredColor;
+  }
   if (!bgHex || !bgHex.startsWith('#')) {
-    return preferredColor || '#141413';
+    return '#141413';
   }
   let clean = bgHex.replace('#', '');
   if (clean.length === 3) {
@@ -149,7 +153,7 @@ export function getContrastingTextColor(bgHex?: string, preferredColor?: string)
       .join('');
   }
   const num = parseInt(clean, 16);
-  if (isNaN(num)) return preferredColor || '#141413';
+  if (isNaN(num)) return '#141413';
 
   const r = ((num >> 16) & 255) / 255;
   const g = ((num >> 8) & 255) / 255;

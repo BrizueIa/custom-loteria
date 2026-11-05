@@ -39,6 +39,8 @@ export interface CardDimensionsConfig {
   heightCm?: number;
 }
 
+export type CardOuterMarginMode = 'solid' | 'match_board' | 'flush' | 'white' | 'custom';
+
 export interface CardStyleConfig {
   frameStyle: FrameStyle;
   numberPosition: NumberPosition;
@@ -46,14 +48,14 @@ export interface CardStyleConfig {
   showTaglineOnCard: boolean;
   borderColor: string;
   cardBgColor: string;
-  cardOuterMarginColor?: string; // Color of the outer paper mat/border of the card, default '#FFFFFF'
+  cardOuterMarginMode?: CardOuterMarginMode; // 'solid' (color fijo), 'match_board' (fusionado con fondo de tabla), 'flush' (al ras)
+  cardOuterMarginColor?: string; // Color del margen exterior / paspartú de la carta, default '#FFFFFF'
+  cardOuterBorderColor?: string; // Color de la línea perimetral exterior que delimita la tarjeta: '#D6D3D1', '#141413', 'none', o HEX libre
   textColor: string;
   fontFamily: 'serif' | 'sans' | 'display';
   logo?: CardLogoConfig;
   cardDimensions?: CardDimensionsConfig;
 }
-
-export type CardOuterMarginMode = 'match_board' | 'flush' | 'white' | 'custom';
 
 export type BoardFrameStyle = 
   | 'traditional_gallo'  // Clásico tradicional con doble ribete y remates

@@ -518,14 +518,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                         card={card}
                         style={cardStyle}
                         isCompactTable={true}
-                        outerMarginColor={
-                          config.cardOuterMarginMode === 'white'
-                            ? '#FFFFFF'
-                            : config.cardOuterMarginMode === 'custom'
-                            ? config.cardOuterMarginCustomColor || activePaperBgColor
-                            : activePaperBgColor
-                        }
-                        isFlush={config.cardOuterMarginMode === 'flush'}
+                        outerMarginColor={activePaperBgColor}
                         className="w-full h-full"
                       />
                     </div>
@@ -983,85 +976,28 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               </div>
             </div>
 
-            {/* Margen exterior de las cartas en la tabla */}
-            <div className="pt-2.5 mt-2 border-t border-stone-200/60 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600">
-                  {t('board_card_margin_mode')}
-                </label>
-                <span className="text-[10px] font-bold text-emerald-800">
-                  {(config.cardOuterMarginMode || 'match_board') === 'match_board'
-                    ? (language === 'en' ? 'Match board' : 'Fusionado con hoja')
-                    : (config.cardOuterMarginMode === 'flush'
-                    ? (language === 'en' ? 'Flush' : 'Al ras')
-                    : (config.cardOuterMarginMode === 'white'
-                    ? (language === 'en' ? 'White' : 'Blanco')
-                    : (language === 'en' ? 'Custom' : 'Personalizado')))}
+            {/* Resumen del diseño de las cartas (Configurado en Apartado 2) */}
+            <div className="pt-2.5 mt-2 border-t border-stone-200/60 flex items-center justify-between text-[11px] text-stone-500">
+              <span className="flex items-center gap-1 font-medium">
+                <Info className="w-3.5 h-3.5 text-stone-400" />
+                <span>
+                  {language === 'en'
+                    ? 'Card margins & borders (configured in Step 2):'
+                    : 'Márgenes y contorno de cartas (del Paso 2):'}
                 </span>
-              </div>
-              <p className="text-[10px] text-stone-500 leading-tight">
-                {t('margin_match_hint')}
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => onChangeConfig({ ...config, cardOuterMarginMode: 'match_board' })}
-                  className={`p-1.5 rounded-lg border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                    (config.cardOuterMarginMode || 'match_board') === 'match_board'
-                      ? 'border-emerald-800 bg-emerald-800 text-white shadow-2xs'
-                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  {t('margin_mode_match_board')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChangeConfig({ ...config, cardOuterMarginMode: 'flush' })}
-                  className={`p-1.5 rounded-lg border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                    config.cardOuterMarginMode === 'flush'
-                      ? 'border-emerald-800 bg-emerald-800 text-white shadow-2xs'
-                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  {t('margin_mode_flush')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChangeConfig({ ...config, cardOuterMarginMode: 'white' })}
-                  className={`p-1.5 rounded-lg border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                    config.cardOuterMarginMode === 'white'
-                      ? 'border-emerald-800 bg-emerald-800 text-white shadow-2xs'
-                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  {t('margin_mode_white')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChangeConfig({ ...config, cardOuterMarginMode: 'custom' })}
-                  className={`p-1.5 rounded-lg border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                    config.cardOuterMarginMode === 'custom'
-                      ? 'border-emerald-800 bg-emerald-800 text-white shadow-2xs'
-                      : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  {t('margin_mode_custom')}
-                </button>
-              </div>
-
-              {config.cardOuterMarginMode === 'custom' && (
-                <div className="flex items-center gap-2 pt-1.5">
-                  <input
-                    type="color"
-                    value={config.cardOuterMarginCustomColor || '#FFFFFF'}
-                    onChange={(e) => onChangeConfig({ ...config, cardOuterMarginCustomColor: e.target.value })}
-                    className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
-                  />
-                  <span className="text-[10px] font-mono text-stone-600">
-                    {config.cardOuterMarginCustomColor || '#FFFFFF'}
+              </span>
+              <span className="font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md text-[10px]">
+                {cardStyle.cardOuterMarginMode === 'match_board'
+                  ? (language === 'en' ? 'Blended with board' : 'Fusionado con hoja')
+                  : cardStyle.cardOuterMarginMode === 'flush'
+                  ? (language === 'en' ? 'Flush' : 'Al ras')
+                  : (language === 'en' ? 'Solid Margin' : 'Margen Sólido')}
+                {cardStyle.cardOuterBorderColor && cardStyle.cardOuterBorderColor !== 'none' && (
+                  <span className="ml-1 text-stone-500 font-normal">
+                    • {language === 'en' ? 'Border' : 'Borde'}: {cardStyle.cardOuterBorderColor}
                   </span>
-                </div>
-              )}
+                )}
+              </span>
             </div>
 
             <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-stone-200/60">

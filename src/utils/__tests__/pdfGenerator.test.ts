@@ -335,12 +335,36 @@ describe('pdfGenerator', () => {
       }
     });
 
-    it('supports custom cardOuterMarginColor in generateCardsPDF', async () => {
+    it('supports custom cardOuterMarginColor and cardOuterBorderColor in generateCardsPDF', async () => {
       const styleWithOuterColor: CardStyleConfig = {
         ...mockStyle,
         cardOuterMarginColor: '#FDFBF7',
+        cardOuterBorderColor: '#141413',
       };
       const blob = await generateCardsPDF(mockCards, styleWithOuterColor, 4);
+      expect(blob).toBeInstanceOf(Blob);
+    });
+
+    it('faithfully respects cardStyle outer margin (e.g. #FF0000) and border (#141413) in generateBoardsPDF', async () => {
+      const singleBoard: GeneratedBoard[] = [{
+        id: 'board-test',
+        index: 1,
+        cards: [mockCards[0]],
+      }];
+      const testBoardConfig: BoardConfig = {
+        rows: 1,
+        cols: 1,
+        allowDuplicates: false,
+        quantity: 1,
+        title: 'TEST',
+      };
+      const customCardStyle: CardStyleConfig = {
+        ...mockStyle,
+        cardOuterMarginMode: 'solid',
+        cardOuterMarginColor: '#FF0000',
+        cardOuterBorderColor: '#141413',
+      };
+      const blob = await generateBoardsPDF(singleBoard, testBoardConfig, customCardStyle);
       expect(blob).toBeInstanceOf(Blob);
     });
   });

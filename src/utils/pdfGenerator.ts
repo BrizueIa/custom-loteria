@@ -109,12 +109,17 @@ async function drawCardToCanvas(
   ctx.imageSmoothingQuality = 'high';
 
   // 1. Outer Margin (Paspartú en los 4 costados: blanco clásico, color de la hoja o personalizado)
-  const effectiveOuterBg = outerMarginColor || style.cardOuterMarginColor || '#FFFFFF';
+  const marginMode = style.cardOuterMarginMode || 'solid';
+  const effectiveOuterBg =
+    marginMode === 'match_board'
+      ? (outerMarginColor || style.cardOuterMarginColor || '#FFFFFF')
+      : (style.cardOuterMarginColor || outerMarginColor || '#FFFFFF');
   ctx.fillStyle = effectiveOuterBg;
   ctx.fillRect(0, 0, width, height);
 
   // 2. Inner Framed Area filled with the absorbed card background color
-  const inset = isFlush ? Math.max(1, Math.round(width * 0.008)) : Math.max(8, Math.round(width * 0.042));
+  const effectiveFlush = isFlush || marginMode === 'flush';
+  const inset = effectiveFlush ? Math.max(1, Math.round(width * 0.008)) : Math.max(8, Math.round(width * 0.042));
   const innerX = inset;
   const innerY = inset;
   const innerW = width - inset * 2;
@@ -452,10 +457,14 @@ export async function generateCardsPDF(
         const dataUrl = await drawCardToCanvas(card, style, baseW, baseH, scaleFactor, jpegQuality);
         doc.addImage(dataUrl, 'JPEG', x, y, cardWidthMm, cardHeightMm, undefined, 'NONE');
 
-        // Guía de corte sutil
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.15);
-        doc.rect(x, y, cardWidthMm, cardHeightMm);
+        // Borde exterior / delimitador de la carta o guía de corte
+        const cardBorder = style.cardOuterBorderColor ?? '#D6D3D1';
+        if (cardBorder !== 'none') {
+          const borderRgb = hexToRgb(cardBorder);
+          doc.setDrawColor(borderRgb.r, borderRgb.g, borderRgb.b);
+          doc.setLineWidth(cardBorder === '#141413' ? 0.3 : 0.18);
+          doc.rect(x, y, cardWidthMm, cardHeightMm, 'S');
+        }
 
         cardIndex++;
         if (onProgress) onProgress(Math.round((cardIndex / totalCards) * 100));
@@ -729,14 +738,26 @@ export async function generateBoardsPDF(
     const scaleFactor = quality === 'ultra' ? 3.5 : 2.5;
     const jpegQuality = quality === 'ultra' ? 0.98 : 0.95;
 
-    const cardOuterMarginMode = boardConfig.cardOuterMarginMode || 'match_board';
+    // Card outer margin & border configured in cardStyle (single source of truth)
+    const marginMode =
+      cardStyle.cardOuterMarginMode ||
+      (boardConfig.cardOuterMarginMode === 'flush'
+        ? 'flush'
+        : boardConfig.cardOuterMarginMode === 'white'
+        ? 'solid'
+        : 'match_board');
+
     const effectiveOuterMarginColor =
-      cardOuterMarginMode === 'white'
-        ? '#FFFFFF'
-        : cardOuterMarginMode === 'custom'
-        ? boardConfig.cardOuterMarginCustomColor || paperBgColor
-        : paperBgColor; // 'match_board' or 'flush'
-    const isFlush = cardOuterMarginMode === 'flush';
+      marginMode === 'match_board'
+        ? paperBgColor
+        : (cardStyle.cardOuterMarginColor || boardConfig.cardOuterMarginCustomColor || '#FFFFFF');
+    const isFlush = marginMode === 'flush';
+
+    const cardBorderColor =
+      cardStyle.cardOuterBorderColor ??
+      (boardConfig.cardOuterMarginMode === 'white' ? '#D6D3D1' : 'none');
+    const hasCardBorder = cardBorderColor !== 'none';
+    const cardBorderRgb = hasCardBorder ? hexToRgb(cardBorderColor) : null;
 
     for (let r = 0; r < boardConfig.rows; r++) {
       for (let c = 0; c < boardConfig.cols; c++) {
@@ -763,10 +784,10 @@ export async function generateBoardsPDF(
         }
         doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH, card.id, 'NONE');
 
-        // Guía de separación limpia solo en modo blanco tradicional
-        if (cardOuterMarginMode === 'white') {
-          doc.setDrawColor(214, 211, 209);
-          doc.setLineWidth(0.15);
+        // Borde exterior delimitador de cada carta en la tabla
+        if (hasCardBorder && cardBorderRgb) {
+          doc.setDrawColor(cardBorderRgb.r, cardBorderRgb.g, cardBorderRgb.b);
+          doc.setLineWidth(cardBorderColor === '#141413' ? 0.3 : 0.18);
           doc.rect(cellX, cellY, cardRenderW, cardRenderH, 'S');
         }
 

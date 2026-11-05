@@ -152,4 +152,50 @@ describe('CardPreview', () => {
     expect(outerCardDiv.style.backgroundColor).toBe('rgb(220, 252, 231)'); // #DCFCE7
     expect(outerCardDiv.className).toContain('p-0');
   });
+
+  it('strictly respects white text (#FFFFFF) even on high luminance background', () => {
+    const cardWithPinkBg: LoteriaCard = {
+      ...mockCard,
+      backgroundColor: '#FD8FB2', // light pink (high luminance)
+    };
+    const whiteTextStyle: CardStyleConfig = {
+      ...baseStyle,
+      textColor: '#FFFFFF',
+    };
+    render(<CardPreview card={cardWithPinkBg} style={whiteTextStyle} />);
+    const nameEl = screen.getByText('El Gallo');
+    expect(nameEl.style.color).toBe('rgb(255, 255, 255)');
+  });
+
+  it('renders outer border delimiting the card on board when cardOuterBorderColor is set', () => {
+    const blackBorderStyle: CardStyleConfig = {
+      ...baseStyle,
+      cardOuterBorderColor: '#141413',
+    };
+    const { container } = render(
+      <CardPreview card={mockCard} style={blackBorderStyle} variant="board" />
+    );
+    const outerCardDiv = container.firstChild as HTMLElement;
+    expect(outerCardDiv.className).toContain('border');
+    expect(outerCardDiv.style.borderColor).toBe('rgb(20, 20, 19)');
+  });
+
+  it('blends margin with board background in match_board mode', () => {
+    const matchBoardStyle: CardStyleConfig = {
+      ...baseStyle,
+      cardOuterMarginMode: 'match_board',
+      cardOuterMarginColor: '#FF0000',
+    };
+    const { container } = render(
+      <CardPreview
+        card={mockCard}
+        style={matchBoardStyle}
+        variant="board"
+        outerMarginColor="#FEF08A" // yellow board
+      />
+    );
+    const outerCardDiv = container.firstChild as HTMLElement;
+    // On board, it absorbs the yellow board background
+    expect(outerCardDiv.style.backgroundColor).toBe('rgb(254, 240, 138)');
+  });
 });

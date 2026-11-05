@@ -249,6 +249,7 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
                       card={c}
                       style={cardStyle}
                       variant="board"
+                      outerMarginColor={boardConfig.boardBgColor || '#FFFFFF'}
                       className="w-full"
                     />
                   ))}

@@ -34,7 +34,18 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const isBoard = effectiveVariant === 'board';
   const isGrid = effectiveVariant === 'grid';
 
-  const outerBg = outerMarginColor ?? style.cardOuterMarginColor ?? '#FFFFFF';
+  const marginMode = style.cardOuterMarginMode || 'solid';
+  const effectiveFlush = isFlush || marginMode === 'flush';
+
+  const outerBg =
+    marginMode === 'match_board'
+      ? (isBoard ? (outerMarginColor || style.cardOuterMarginColor || '#FFFFFF') : (style.cardOuterMarginColor || '#FFFFFF'))
+      : (style.cardOuterMarginColor || outerMarginColor || '#FFFFFF');
+
+  // Outer perimeter border that delimits the card
+  const borderChoice = style.cardOuterBorderColor ?? (isBoard ? 'none' : '#D6D3D1');
+  const hasOuterBorder = borderChoice !== 'none';
+  const effectiveOuterBorderColor = hasOuterBorder ? borderChoice : 'transparent';
 
   // Per-card unified background color inside the black frame
   const innerBgColor = card.backgroundColor || style.cardBgColor || '#FFFFFF';
@@ -261,19 +272,22 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       onClick={() => {
         if (!isEyedropperActive && onClick) onClick();
       }}
-      style={{ backgroundColor: outerBg }}
+      style={{
+        backgroundColor: outerBg,
+        borderColor: hasOuterBorder ? effectiveOuterBorderColor : undefined,
+      }}
       className={`relative ${outerBg === '#FFFFFF' ? 'bg-white' : ''} select-none transition-transform duration-150 overflow-hidden ${
         isBoard
-          ? isFlush
-            ? 'p-0 border-0 rounded-none shadow-none'
-            : 'p-[2px] border-0 rounded-[2px] shadow-none'
+          ? effectiveFlush
+            ? `p-0 ${hasOuterBorder ? 'border' : 'border-0'} rounded-none shadow-none`
+            : `p-[2px] ${hasOuterBorder ? 'border' : 'border-0'} rounded-[2px] shadow-none`
           : isGrid
-          ? isFlush
-            ? 'p-0 rounded-lg border border-stone-300 shadow-2xs hover:shadow-xs'
-            : 'p-1.5 sm:p-2 rounded-lg border border-stone-300 shadow-2xs hover:shadow-xs'
-          : isFlush
-          ? 'p-0 rounded-xl border border-stone-300 shadow-xs'
-          : 'p-2.5 sm:p-3.5 rounded-xl border border-stone-300 shadow-xs'
+          ? effectiveFlush
+            ? `p-0 rounded-lg ${hasOuterBorder ? 'border' : 'border-0'} shadow-2xs hover:shadow-xs`
+            : `p-1.5 sm:p-2 rounded-lg ${hasOuterBorder ? 'border' : 'border-0'} shadow-2xs hover:shadow-xs`
+          : effectiveFlush
+          ? `p-0 rounded-xl ${hasOuterBorder ? 'border' : 'border-0'} shadow-xs`
+          : `p-2.5 sm:p-3.5 rounded-xl ${hasOuterBorder ? 'border' : 'border-0'} shadow-xs`
       } aspect-[3/4] ${isEyedropperActive ? 'cursor-crosshair ring-2 ring-amber-500' : ''} ${className}`}
     >
       {/* Inner Black-Bordered Frame filled with the absorbed card background color */}

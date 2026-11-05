@@ -22,7 +22,9 @@ const DEFAULT_STYLE: CardStyleConfig = {
   showTaglineOnCard: false,
   borderColor: '#141413',
   cardBgColor: '#FFFFFF',
+  cardOuterMarginMode: 'solid',
   cardOuterMarginColor: '#FFFFFF',
+  cardOuterBorderColor: '#D6D3D1',
   textColor: '#141413',
   fontFamily: 'serif'
 };

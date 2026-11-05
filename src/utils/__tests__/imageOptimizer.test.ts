@@ -52,5 +52,8 @@ describe('imageOptimizer', () => {
     expect(getContrastingTextColor('#71D4FF')).toBe('#141413');
     // Deep dark background should switch to crisp white ink
     expect(getContrastingTextColor('#101820')).toBe('#FFFFFF');
+    // When user explicitly sets preferredColor, it should strictly respect it
+    expect(getContrastingTextColor('#FD8FB2', '#FFFFFF')).toBe('#FFFFFF');
+    expect(getContrastingTextColor('#101820', '#141413')).toBe('#141413');
   });
 });
