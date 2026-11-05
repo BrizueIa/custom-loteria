@@ -47,6 +47,18 @@ const CARD_COLOR_PALETTES = [
   { hex: '#475569', label: 'Gris Pizarra' },
 ];
 
+const CARD_OUTER_MARGIN_PALETTES = [
+  { hex: '#FFFFFF', label: 'Blanco Clásico' },
+  { hex: '#FDFBF7', label: 'Blanco Hueso' },
+  { hex: '#FEF9E7', label: 'Crema Vintage' },
+  { hex: '#F3EDE2', label: 'Cartoncillo Kraft' },
+  { hex: '#DCFCE7', label: 'Menta Suave' },
+  { hex: '#FCE7F3', label: 'Rosa Pastel' },
+  { hex: '#E0F2FE', label: 'Azul Cielo' },
+  { hex: '#FEF08A', label: 'Amarillo' },
+  { hex: '#141413', label: 'Negro' },
+];
+
 interface CardStyleSelectorProps {
   config: CardStyleConfig;
   onChange: (updated: CardStyleConfig) => void;
@@ -104,6 +116,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [customBorderColor, setCustomBorderColor] = useState(config.borderColor || '#141413');
   const [customTextColor, setCustomTextColor] = useState(config.textColor || '#141413');
+  const [customOuterMarginColor, setCustomOuterMarginColor] = useState(config.cardOuterMarginColor || '#FFFFFF');
 
   // Guided walkthrough only on first time if initialTourDone is false
   const [autoGuidedStep, setAutoGuidedStep] = useState<SectionKey | null>(
@@ -868,6 +881,11 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
             >
               A
             </span>
+            <span
+              className="w-3.5 h-3.5 rounded-full border border-stone-300 shadow-2xs shrink-0"
+              style={{ backgroundColor: config.cardOuterMarginColor || '#FFFFFF' }}
+              title="Margen exterior"
+            />
             {openSection === 'colors' ? (
               <ChevronUp className="w-4 h-4 text-stone-400" />
             ) : (
@@ -960,6 +978,52 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                     title={t('custom_color')}
                   />
                   <span className="text-[10px] font-mono text-stone-500">{config.textColor || '#141413'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Color del Margen Exterior de la Carta (Paspartú) */}
+            <div className="pt-2 border-t border-stone-200/60">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
+                {t('card_outer_margin_color')}
+              </label>
+              <p className="text-[10px] text-stone-500 mb-1.5">
+                {t('card_outer_margin_desc')}
+              </p>
+              <div className="flex items-center gap-2 flex-wrap py-1">
+                {CARD_OUTER_MARGIN_PALETTES.map((palette) => {
+                  const isSelected = (config.cardOuterMarginColor || '#FFFFFF').toLowerCase() === palette.hex.toLowerCase();
+                  return (
+                    <button
+                      key={`margin-${palette.hex}`}
+                      type="button"
+                      title={palette.label}
+                      onClick={() => {
+                        setCustomOuterMarginColor(palette.hex);
+                        onChange({ ...config, cardOuterMarginColor: palette.hex });
+                      }}
+                      className={`w-7 h-7 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer shadow-2xs ${
+                        isSelected ? 'scale-110 border-stone-900 shadow-xs' : 'border-stone-300 hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: palette.hex }}
+                    >
+                      {isSelected && <Check className="w-3 h-3 text-stone-800 drop-shadow-sm" />}
+                    </button>
+                  );
+                })}
+                {/* Native color picker for outer margin */}
+                <div className="flex items-center gap-1.5 ml-1">
+                  <input
+                    type="color"
+                    value={customOuterMarginColor}
+                    onChange={(e) => {
+                      setCustomOuterMarginColor(e.target.value);
+                      onChange({ ...config, cardOuterMarginColor: e.target.value });
+                    }}
+                    className="w-7 h-7 rounded-full border border-stone-300 cursor-pointer overflow-hidden p-0"
+                    title={t('custom_color')}
+                  />
+                  <span className="text-[10px] font-mono text-stone-500">{config.cardOuterMarginColor || '#FFFFFF'}</span>
                 </div>
               </div>
             </div>

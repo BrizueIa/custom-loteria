@@ -46,11 +46,14 @@ export interface CardStyleConfig {
   showTaglineOnCard: boolean;
   borderColor: string;
   cardBgColor: string;
+  cardOuterMarginColor?: string; // Color of the outer paper mat/border of the card, default '#FFFFFF'
   textColor: string;
   fontFamily: 'serif' | 'sans' | 'display';
   logo?: CardLogoConfig;
   cardDimensions?: CardDimensionsConfig;
 }
+
+export type CardOuterMarginMode = 'match_board' | 'flush' | 'white' | 'custom';
 
 export type BoardFrameStyle = 
   | 'traditional_gallo'  // Clásico tradicional con doble ribete y remates
@@ -81,6 +84,8 @@ export interface BoardConfig {
   boardBgColor?: string;
   boardTextColor?: string;
   boardDimensions?: BoardDimensionsConfig;
+  cardOuterMarginMode?: CardOuterMarginMode; // Default: 'match_board'
+  cardOuterMarginCustomColor?: string;
 }
 
 export interface GeneratedBoard {

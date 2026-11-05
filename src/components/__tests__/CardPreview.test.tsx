@@ -137,4 +137,19 @@ describe('CardPreview', () => {
     expect(logoContainer?.className).toContain('top-1.5 right-1.5');
     expect(logoContainer?.style.width).toBe('8%');
   });
+
+  it('applies custom outerMarginColor and isFlush styling correctly', () => {
+    const { container } = render(
+      <CardPreview
+        card={mockCard}
+        style={baseStyle}
+        outerMarginColor="#DCFCE7"
+        isFlush={true}
+        isCompactTable={true}
+      />
+    );
+    const outerCardDiv = container.firstChild as HTMLElement;
+    expect(outerCardDiv.style.backgroundColor).toBe('rgb(220, 252, 231)'); // #DCFCE7
+    expect(outerCardDiv.className).toContain('p-0');
+  });
 });

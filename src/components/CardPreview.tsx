@@ -13,6 +13,8 @@ interface CardPreviewProps {
   variant?: CardPreviewVariant;
   isEyedropperActive?: boolean;
   onPickColor?: (hexColor: string) => void;
+  outerMarginColor?: string;
+  isFlush?: boolean;
 }
 
 export const CardPreview: React.FC<CardPreviewProps> = ({
@@ -24,11 +26,15 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   variant,
   isEyedropperActive = false,
   onPickColor,
+  outerMarginColor,
+  isFlush = false,
 }) => {
   // Determine effective variant
   const effectiveVariant: CardPreviewVariant = variant || (isCompactTable ? 'board' : 'full');
   const isBoard = effectiveVariant === 'board';
   const isGrid = effectiveVariant === 'grid';
+
+  const outerBg = outerMarginColor ?? style.cardOuterMarginColor ?? '#FFFFFF';
 
   // Per-card unified background color inside the black frame
   const innerBgColor = card.backgroundColor || style.cardBgColor || '#FFFFFF';
@@ -255,11 +261,18 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       onClick={() => {
         if (!isEyedropperActive && onClick) onClick();
       }}
-      className={`relative bg-white select-none transition-transform duration-150 overflow-hidden ${
+      style={{ backgroundColor: outerBg }}
+      className={`relative ${outerBg === '#FFFFFF' ? 'bg-white' : ''} select-none transition-transform duration-150 overflow-hidden ${
         isBoard
-          ? 'p-[2.5px] border-[0.5px] border-stone-300 rounded-[2px] shadow-none'
+          ? isFlush
+            ? 'p-0 border-0 rounded-none shadow-none'
+            : 'p-[2px] border-0 rounded-[2px] shadow-none'
           : isGrid
-          ? 'p-1.5 sm:p-2 rounded-lg border border-stone-300 shadow-2xs hover:shadow-xs'
+          ? isFlush
+            ? 'p-0 rounded-lg border border-stone-300 shadow-2xs hover:shadow-xs'
+            : 'p-1.5 sm:p-2 rounded-lg border border-stone-300 shadow-2xs hover:shadow-xs'
+          : isFlush
+          ? 'p-0 rounded-xl border border-stone-300 shadow-xs'
           : 'p-2.5 sm:p-3.5 rounded-xl border border-stone-300 shadow-xs'
       } aspect-[3/4] ${isEyedropperActive ? 'cursor-crosshair ring-2 ring-amber-500' : ''} ${className}`}
     >

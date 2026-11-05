@@ -322,6 +322,26 @@ describe('pdfGenerator', () => {
       };
       const blobCustom = await generateBoardsPDF(singleBoard, customCmConfig, mockStyle);
       expect(blobCustom).toBeInstanceOf(Blob);
+
+      // Verify card outer margin modes: match_board, flush, and white
+      for (const mode of ['match_board', 'flush', 'white', 'custom'] as const) {
+        const modeConfig: BoardConfig = {
+          ...customBoardConfig,
+          cardOuterMarginMode: mode,
+          cardOuterMarginCustomColor: '#E0F2FE',
+        };
+        const blobMode = await generateBoardsPDF(singleBoard, modeConfig, mockStyle);
+        expect(blobMode).toBeInstanceOf(Blob);
+      }
+    });
+
+    it('supports custom cardOuterMarginColor in generateCardsPDF', async () => {
+      const styleWithOuterColor: CardStyleConfig = {
+        ...mockStyle,
+        cardOuterMarginColor: '#FDFBF7',
+      };
+      const blob = await generateCardsPDF(mockCards, styleWithOuterColor, 4);
+      expect(blob).toBeInstanceOf(Blob);
     });
   });
 });

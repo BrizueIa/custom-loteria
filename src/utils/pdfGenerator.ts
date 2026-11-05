@@ -94,7 +94,9 @@ async function drawCardToCanvas(
   width: number,
   height: number,
   scaleFactor: number = 3,
-  jpegQuality: number = 0.98
+  jpegQuality: number = 0.98,
+  outerMarginColor?: string,
+  isFlush: boolean = false
 ): Promise<string> {
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(width * scaleFactor);
@@ -106,12 +108,13 @@ async function drawCardToCanvas(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // 1. White Outer Margin (Paspartú blanco en los 4 costados)
-  ctx.fillStyle = '#FFFFFF';
+  // 1. Outer Margin (Paspartú en los 4 costados: blanco clásico, color de la hoja o personalizado)
+  const effectiveOuterBg = outerMarginColor || style.cardOuterMarginColor || '#FFFFFF';
+  ctx.fillStyle = effectiveOuterBg;
   ctx.fillRect(0, 0, width, height);
 
   // 2. Inner Framed Area filled with the absorbed card background color
-  const inset = Math.max(8, Math.round(width * 0.042));
+  const inset = isFlush ? Math.max(1, Math.round(width * 0.008)) : Math.max(8, Math.round(width * 0.042));
   const innerX = inset;
   const innerY = inset;
   const innerW = width - inset * 2;
@@ -726,6 +729,15 @@ export async function generateBoardsPDF(
     const scaleFactor = quality === 'ultra' ? 3.5 : 2.5;
     const jpegQuality = quality === 'ultra' ? 0.98 : 0.95;
 
+    const cardOuterMarginMode = boardConfig.cardOuterMarginMode || 'match_board';
+    const effectiveOuterMarginColor =
+      cardOuterMarginMode === 'white'
+        ? '#FFFFFF'
+        : cardOuterMarginMode === 'custom'
+        ? boardConfig.cardOuterMarginCustomColor || paperBgColor
+        : paperBgColor; // 'match_board' or 'flush'
+    const isFlush = cardOuterMarginMode === 'flush';
+
     for (let r = 0; r < boardConfig.rows; r++) {
       for (let c = 0; c < boardConfig.cols; c++) {
         if (cardCellIdx >= board.cards.length) break;
@@ -734,18 +746,29 @@ export async function generateBoardsPDF(
         const cellX = gridX + c * cellWidth + pad;
         const cellY = gridY + r * cellHeight + pad;
 
-        const cacheKey = `${card.id}-${canvasPxW}x${canvasPxH}-${scaleFactor}`;
+        const cacheKey = `${card.id}-${canvasPxW}x${canvasPxH}-${scaleFactor}-${effectiveOuterMarginColor}-${isFlush}`;
         let cardDataUrl = renderedCardCache.get(cacheKey);
         if (!cardDataUrl) {
-          cardDataUrl = await drawCardToCanvas(card, cardStyle, canvasPxW, canvasPxH, scaleFactor, jpegQuality);
+          cardDataUrl = await drawCardToCanvas(
+            card,
+            cardStyle,
+            canvasPxW,
+            canvasPxH,
+            scaleFactor,
+            jpegQuality,
+            effectiveOuterMarginColor,
+            isFlush
+          );
           renderedCardCache.set(cacheKey, cardDataUrl);
         }
         doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH, card.id, 'NONE');
 
-        // Guía de separación limpia
-        doc.setDrawColor(214, 211, 209);
-        doc.setLineWidth(0.15);
-        doc.rect(cellX, cellY, cardRenderW, cardRenderH, 'S');
+        // Guía de separación limpia solo en modo blanco tradicional
+        if (cardOuterMarginMode === 'white') {
+          doc.setDrawColor(214, 211, 209);
+          doc.setLineWidth(0.15);
+          doc.rect(cellX, cellY, cardRenderW, cardRenderH, 'S');
+        }
 
         cardCellIdx++;
       }

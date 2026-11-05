@@ -22,6 +22,7 @@ const DEFAULT_STYLE: CardStyleConfig = {
   showTaglineOnCard: false,
   borderColor: '#141413',
   cardBgColor: '#FFFFFF',
+  cardOuterMarginColor: '#FFFFFF',
   textColor: '#141413',
   fontFamily: 'serif'
 };
@@ -38,7 +39,8 @@ const DEFAULT_BOARD_CONFIG: BoardConfig = {
   boardFrameStyle: 'traditional_gallo',
   boardBorderColor: '#164E3D',
   boardBgColor: '#FFFFFF',
-  boardTextColor: '#164E3D'
+  boardTextColor: '#164E3D',
+  cardOuterMarginMode: 'match_board'
 };
 
 function MainApp() {
