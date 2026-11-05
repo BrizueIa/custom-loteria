@@ -23,7 +23,7 @@ export async function optimizeImage(
   source: File | string,
   options: ResizeOptions = {}
 ): Promise<string> {
-  const { maxWidth = 800, maxHeight = 1000, quality = 0.82, timeoutMs = 2500 } = options;
+  const { maxWidth = 1200, maxHeight = 1600, quality = 0.90, timeoutMs = 3000 } = options;
 
   // If source is already an SVG data URL, keep vector precision intact
   if (typeof source === 'string' && isSvgDataUrl(source)) {
@@ -336,7 +336,7 @@ export async function samplePixelColor(
  */
 export async function optimizeLogoImage(
   source: File | string,
-  maxDimension = 400
+  maxDimension = 600
 ): Promise<string> {
   if (typeof source === 'string' && isSvgDataUrl(source)) {
     return source;

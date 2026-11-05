@@ -34,6 +34,7 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
 }) => {
   const { t, language } = useLanguage();
   const [paperSize, setPaperSize] = useState<'letter' | 'a4'>('letter');
+  const [pdfQuality, setPdfQuality] = useState<'standard' | 'ultra'>('ultra');
   const [isGeneratingCardsPDF, setIsGeneratingCardsPDF] = useState(false);
   const [isGeneratingBoardsPDF, setIsGeneratingBoardsPDF] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
@@ -61,11 +62,11 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
     try {
       setIsGeneratingCardsPDF(true);
       setPdfProgress(0);
-      const blob = await generateCardsPDF(cards, cardStyle, 4, (pct) => setPdfProgress(pct), paperSize);
+      const blob = await generateCardsPDF(cards, cardStyle, 4, (pct) => setPdfProgress(pct), paperSize, pdfQuality);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `baraja-54-cartas-4-por-hoja-${paperSize}.pdf`;
+      a.download = `baraja-54-cartas-4-por-hoja-${paperSize}-${pdfQuality}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -81,11 +82,11 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
       setIsGeneratingBoardsPDF(true);
       setPdfProgress(0);
       const boardsToExport = activeBoards;
-      const blob = await generateBoardsPDF(boardsToExport, boardConfig, cardStyle, (pct) => setPdfProgress(pct), paperSize);
+      const blob = await generateBoardsPDF(boardsToExport, boardConfig, cardStyle, (pct) => setPdfProgress(pct), paperSize, pdfQuality);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `tablas-loteria-${boardConfig.quantity}-tablas-${paperSize}.pdf`;
+      a.download = `tablas-loteria-${boardConfig.quantity}-tablas-${paperSize}-${pdfQuality}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -112,28 +113,63 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
             : 'Tu baraja de 54 cartas y tus tablas personalizadas están listas. Descarga los archivos PDF para imprimir en papel Carta o A4.'}
         </p>
 
-        {/* Paper Size selector */}
-        <div className="flex items-center justify-between pt-2 border-t border-stone-100 max-w-xs mx-auto">
-          <span className="text-[11px] font-bold text-stone-600">
-            {language === 'en' ? 'Paper format:' : 'Tamaño de papel:'}
-          </span>
-          <div className="flex items-center gap-1 bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs">
-            <button
-              onClick={() => setPaperSize('letter')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                paperSize === 'letter' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
-              }`}
-            >
-              Carta (Letter)
-            </button>
-            <button
-              onClick={() => setPaperSize('a4')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                paperSize === 'a4' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
-              }`}
-            >
-              A4
-            </button>
+        {/* Paper Size & Quality Selectors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-stone-100 max-w-lg mx-auto">
+          {/* Paper Size selector */}
+          <div className="flex items-center justify-between sm:justify-start gap-2">
+            <span className="text-[11px] font-bold text-stone-600">
+              {language === 'en' ? 'Paper:' : 'Papel:'}
+            </span>
+            <div className="flex items-center gap-1 bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setPaperSize('letter')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  paperSize === 'letter' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                Carta (Letter)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('a4')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  paperSize === 'a4' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                A4
+              </button>
+            </div>
+          </div>
+
+          {/* Quality selector */}
+          <div className="flex items-center justify-between sm:justify-end gap-2">
+            <span className="text-[11px] font-bold text-stone-600">
+              {language === 'en' ? 'Quality:' : 'Calidad:'}
+            </span>
+            <div className="flex items-center gap-1 bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setPdfQuality('standard')}
+                title={language === 'en' ? 'Standard 250-300 DPI' : 'Estándar 250-300 DPI (Archivo más ligero)'}
+                className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  pdfQuality === 'standard' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                {language === 'en' ? 'Standard' : 'Estándar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPdfQuality('ultra')}
+                title={language === 'en' ? 'Ultra HD 450+ DPI (Commercial Print Press Quality)' : 'Ultra HD 450+ DPI (Máxima nitidez para imprenta)'}
+                className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  pdfQuality === 'ultra' ? 'bg-emerald-800 text-white shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>{language === 'en' ? 'Ultra HD (Print)' : 'Ultra HD (Imprenta)'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

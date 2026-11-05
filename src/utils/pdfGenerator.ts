@@ -92,15 +92,19 @@ async function drawCardToCanvas(
   card: LoteriaCard,
   style: CardStyleConfig,
   width: number,
-  height: number
+  height: number,
+  scaleFactor: number = 3,
+  jpegQuality: number = 0.98
 ): Promise<string> {
   const canvas = document.createElement('canvas');
-  canvas.width = width * 2;
-  canvas.height = height * 2;
+  canvas.width = Math.round(width * scaleFactor);
+  canvas.height = Math.round(height * scaleFactor);
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
-  ctx.scale(2, 2);
+  ctx.scale(scaleFactor, scaleFactor);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   // 1. White Outer Margin (Paspartú blanco en los 4 costados)
   ctx.fillStyle = '#FFFFFF';
@@ -347,7 +351,7 @@ async function drawCardToCanvas(
     ctx.fillText(card.tagline.trim(), width / 2, taglineCenterY, maxTextWidth);
   }
 
-  return canvas.toDataURL('image/jpeg', 0.95);
+  return canvas.toDataURL('image/jpeg', jpegQuality);
 }
 
 /**
@@ -358,7 +362,8 @@ export async function generateCardsPDF(
   style: CardStyleConfig,
   _cardsPerPage: number = 4,
   onProgress?: (pct: number) => void,
-  paperSize: 'letter' | 'a4' = 'letter'
+  paperSize: 'letter' | 'a4' = 'letter',
+  quality: 'standard' | 'ultra' = 'ultra'
 ): Promise<Blob> {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -436,8 +441,13 @@ export async function generateCardsPDF(
         const x = marginX + c * cellWidth + offsetX;
         const y = marginY + r * cellHeight + offsetY;
 
-        const dataUrl = await drawCardToCanvas(card, style, 300, 420);
-        doc.addImage(dataUrl, 'JPEG', x, y, cardWidthMm, cardHeightMm);
+        const scaleFactor = quality === 'ultra' ? 3.5 : 2.5;
+        const jpegQuality = quality === 'ultra' ? 0.98 : 0.95;
+        const baseW = 320;
+        const baseH = Math.round(baseW * (cardHeightMm / cardWidthMm));
+
+        const dataUrl = await drawCardToCanvas(card, style, baseW, baseH, scaleFactor, jpegQuality);
+        doc.addImage(dataUrl, 'JPEG', x, y, cardWidthMm, cardHeightMm, undefined, 'NONE');
 
         // Guía de corte sutil
         doc.setDrawColor(200, 200, 200);
@@ -461,7 +471,8 @@ export async function generateBoardsPDF(
   boardConfig: BoardConfig,
   cardStyle: CardStyleConfig,
   onProgress?: (pct: number) => void,
-  paperSize: 'letter' | 'a4' = 'letter'
+  paperSize: 'letter' | 'a4' = 'letter',
+  quality: 'standard' | 'ultra' = 'ultra'
 ): Promise<Blob> {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -710,8 +721,10 @@ export async function generateBoardsPDF(
     const pad = 0.8;
     const cardRenderW = cellWidth - pad * 2;
     const cardRenderH = cellHeight - pad * 2;
-    const canvasPxW = 240;
+    const canvasPxW = quality === 'ultra' ? 300 : 260;
     const canvasPxH = Math.round(canvasPxW * (cardRenderH / cardRenderW));
+    const scaleFactor = quality === 'ultra' ? 3.5 : 2.5;
+    const jpegQuality = quality === 'ultra' ? 0.98 : 0.95;
 
     for (let r = 0; r < boardConfig.rows; r++) {
       for (let c = 0; c < boardConfig.cols; c++) {
@@ -721,13 +734,13 @@ export async function generateBoardsPDF(
         const cellX = gridX + c * cellWidth + pad;
         const cellY = gridY + r * cellHeight + pad;
 
-        const cacheKey = `${card.id}-${canvasPxW}x${canvasPxH}`;
+        const cacheKey = `${card.id}-${canvasPxW}x${canvasPxH}-${scaleFactor}`;
         let cardDataUrl = renderedCardCache.get(cacheKey);
         if (!cardDataUrl) {
-          cardDataUrl = await drawCardToCanvas(card, cardStyle, canvasPxW, canvasPxH);
+          cardDataUrl = await drawCardToCanvas(card, cardStyle, canvasPxW, canvasPxH, scaleFactor, jpegQuality);
           renderedCardCache.set(cacheKey, cardDataUrl);
         }
-        doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH, card.id, 'FAST');
+        doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH, card.id, 'NONE');
 
         // Guía de separación limpia
         doc.setDrawColor(214, 211, 209);
