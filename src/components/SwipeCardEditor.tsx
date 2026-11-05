@@ -41,6 +41,8 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [isEyedropperActive, setIsEyedropperActive] = useState(false);
   const currentCard = cards[currentIndex] || cards[0];
+  const isCoverCard = currentCard.number === 0 || Boolean(currentCard.isCover);
+  const playableCards = cards.filter(c => c.number > 0 && !c.isCover);
 
   const handlePrev = () => {
     setIsEyedropperActive(false);
@@ -125,8 +127,18 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
             <span className="hidden xs:inline">{t('final_preview')}</span>
           </button>
 
-          <span className="text-xs font-mono text-stone-500 bg-white border border-stone-200 px-2.5 py-0.5 rounded-md">
-            {t('card_n_of_54', { num: currentIndex + 1 })}
+          <span
+            className={`text-xs font-mono px-2.5 py-0.5 rounded-md border ${
+              isCoverCard
+                ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold'
+                : 'text-stone-500 bg-white border-stone-200'
+            }`}
+          >
+            {isCoverCard
+              ? language === 'en'
+                ? 'Cover / Portada (No #)'
+                : 'Tapa / Portada (Sin #)'
+              : t('card_n_of_54', { num: currentCard.number })}
           </span>
         </div>
       </div>
@@ -355,24 +367,34 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
           />
         </div>
 
-        {/* Swap number */}
+        {/* Cover info OR Swap number */}
         <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1.5 text-stone-600">
-            <ArrowLeftRight className="w-3.5 h-3.5 text-stone-400" />
-            <span className="font-semibold">{t('swap_number_with')}</span>
-          </div>
+          {isCoverCard ? (
+            <div className="w-full py-1 px-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 font-semibold text-[11px] text-center">
+              {language === 'en'
+                ? 'Deck Cover Card: Printed without visible number and excluded from caller game & boards.'
+                : 'Carta Tapa / Portada: Se imprime sin número visible y no entra al juego ni a las tablas.'}
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5 text-stone-600">
+                <ArrowLeftRight className="w-3.5 h-3.5 text-stone-400" />
+                <span className="font-semibold">{t('swap_number_with')}</span>
+              </div>
 
-          <select
-            value={currentCard.number}
-            onChange={(e) => onSwapNumber(currentCard.id, parseInt(e.target.value, 10))}
-            className="px-2.5 py-1 rounded-lg border border-stone-300 bg-stone-50 text-stone-900 font-bold text-xs focus:outline-none"
-          >
-            {Array.from({ length: cards.length }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
-                #{n} {cards.find(c => c.number === n && c.id !== currentCard.id) ? `(${cards.find(c => c.number === n)?.name.slice(0, 16)})` : ''}
-              </option>
-            ))}
-          </select>
+              <select
+                value={currentCard.number}
+                onChange={(e) => onSwapNumber(currentCard.id, parseInt(e.target.value, 10))}
+                className="px-2.5 py-1 rounded-lg border border-stone-300 bg-stone-50 text-stone-900 font-bold text-xs focus:outline-none"
+              >
+                {playableCards.map((c) => (
+                  <option key={c.number} value={c.number}>
+                    #{c.number} {c.id !== currentCard.id ? `(${c.name.slice(0, 16)})` : ''}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
       </div>
     </div>

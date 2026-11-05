@@ -24,6 +24,7 @@ export function swapCardNumbers(
 ): LoteriaCard[] {
   const currentCard = cards.find(c => c.id === cardId);
   if (!currentCard || currentCard.number === targetNum) return cards;
+  if (currentCard.number === 0 || currentCard.isCover || targetNum === 0) return cards;
 
   const oldNum = currentCard.number;
   const cardWithTargetNum = cards.find(c => c.number === targetNum && c.id !== cardId);
@@ -51,8 +52,10 @@ export function generateBoards(
   deck: LoteriaCard[],
   config: BoardConfig
 ): GeneratedBoard[] {
+  // Exclude Cover / Portada card (number === 0 or isCover) from playable board cells
+  const playableDeck = deck.filter(c => c.number > 0 && !c.isCover);
   const cellsPerBoard = config.rows * config.cols;
-  const totalCards = deck.length;
+  const totalCards = playableDeck.length;
 
   if (totalCards < cellsPerBoard && !config.allowDuplicates) {
     throw new Error(
@@ -65,7 +68,7 @@ export function generateBoards(
 
   // Card usage counter to encourage balanced distribution
   const cardFrequency: Record<string, number> = {};
-  deck.forEach(c => (cardFrequency[c.id] = 0));
+  playableDeck.forEach(c => (cardFrequency[c.id] = 0));
 
   let attempts = 0;
   const maxAttempts = config.quantity * 200;
@@ -75,9 +78,9 @@ export function generateBoards(
     let boardCards: LoteriaCard[] = [];
 
     if (!config.allowDuplicates) {
-      // Pick `cellsPerBoard` distinct cards from deck
+      // Pick `cellsPerBoard` distinct cards from playableDeck
       // Sort deck lightly biased by lower frequency of usage
-      const weightedDeck = [...deck].sort((a, b) => {
+      const weightedDeck = [...playableDeck].sort((a, b) => {
         const freqA = cardFrequency[a.id] + Math.random() * 2;
         const freqB = cardFrequency[b.id] + Math.random() * 2;
         return freqA - freqB;
@@ -89,7 +92,7 @@ export function generateBoards(
     } else {
       // Duplicates allowed inside the board
       for (let i = 0; i < cellsPerBoard; i++) {
-        const randomCard = deck[Math.floor(Math.random() * totalCards)];
+        const randomCard = playableDeck[Math.floor(Math.random() * totalCards)];
         boardCards.push(randomCard);
       }
     }

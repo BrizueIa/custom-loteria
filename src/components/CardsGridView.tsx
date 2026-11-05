@@ -25,9 +25,10 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
   onSwapNumber,
   onContinue
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [showHelp, setShowHelp] = useState(false);
   const batchInputRef = useRef<HTMLInputElement>(null);
+  const playableCards = cards.filter(c => c.number > 0 && !c.isCover);
 
   const handleBatchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -40,7 +41,11 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
       {/* Super Compact Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs sm:text-sm font-bold text-stone-800">54 {t('cards')}</span>
+          <span className="text-xs sm:text-sm font-bold text-stone-800">
+            {language === 'en'
+              ? `1 Cover + ${playableCards.length} ${t('cards')}`
+              : `1 Tapa + ${playableCards.length} ${t('cards')}`}
+          </span>
           <button
             onClick={() => setShowHelp(!showHelp)}
             className="text-stone-400 hover:text-emerald-800 p-1 rounded-md transition-colors cursor-pointer"
@@ -114,49 +119,66 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
           - Large widescreen desktop (>=1280px): 9 columns (9 x 6 = 54, exactly 6 uniform rows)
       */}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-9 gap-2 sm:gap-2.5 lg:gap-3">
-        {cards.map((card, idx) => (
-          <div
-            key={card.id}
-            className="group relative flex flex-col items-center bg-white rounded-2xl p-1.5 sm:p-2 border border-stone-200/90 hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer"
-          >
+        {cards.map((card, idx) => {
+          const isCover = card.number === 0 || Boolean(card.isCover);
+          return (
             <div
-              onClick={() => onSelectCard(idx)}
-              className="w-full"
+              key={card.id}
+              className={`group relative flex flex-col items-center rounded-2xl p-1.5 sm:p-2 border transition-all cursor-pointer ${
+                isCover
+                  ? 'bg-amber-50/40 border-amber-400/90 ring-1 ring-amber-400/50 hover:border-amber-600 hover:shadow-md'
+                  : 'bg-white border-stone-200/90 hover:border-emerald-600 hover:shadow-md'
+              }`}
             >
-              <CardPreview
-                card={card}
-                style={cardStyle}
-                variant="grid"
+              <div
+                onClick={() => onSelectCard(idx)}
                 className="w-full"
-              />
-            </div>
-
-            {/* Quick swap number selector */}
-            <div className="w-full mt-1.5 pt-1 border-t border-stone-100 flex items-center justify-between px-1">
-              <span className="text-[10px] sm:text-xs font-mono font-bold text-stone-400">#{card.number}</span>
-              <select
-                value={card.number}
-                onChange={(e) => onSwapNumber(card.id, parseInt(e.target.value, 10))}
-                onClick={(e) => e.stopPropagation()}
-                className="text-[10px] sm:text-xs font-mono font-bold bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-colors cursor-pointer"
-                title="Cambiar número de carta"
               >
-                {cards.map(c => (
-                  <option key={c.number} value={c.number}>
-                    {c.number}
-                  </option>
-                ))}
-              </select>
+                <CardPreview
+                  card={card}
+                  style={cardStyle}
+                  variant="grid"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Footer: Cover badge OR Quick swap number selector */}
+              <div className="w-full mt-1.5 pt-1 border-t border-stone-100 flex items-center justify-between px-1">
+                {isCover ? (
+                  <span className="w-full text-center text-[10px] sm:text-[11px] font-mono font-extrabold text-amber-900 bg-amber-100/80 border border-amber-300/80 rounded-md py-0.5 uppercase tracking-wide">
+                    {language === 'en' ? 'COVER (NO #)' : 'TAPA (SIN #)'}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-[10px] sm:text-xs font-mono font-bold text-stone-400">#{card.number}</span>
+                    <select
+                      value={card.number}
+                      onChange={(e) => onSwapNumber(card.id, parseInt(e.target.value, 10))}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[10px] sm:text-xs font-mono font-bold bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-colors cursor-pointer"
+                      title="Cambiar número de carta"
+                    >
+                      {playableCards.map(c => (
+                        <option key={c.number} value={c.number}>
+                          {c.number}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Sticky Bottom Action Bar for Mobile Thumb Ergonomics */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-stone-200 z-20 flex justify-center">
         <div className="w-full max-w-md flex items-center justify-between gap-3">
           <span className="text-xs text-stone-500 font-medium">
-            54 {t('cards')}
+            {language === 'en'
+              ? `1 Cover + ${playableCards.length} ${t('cards')}`
+              : `1 Tapa + ${playableCards.length} ${t('cards')}`}
           </span>
           <button
             onClick={onContinue}

@@ -56,7 +56,13 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 }) => {
   const { t, language, setLanguage } = useLanguage();
 
-  const [shuffledDeck, setShuffledDeck] = useState<LoteriaCard[]>(() => shuffleArray(cards));
+  // Only playable cards (1..54) enter the caller game; Cover / Portada card (#0) is excluded
+  const playableCards = React.useMemo(
+    () => cards.filter((c) => c.number > 0 && !c.isCover),
+    [cards]
+  );
+
+  const [shuffledDeck, setShuffledDeck] = useState<LoteriaCard[]>(() => shuffleArray(playableCards));
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [intervalSeconds, setIntervalSeconds] = useState<number>(4);
@@ -96,7 +102,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
   // Sync shuffled deck immediately when active deck cards change (e.g. from editor or import)
   useEffect(() => {
-    setShuffledDeck(shuffleArray(cards));
+    setShuffledDeck(shuffleArray(playableCards));
     setCurrentIndex(-1);
     setIsPlaying(false);
     setIsAnnouncing(false);
@@ -104,7 +110,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     setHasCalledBuenas(false);
     setTimeRemaining(intervalSeconds * 1000);
     audioCantador.stop();
-  }, [cards]);
+  }, [playableCards]);
 
   // Modals & Panels
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
@@ -329,7 +335,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
   const handleTestVoice = async (voiceToTest: VoiceId = selectedVoiceId) => {
     audioCantador.unlock();
     setIsTestingVoice(true);
-    const sampleCard = shuffledDeck[currentIndex >= 0 ? currentIndex : 0] || cards[0];
+    const sampleCard = shuffledDeck[currentIndex >= 0 ? currentIndex : 0] || playableCards[0];
     const cardTitle = sampleCard?.name || (language === 'en' ? 'The Rooster' : 'El Gallo');
     const sampleText = language === 'en'
       ? `Number 1. ${cardTitle}!`
@@ -397,7 +403,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     if (!isMuted) {
       audioCantador.playShuffleSound();
     }
-    setShuffledDeck(shuffleArray(cards));
+    setShuffledDeck(shuffleArray(playableCards));
     setCurrentIndex(-1);
     setGameEnded(false);
     setHasCalledBuenas(false);
@@ -492,7 +498,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
     setIsPlaying(false);
     const pool = shuffledDeck.slice(currentIndex + 1).length > 0
       ? shuffledDeck.slice(currentIndex + 1)
-      : cards;
+      : playableCards;
     const drawn = pool[Math.floor(Math.random() * pool.length)];
     setDesempateCard(drawn);
     if (playChime) audioCantador.playCardChime();
@@ -549,7 +555,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
             {boardConfig.title || t('app_title')}
           </span>
           <span className="font-mono text-xs font-black bg-[#EFE3D3] text-[#5C381E] border border-[#DFC7B0] px-2.5 py-0.5 rounded-full">
-            {currentIndex + 1} / {cards.length}
+            {currentIndex + 1} / {playableCards.length}
           </span>
         </div>
 
@@ -585,7 +591,7 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                 {t('deck_ready')}
               </h3>
               <p className="text-xs text-[#78593F] mt-1 font-medium">
-                {t('deck_ready_desc', { count: cards.length })}
+                {t('deck_ready_desc', { count: playableCards.length })}
               </p>
             </div>
             <button

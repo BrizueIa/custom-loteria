@@ -69,7 +69,8 @@ export function validateAndParseDeckJson(jsonContent: string): {
       }
 
       const num = typeof c.number === 'number' && !isNaN(c.number) ? c.number : i + 1;
-      const name = typeof c.name === 'string' && c.name.trim() ? c.name.trim() : `Carta ${num}`;
+      const isCover = Boolean(c.isCover || num === 0);
+      const name = typeof c.name === 'string' && c.name.trim() ? c.name.trim() : isCover ? 'Portada' : `Carta ${num}`;
       const id = typeof c.id === 'string' && c.id.trim() ? c.id.trim() : `card-${num}`;
       const image = typeof c.image === 'string' ? c.image : '';
       const tagline = typeof c.tagline === 'string' ? c.tagline : '';
@@ -78,10 +79,11 @@ export function validateAndParseDeckJson(jsonContent: string): {
 
       validatedCards.push({
         id,
-        number: num,
+        number: isCover ? 0 : num,
         name,
         image,
         tagline,
+        ...(isCover ? { isCover: true } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
         ...(featherEdges !== undefined ? { featherEdges } : {})
       });

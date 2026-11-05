@@ -2,14 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { DEFAULT_CARDS, TRADITIONAL_LOTERIA_DECK, createCleanCardPlaceholder } from '../defaultCards';
 
 describe('defaultCards', () => {
-  it('contains exactly 54 cards', () => {
-    expect(DEFAULT_CARDS).toHaveLength(54);
+  it('contains 1 cover card (#0) plus 54 playable cards (55 total)', () => {
+    expect(DEFAULT_CARDS).toHaveLength(55);
     expect(TRADITIONAL_LOTERIA_DECK).toHaveLength(54);
+    expect(DEFAULT_CARDS[0].number).toBe(0);
+    expect(DEFAULT_CARDS[0].isCover).toBe(true);
   });
 
-  it('cards are numbered sequentially from 1 to 54 without gaps or duplicates', () => {
+  it('cards are numbered sequentially from 0 (Cover) to 54 without gaps or duplicates', () => {
     const numbers = DEFAULT_CARDS.map(c => c.number);
-    const expected = Array.from({ length: 54 }, (_, i) => i + 1);
+    const expected = Array.from({ length: 55 }, (_, i) => i);
     expect(numbers).toEqual(expected);
   });
 
@@ -21,7 +23,7 @@ describe('defaultCards', () => {
 
       expect(card.name.trim().length).toBeGreaterThan(0);
       expect(card.image).toMatch(/^data:image\/svg\+xml/);
-      expect(card.number).toBe(idx + 1);
+      expect(card.number).toBe(idx);
     });
   });
 

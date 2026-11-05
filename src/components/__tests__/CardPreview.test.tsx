@@ -83,4 +83,17 @@ describe('CardPreview', () => {
     expect(innerFrame.style.backgroundColor).toBe('rgb(113, 212, 255)');
     expect(innerFrame.className).toContain('border-stone-950');
   });
+
+  it('hides card number when card is the Cover / Portada card (number 0)', () => {
+    const coverCard: LoteriaCard = {
+      id: 'card-0',
+      number: 0,
+      isCover: true,
+      name: 'Vivero Señora de las Plantas',
+      image: 'data:image/svg+xml;utf8,<svg></svg>',
+    };
+    render(<CardPreview card={coverCard} style={baseStyle} />);
+    expect(screen.getByText('Vivero Señora de las Plantas')).toBeInTheDocument();
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
 });

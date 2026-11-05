@@ -107,16 +107,18 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   };
 
   const handleBatchUpload = async (files: FileList) => {
-    const fileArray = Array.from(files).slice(0, 54);
+    const fileArray = Array.from(files).slice(0, cards.length);
     if (fileArray.length === 0) return;
 
     let startIdx = 0;
     const firstEmptyIdx = cards.findIndex(c => isSvgDataUrl(c.image));
     if (firstEmptyIdx > 0 && firstEmptyIdx < cards.length) {
+      const targetCard = cards[firstEmptyIdx];
+      const label = targetCard.number === 0 ? 'Tapa / Portada' : `#${targetCard.number}`;
       const fillFromEmpty = window.confirm(
         language === 'en'
-          ? `Add these photos starting from empty card #${firstEmptyIdx + 1}? (Click Cancel to replace from card #1)`
-          : `¿Deseas agregar estas fotos a partir de la carta vacía #${firstEmptyIdx + 1}? (Pulsa Cancelar para reemplazar desde la #1)`
+          ? `Add these photos starting from empty card ${label}? (Click Cancel to replace from the first card)`
+          : `¿Deseas agregar estas fotos a partir de la carta vacía ${label}? (Pulsa Cancelar para reemplazar desde el inicio)`
       );
       if (fillFromEmpty) {
         startIdx = firstEmptyIdx;
@@ -127,7 +129,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
     let loadedCount = 0;
 
     for (let i = 0; i < fileArray.length; i++) {
-      const targetIndex = (startIdx + i) % 54;
+      const targetIndex = (startIdx + i) % cards.length;
       const file = fileArray[i];
       try {
         const dataUrl = await optimizeImage(file);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LoteriaCard, CardStyleConfig, BoardConfig, AppTab } from './types/loteria';
-import { DEFAULT_CARDS } from './data/defaultCards';
+import { DEFAULT_CARDS, ensureDeckHasCoverCard } from './data/defaultCards';
 import { GeneratorView } from './components/GeneratorView';
 import { CantadorView } from './components/CantadorView';
 import { PasswordModal } from './components/PasswordModal';
@@ -93,7 +93,7 @@ function MainApp() {
   const [cards, setCards] = useState<LoteriaCard[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CARDS);
-      if (saved) return JSON.parse(saved);
+      if (saved) return ensureDeckHasCoverCard(JSON.parse(saved));
     } catch (e) {
       console.error(e);
     }
@@ -105,7 +105,7 @@ function MainApp() {
     let isMounted = true;
     loadCardsFromStorage(DEFAULT_CARDS).then((loadedCards) => {
       if (isMounted) {
-        setCards(loadedCards);
+        setCards(ensureDeckHasCoverCard(loadedCards));
         setIsStorageReady(true);
       }
     }).catch((err) => {
@@ -188,7 +188,7 @@ function MainApp() {
   };
 
   const handleImportDeck = (imported: { cards: LoteriaCard[]; style: CardStyleConfig; boardConfig: BoardConfig }) => {
-    setCards(imported.cards);
+    setCards(ensureDeckHasCoverCard(imported.cards));
     if (imported.style) setCardStyle(imported.style);
     if (imported.boardConfig) setBoardConfig(imported.boardConfig);
   };
@@ -220,10 +220,11 @@ function MainApp() {
 
   const handleCompleteP2PSync = async (payload: SyncDeckPayload) => {
     if (payload.parsedDeck) {
-      setCards(payload.parsedDeck.cards);
+      const syncedCards = ensureDeckHasCoverCard(payload.parsedDeck.cards);
+      setCards(syncedCards);
       if (payload.parsedDeck.cardStyle) setCardStyle(payload.parsedDeck.cardStyle);
       if (payload.parsedDeck.boardConfig) setBoardConfig(payload.parsedDeck.boardConfig);
-      await saveCardsToStorage(payload.parsedDeck.cards);
+      await saveCardsToStorage(syncedCards);
     }
     if (payload.lockOnReceive) {
       if (payload.adminPin) {

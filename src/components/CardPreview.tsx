@@ -34,6 +34,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const innerBgColor = card.backgroundColor || style.cardBgColor || '#FFFFFF';
   const effectiveTextColor = getContrastingTextColor(innerBgColor, style.textColor);
   const shouldFeather = card.featherEdges !== false && !isSvgDataUrl(card.image);
+  const isCoverCard = card.number === 0 || Boolean(card.isCover);
 
   const getNumberClass = () => {
     switch (style.numberPosition) {
@@ -160,6 +161,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   };
 
   const topNumberClearance =
+    !isCoverCard &&
     style.namePosition === 'bottom' &&
     (style.numberPosition === 'top-left' || style.numberPosition === 'top-right')
       ? isBoard
@@ -172,6 +174,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       : 'pt-1.5';
 
   const bottomNumberClearance =
+    !isCoverCard &&
     style.namePosition === 'top' &&
     (style.numberPosition === 'bottom-left' || style.numberPosition === 'bottom-right')
       ? isBoard
@@ -214,13 +217,15 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       >
         {renderOptionalInnerAccents()}
 
-        {/* Card Number inside the black frame (without white box patch) */}
-        <span
-          style={{ color: effectiveTextColor }}
-          className={`absolute ${getNumberClass()} font-loteria-title z-20 pointer-events-none ${getNumberFontSize()}`}
-        >
-          {card.number}
-        </span>
+        {/* Card Number inside the black frame (hidden on Cover / Portada card #0) */}
+        {!isCoverCard && (
+          <span
+            style={{ color: effectiveTextColor }}
+            className={`absolute ${getNumberClass()} font-loteria-title z-20 pointer-events-none ${getNumberFontSize()}`}
+          >
+            {card.number}
+          </span>
+        )}
 
         {/* Zone 1 (Optional Name at Top inside the black frame) */}
         {style.namePosition === 'top' && (

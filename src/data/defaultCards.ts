@@ -6,7 +6,7 @@ import { LoteriaCard } from '../types/loteria';
  */
 export function createCleanCardPlaceholder(cardName?: string, cardNumber?: number): string {
   const titleText = cardName ? cardName.toUpperCase() : 'CARTA';
-  const numText = cardNumber ? `#${cardNumber}` : '';
+  const numText = cardNumber === 0 ? '(PORTADA)' : cardNumber ? `#${cardNumber}` : '';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 380" width="100%" height="100%">
     <rect width="100%" height="100%" fill="#FAF7F2" rx="8" />
     <rect x="8" y="8" width="284" height="364" rx="6" fill="none" stroke="#D6CEBE" stroke-width="1.5" stroke-dasharray="6 4" />
@@ -127,14 +127,41 @@ function generateLoteriaCardSVG(num: number, _name: string, emoji: string, bg: s
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-export const DEFAULT_CARDS: LoteriaCard[] = TRADITIONAL_LOTERIA_DECK.map((item, idx) => {
-  const num = idx + 1;
-  return {
-    id: `card-${num}`,
-    number: num,
-    name: item.name,
-    tagline: item.tag,
-    backgroundColor: item.bg,
-    image: generateLoteriaCardSVG(num, item.name, item.emoji, item.bg, item.accent)
-  };
-});
+export const DEFAULT_COVER_CARD: LoteriaCard = {
+  id: 'card-0',
+  number: 0,
+  isCover: true,
+  name: 'Lotería Mexicana',
+  tagline: '',
+  backgroundColor: '#FEF3C7',
+  image: generateLoteriaCardSVG(0, 'Lotería Mexicana', '🎴', '#FEF3C7', '#B45309')
+};
+
+export const DEFAULT_CARDS: LoteriaCard[] = [
+  DEFAULT_COVER_CARD,
+  ...TRADITIONAL_LOTERIA_DECK.map((item, idx) => {
+    const num = idx + 1;
+    return {
+      id: `card-${num}`,
+      number: num,
+      name: item.name,
+      tagline: item.tag,
+      backgroundColor: item.bg,
+      image: generateLoteriaCardSVG(num, item.name, item.emoji, item.bg, item.accent)
+    };
+  })
+];
+
+/**
+ * Ensures any loaded or imported deck has a cover card (number 0) at the beginning
+ */
+export function ensureDeckHasCoverCard(cards: LoteriaCard[]): LoteriaCard[] {
+  if (!Array.isArray(cards) || cards.length === 0) return DEFAULT_CARDS;
+  const hasCover = cards.some(c => c.number === 0 || c.isCover);
+  if (hasCover) {
+    return [...cards]
+      .map(c => (c.number === 0 || c.isCover ? { ...c, number: 0, isCover: true } : c))
+      .sort((a, b) => a.number - b.number);
+  }
+  return [DEFAULT_COVER_CARD, ...cards].sort((a, b) => a.number - b.number);
+}

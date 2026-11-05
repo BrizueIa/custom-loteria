@@ -121,12 +121,15 @@ async function drawCardToCanvas(
   ctx.fillRect(innerX, innerY, innerW, innerH);
 
   const hasTagline = Boolean(style.showTaglineOnCard && card.tagline && card.tagline.trim());
+  const isCoverCard = card.number === 0 || Boolean(card.isCover);
 
   // 3. Layout Dimensions & 3 Non-Overlapping Internal Zones inside the black frame
   const isTopNumber =
-    style.numberPosition === 'top-left' || style.numberPosition === 'top-right';
+    !isCoverCard &&
+    (style.numberPosition === 'top-left' || style.numberPosition === 'top-right');
   const isBottomNumber =
-    style.numberPosition === 'bottom-left' || style.numberPosition === 'bottom-right';
+    !isCoverCard &&
+    (style.numberPosition === 'bottom-left' || style.numberPosition === 'bottom-right');
 
   let nameCenterY = innerY + innerH - (hasTagline ? 24 : 18);
   let taglineCenterY = innerY + innerH - 11;
@@ -250,30 +253,32 @@ async function drawCardToCanvas(
     ctx.strokeRect(innerX, innerY, innerW, innerH);
   }
 
-  // 6. Draw Card Number inside the black frame (directly on background color, no white patch)
-  const numFontSize = width >= 280 ? 17 : 14;
-  ctx.font = `bold ${numFontSize}px "Cinzel", "Times New Roman", serif`;
-  ctx.textBaseline = 'top';
+  // 6. Draw Card Number inside the black frame (hidden on Cover / Portada card #0)
+  if (!isCoverCard) {
+    const numFontSize = width >= 280 ? 17 : 14;
+    ctx.font = `bold ${numFontSize}px "Cinzel", "Times New Roman", serif`;
+    ctx.textBaseline = 'top';
 
-  const numText = card.number.toString();
-  let numX = innerX + 9;
-  let numY = innerY + 7;
-  if (style.numberPosition === 'top-right') {
-    numX = innerX + innerW - 9;
-    ctx.textAlign = 'right';
-  } else if (style.numberPosition === 'bottom-left') {
-    numY = innerY + innerH - numFontSize - 7;
-    ctx.textAlign = 'left';
-  } else if (style.numberPosition === 'bottom-right') {
-    numX = innerX + innerW - 9;
-    numY = innerY + innerH - numFontSize - 7;
-    ctx.textAlign = 'right';
-  } else {
-    ctx.textAlign = 'left';
+    const numText = card.number.toString();
+    let numX = innerX + 9;
+    let numY = innerY + 7;
+    if (style.numberPosition === 'top-right') {
+      numX = innerX + innerW - 9;
+      ctx.textAlign = 'right';
+    } else if (style.numberPosition === 'bottom-left') {
+      numY = innerY + innerH - numFontSize - 7;
+      ctx.textAlign = 'left';
+    } else if (style.numberPosition === 'bottom-right') {
+      numX = innerX + innerW - 9;
+      numY = innerY + innerH - numFontSize - 7;
+      ctx.textAlign = 'right';
+    } else {
+      ctx.textAlign = 'left';
+    }
+
+    ctx.fillStyle = effectiveTextColor;
+    ctx.fillText(numText, numX, numY);
   }
-
-  ctx.fillStyle = effectiveTextColor;
-  ctx.fillText(numText, numX, numY);
 
   // 7. Draw Adaptive Name & Tagline inside the black frame
   const baseFontSize = width >= 280 ? 16 : 13.5;

@@ -1,11 +1,12 @@
 export interface LoteriaCard {
   id: string;
-  number: number; // 1 to 54
+  number: number; // 0 for Cover/Portada card (no visible number), 1 to 54 for game cards
   name: string;
   image: string; // Base64 data URL, SVG data URL, or URL
   tagline?: string; // Optional verse or humorous subtitle
   backgroundColor?: string; // Per-card background color absorbed via eyedropper or auto-detected
   featherEdges?: boolean; // Smoothly blend image outer edges into card backgroundColor
+  isCover?: boolean; // True when this card is the deck Cover / Portada (printed, not played)
 }
 
 export type FrameStyle = 
