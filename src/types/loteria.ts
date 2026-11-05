@@ -4,6 +4,8 @@ export interface LoteriaCard {
   name: string;
   image: string; // Base64 data URL, SVG data URL, or URL
   tagline?: string; // Optional verse or humorous subtitle
+  backgroundColor?: string; // Per-card background color absorbed via eyedropper or auto-detected
+  featherEdges?: boolean; // Smoothly blend image outer edges into card backgroundColor
 }
 
 export type FrameStyle = 

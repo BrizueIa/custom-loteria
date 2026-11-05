@@ -134,6 +134,7 @@ export const DEFAULT_CARDS: LoteriaCard[] = TRADITIONAL_LOTERIA_DECK.map((item, 
     number: num,
     name: item.name,
     tagline: item.tag,
+    backgroundColor: item.bg,
     image: generateLoteriaCardSVG(num, item.name, item.emoji, item.bg, item.accent)
   };
 });

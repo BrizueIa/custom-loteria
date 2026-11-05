@@ -1,10 +1,21 @@
 import React, { useRef, useState } from 'react';
 import { LoteriaCard, CardStyleConfig } from '../types/loteria';
 import { CardPreview } from './CardPreview';
-import { ChevronLeft, ChevronRight, Upload, LayoutGrid, ArrowLeftRight, Trash2, Eye, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  LayoutGrid,
+  ArrowLeftRight,
+  Trash2,
+  Eye,
+  X,
+  Pipette,
+  Sparkles,
+} from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder } from '../data/defaultCards';
-import { optimizeImage } from '../utils/imageOptimizer';
+import { optimizeImage, extractBackgroundColorFromImage } from '../utils/imageOptimizer';
 
 interface SwipeCardEditorProps {
   cards: LoteriaCard[];
@@ -25,17 +36,20 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
   onSwapNumber,
   onOpenGrid,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showFullPreview, setShowFullPreview] = useState(false);
+  const [isEyedropperActive, setIsEyedropperActive] = useState(false);
   const currentCard = cards[currentIndex] || cards[0];
 
   const handlePrev = () => {
+    setIsEyedropperActive(false);
     if (currentIndex > 0) onSelectIndex(currentIndex - 1);
     else onSelectIndex(cards.length - 1);
   };
 
   const handleNext = () => {
+    setIsEyedropperActive(false);
     if (currentIndex < cards.length - 1) onSelectIndex(currentIndex + 1);
     else onSelectIndex(0);
   };
@@ -47,9 +61,12 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
     try {
       const dataUrl = await optimizeImage(file);
       if (dataUrl) {
+        const autoBg = await extractBackgroundColorFromImage(dataUrl);
         onUpdateCard({
           ...currentCard,
-          image: dataUrl
+          image: dataUrl,
+          backgroundColor: autoBg,
+          featherEdges: true,
         });
       }
     } catch (err) {
@@ -59,11 +76,32 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
   };
 
   const handleRemoveImage = () => {
+    setIsEyedropperActive(false);
     onUpdateCard({
       ...currentCard,
-      image: createCleanCardPlaceholder(currentCard.name, currentCard.number)
+      image: createCleanCardPlaceholder(currentCard.name, currentCard.number),
+      backgroundColor: '#FAF7F2',
     });
   };
+
+  const handleAutoDetectColor = async () => {
+    const autoBg = await extractBackgroundColorFromImage(currentCard.image);
+    onUpdateCard({
+      ...currentCard,
+      backgroundColor: autoBg,
+    });
+    setIsEyedropperActive(false);
+  };
+
+  const handlePickColorFromCard = (hexColor: string) => {
+    onUpdateCard({
+      ...currentCard,
+      backgroundColor: hexColor,
+    });
+    setIsEyedropperActive(false);
+  };
+
+  const activeBgColor = currentCard.backgroundColor || cardStyle.cardBgColor || '#FFFFFF';
 
   return (
     <div className="w-full max-w-xl mx-auto flex flex-col items-center">
@@ -93,6 +131,27 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
         </div>
       </div>
 
+      {/* Eyedropper active instruction banner */}
+      {isEyedropperActive && (
+        <div className="w-full max-w-xs mb-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-1.5">
+            <Pipette className="w-4 h-4 text-amber-700 shrink-0 animate-bounce" />
+            <span>
+              {language === 'en'
+                ? 'Tap anywhere on the card image to absorb that background color'
+                : 'Toca el fondo de la imagen en la carta para absorber ese color'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEyedropperActive(false)}
+            className="p-1 text-amber-800 hover:text-amber-950 rounded-md"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Carousel */}
       <div className="relative w-full flex items-center justify-center gap-2 sm:gap-3 py-1">
         <button
@@ -108,17 +167,21 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
           <CardPreview
             card={currentCard}
             style={cardStyle}
+            isEyedropperActive={isEyedropperActive}
+            onPickColor={handlePickColorFromCard}
             onClick={() => fileInputRef.current?.click()}
             className="shadow-md cursor-pointer hover:ring-2 hover:ring-emerald-700/50 transition-all"
           />
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="absolute bottom-3 right-3 bg-stone-900/90 hover:bg-black text-white p-2 rounded-full shadow-md transition-transform active:scale-95 flex items-center justify-center"
-            title={t('change_photo')}
-          >
-            <Upload className="w-3.5 h-3.5" />
-          </button>
+          {!isEyedropperActive && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-3 right-3 bg-stone-900/90 hover:bg-black text-white p-2 rounded-full shadow-md transition-transform active:scale-95 flex items-center justify-center z-30"
+              title={t('change_photo')}
+            >
+              <Upload className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           <input
             ref={fileInputRef}
@@ -159,6 +222,86 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
         </button>
       </div>
 
+      {/* Barra de Gotero y Color de Fondo Unificado */}
+      <div className="w-full max-w-xs mt-2.5 bg-white border border-stone-200/90 rounded-2xl p-2.5 shadow-2xs space-y-2">
+        <div className="flex items-center justify-between gap-1.5">
+          {/* Botón Gotero Interactivo */}
+          <button
+            type="button"
+            onClick={() => setIsEyedropperActive((prev) => !prev)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              isEyedropperActive
+                ? 'bg-amber-600 text-white border-amber-700 ring-2 ring-amber-300 shadow-xs'
+                : 'bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200'
+            }`}
+            title={
+              language === 'en'
+                ? 'Pick background color directly from the image'
+                : 'Absorber color de fondo tocando la imagen'
+            }
+          >
+            <Pipette className="w-3.5 h-3.5" />
+            <span>{language === 'en' ? 'Eyedropper' : 'Gotero'}</span>
+          </button>
+
+          {/* Botón Auto-Detectar Fondo */}
+          <button
+            type="button"
+            onClick={handleAutoDetectColor}
+            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition-colors cursor-pointer"
+            title={
+              language === 'en'
+                ? 'Auto-detect border color from image'
+                : 'Detectar automáticamente el color de la orilla de la imagen'
+            }
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Auto</span>
+          </button>
+
+          {/* Selector manual / Muestra del color actual */}
+          <label
+            className="flex items-center gap-1.5 px-2 py-1 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 cursor-pointer"
+            title={language === 'en' ? 'Adjust background color manually' : 'Ajustar color de fondo manualmente'}
+          >
+            <input
+              type="color"
+              value={activeBgColor}
+              onChange={(e) =>
+                onUpdateCard({
+                  ...currentCard,
+                  backgroundColor: e.target.value.toUpperCase(),
+                })
+              }
+              className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
+            />
+            <span className="font-mono text-[10px] font-bold text-stone-600 uppercase">
+              {activeBgColor}
+            </span>
+          </label>
+        </div>
+
+        {/* Toggle para suavizar orillas de la imagen */}
+        <label className="flex items-center justify-between pt-1.5 border-t border-stone-100 text-[11px] text-stone-600 cursor-pointer select-none">
+          <span>
+            {language === 'en'
+              ? 'Blend image edges with background'
+              : 'Suavizar orillas de la imagen con el fondo'}
+          </span>
+          <input
+            type="checkbox"
+            checked={currentCard.featherEdges !== false}
+            onChange={(e) =>
+              onUpdateCard({
+                ...currentCard,
+                featherEdges: e.target.checked,
+              })
+            }
+            className="w-3.5 h-3.5 rounded border-stone-300 text-emerald-800 focus:ring-emerald-800 cursor-pointer"
+          />
+        </label>
+      </div>
+
       {/* Modal de Vista Previa Final */}
       {showFullPreview && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
@@ -183,7 +326,7 @@ export const SwipeCardEditor: React.FC<SwipeCardEditorProps> = ({
       )}
 
       {/* Card Details Editor */}
-      <div className="w-full bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-5 mt-4 shadow-2xs space-y-4">
+      <div className="w-full bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-5 mt-3 shadow-2xs space-y-4">
         {/* Name input */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">

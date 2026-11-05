@@ -73,13 +73,17 @@ export function validateAndParseDeckJson(jsonContent: string): {
       const id = typeof c.id === 'string' && c.id.trim() ? c.id.trim() : `card-${num}`;
       const image = typeof c.image === 'string' ? c.image : '';
       const tagline = typeof c.tagline === 'string' ? c.tagline : '';
+      const backgroundColor = typeof c.backgroundColor === 'string' && c.backgroundColor.trim() ? c.backgroundColor.trim() : undefined;
+      const featherEdges = typeof c.featherEdges === 'boolean' ? c.featherEdges : undefined;
 
       validatedCards.push({
         id,
         number: num,
         name,
         image,
-        tagline
+        tagline,
+        ...(backgroundColor ? { backgroundColor } : {}),
+        ...(featherEdges !== undefined ? { featherEdges } : {})
       });
     }
 

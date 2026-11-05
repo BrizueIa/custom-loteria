@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isSvgDataUrl, optimizeImage } from '../imageOptimizer';
+import { isSvgDataUrl, optimizeImage, rgbToHex, getContrastingTextColor } from '../imageOptimizer';
 
 describe('imageOptimizer', () => {
   it('identifies SVG data URLs', () => {
@@ -44,5 +44,13 @@ describe('imageOptimizer', () => {
     } finally {
       window.Image = originalImage;
     }
+  });
+
+  it('converts RGB values to uppercase hex and calculates contrasting ink color', () => {
+    expect(rgbToHex(113, 212, 255)).toBe('#71D4FF');
+    // Light/medium sky blue background (like El Helecho) should use dark ink
+    expect(getContrastingTextColor('#71D4FF')).toBe('#141413');
+    // Deep dark background should switch to crisp white ink
+    expect(getContrastingTextColor('#101820')).toBe('#FFFFFF');
   });
 });

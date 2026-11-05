@@ -16,13 +16,13 @@ const STORAGE_KEY_LOCKED = 'loteria_is_locked_v1';
 const STORAGE_KEY_PWD = 'loteria_admin_pwd_v1';
 
 const DEFAULT_STYLE: CardStyleConfig = {
-  frameStyle: 'botanical_litho',
+  frameStyle: 'classic_loteria',
   numberPosition: 'top-left',
   namePosition: 'bottom',
   showTaglineOnCard: false,
-  borderColor: '#164E3D',
+  borderColor: '#141413',
   cardBgColor: '#FFFFFF',
-  textColor: '#164E3D',
+  textColor: '#141413',
   fontFamily: 'serif'
 };
 

@@ -67,4 +67,20 @@ describe('CardPreview', () => {
     expect(nameContainer?.className).not.toContain('pr-9');
     expect(nameContainer?.className).not.toContain('pl-9');
   });
+
+  it('applies per-card absorbed backgroundColor inside the black inner frame while keeping outer white margin', () => {
+    const cardWithBg: LoteriaCard = {
+      ...mockCard,
+      name: 'El Helecho',
+      number: 2,
+      backgroundColor: '#71D4FF',
+    };
+    const { container } = render(<CardPreview card={cardWithBg} style={baseStyle} />);
+    const outerCard = container.firstElementChild as HTMLElement;
+    const innerFrame = outerCard.firstElementChild as HTMLElement;
+
+    expect(outerCard.className).toContain('bg-white');
+    expect(innerFrame.style.backgroundColor).toBe('rgb(113, 212, 255)');
+    expect(innerFrame.className).toContain('border-stone-950');
+  });
 });

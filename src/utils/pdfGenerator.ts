@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { LoteriaCard, CardStyleConfig, GeneratedBoard, BoardConfig } from '../types/loteria';
+import { getContrastingTextColor, isSvgDataUrl } from './imageOptimizer';
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -82,7 +83,10 @@ function drawAdaptiveText(
 }
 
 /**
- * Draws a single card onto canvas context with elaborate decorative frames
+ * Draws a single card onto canvas context with classic Mexican Loteria layout:
+ * - White outer margin around all 4 sides
+ * - Crisp black inner frame filled with card's unified background color
+ * - 3 non-overlapping internal zones (number clearance, central image with feathered edges, name inside frame)
  */
 async function drawCardToCanvas(
   card: LoteriaCard,
@@ -98,30 +102,51 @@ async function drawCardToCanvas(
 
   ctx.scale(2, 2);
 
-  // 1. Solid Card Background
-  ctx.fillStyle = style.cardBgColor || '#FFFFFF';
+  // 1. White Outer Margin (Paspartú blanco en los 4 costados)
+  ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, width, height);
+
+  // 2. Inner Framed Area filled with the absorbed card background color
+  const inset = Math.max(8, Math.round(width * 0.042));
+  const innerX = inset;
+  const innerY = inset;
+  const innerW = width - inset * 2;
+  const innerH = height - inset * 2;
+
+  const innerBgColor = card.backgroundColor || style.cardBgColor || '#FFFFFF';
+  const effectiveTextColor = getContrastingTextColor(innerBgColor, style.textColor);
+  const shouldFeather = card.featherEdges !== false && !isSvgDataUrl(card.image);
+
+  ctx.fillStyle = innerBgColor;
+  ctx.fillRect(innerX, innerY, innerW, innerH);
 
   const hasTagline = Boolean(style.showTaglineOnCard && card.tagline && card.tagline.trim());
 
-  // Layout Dimensions & Geometry
-  let nameCenterY = height - (hasTagline ? 28 : 22);
-  let taglineCenterY = height - 14;
-  let imgTop = 36;
-  let imgHeight = height - (hasTagline ? 76 : 68);
+  // 3. Layout Dimensions & 3 Non-Overlapping Internal Zones inside the black frame
+  const isTopNumber =
+    style.numberPosition === 'top-left' || style.numberPosition === 'top-right';
+  const isBottomNumber =
+    style.numberPosition === 'bottom-left' || style.numberPosition === 'bottom-right';
+
+  let nameCenterY = innerY + innerH - (hasTagline ? 24 : 18);
+  let taglineCenterY = innerY + innerH - 11;
+  let imgTop = innerY + (isTopNumber ? 26 : 10);
+  let imgBottom = innerY + innerH - (hasTagline ? 42 : 34);
 
   if (style.namePosition === 'top') {
-    nameCenterY = 24;
-    taglineCenterY = 36;
-    imgTop = hasTagline ? 48 : 42;
-    imgHeight = height - (hasTagline ? 66 : 60);
+    nameCenterY = innerY + 18;
+    taglineCenterY = innerY + 30;
+    imgTop = innerY + (hasTagline ? 40 : 32);
+    imgBottom = innerY + innerH - (isBottomNumber ? 26 : 10);
   }
 
-  // 2. Draw Card Image FIRST (Layer 2 - below borders and text)
+  const imgHeight = Math.max(40, imgBottom - imgTop);
+
+  // 4. Draw Card Image in dedicated central zone (never overlapped by number or name)
   try {
     const img = await loadImage(card.image);
-    const imgMargin = 16;
-    const availWidth = width - imgMargin * 2;
+    const imgSidePad = Math.max(6, Math.round(innerW * 0.035));
+    const availWidth = innerW - imgSidePad * 2;
     const availHeight = imgHeight;
 
     const imgNaturalW = img.naturalWidth || img.width || 1;
@@ -131,147 +156,128 @@ async function drawCardToCanvas(
 
     let drawWidth = availWidth;
     let drawHeight = availHeight;
-    let drawX = imgMargin;
+    let drawX = innerX + imgSidePad;
     let drawY = imgTop;
 
     if (imgAspect > availAspect) {
-      // Imagen más ancha que la caja: ajustar ancho y centrar verticalmente
       drawWidth = availWidth;
       drawHeight = availWidth / imgAspect;
       drawY = imgTop + (availHeight - drawHeight) / 2;
     } else {
-      // Imagen más alta que la caja: ajustar alto y centrar horizontalmente
       drawHeight = availHeight;
       drawWidth = availHeight * imgAspect;
-      drawX = imgMargin + (availWidth - drawWidth) / 2;
+      drawX = innerX + imgSidePad + (availWidth - drawWidth) / 2;
     }
 
     ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+    // Subtle edge feathering into innerBgColor so no rectangular image cut is visible
+    if (shouldFeather && typeof ctx.createLinearGradient === 'function') {
+      const rgb = hexToRgb(innerBgColor);
+      const solidColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`;
+      const transColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`;
+      const featherPx = Math.max(4, Math.min(10, Math.round(Math.min(drawWidth, drawHeight) * 0.04)));
+
+      // Top edge fade
+      const gTop = ctx.createLinearGradient(0, drawY - 1, 0, drawY + featherPx);
+      gTop.addColorStop(0, solidColor);
+      gTop.addColorStop(1, transColor);
+      ctx.fillStyle = gTop;
+      ctx.fillRect(drawX - 1, drawY - 1, drawWidth + 2, featherPx + 1);
+
+      // Bottom edge fade
+      const gBot = ctx.createLinearGradient(0, drawY + drawHeight + 1, 0, drawY + drawHeight - featherPx);
+      gBot.addColorStop(0, solidColor);
+      gBot.addColorStop(1, transColor);
+      ctx.fillStyle = gBot;
+      ctx.fillRect(drawX - 1, drawY + drawHeight - featherPx, drawWidth + 2, featherPx + 1);
+
+      // Left edge fade
+      const gLeft = ctx.createLinearGradient(drawX - 1, 0, drawX + featherPx, 0);
+      gLeft.addColorStop(0, solidColor);
+      gLeft.addColorStop(1, transColor);
+      ctx.fillStyle = gLeft;
+      ctx.fillRect(drawX - 1, drawY - 1, featherPx + 1, drawHeight + 2);
+
+      // Right edge fade
+      const gRight = ctx.createLinearGradient(drawX + drawWidth + 1, 0, drawX + drawWidth - featherPx, 0);
+      gRight.addColorStop(0, solidColor);
+      gRight.addColorStop(1, transColor);
+      ctx.fillStyle = gRight;
+      ctx.fillRect(drawX + drawWidth - featherPx, drawY - 1, featherPx + 1, drawHeight + 2);
+    }
   } catch (err) {
     console.error('Error loading image for card', card.number, err);
   }
 
-  // 3. Draw Elaborate Frame Styles (Layer 3 - on top of image)
-  ctx.strokeStyle = style.borderColor || '#1C1917';
-
+  // 5. Draw Inner Frame Border (Línea negra continua estilo Lotería Mexicana clásica)
   if (style.frameStyle === 'talavera') {
-    // Outer border
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(6, 6, width - 12, height - 12);
-    // Inner fine border
-    ctx.lineWidth = 0.8;
-    ctx.strokeStyle = '#78716c';
-    ctx.strokeRect(10, 10, width - 20, height - 20);
-    // Talavera corner accents
-    ctx.strokeStyle = style.borderColor || '#1C1917';
-    ctx.lineWidth = 2;
-    // Corners
-    ctx.strokeRect(6, 6, 8, 8);
-    ctx.strokeRect(width - 14, 6, 8, 8);
-    ctx.strokeRect(6, height - 14, 8, 8);
-    ctx.strokeRect(width - 14, height - 14, 8, 8);
+    ctx.strokeStyle = '#141413';
+    ctx.lineWidth = 2.2;
+    ctx.strokeRect(innerX, innerY, innerW, innerH);
+    ctx.lineWidth = 0.7;
+    ctx.strokeStyle = 'rgba(20, 20, 19, 0.35)';
+    ctx.strokeRect(innerX + 3.5, innerY + 3.5, innerW - 7, innerH - 7);
   } else if (style.frameStyle === 'botanical_litho') {
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = style.borderColor || '#1C1917';
-    ctx.strokeRect(6, 6, width - 12, height - 12);
+    ctx.lineWidth = 2.0;
+    ctx.strokeStyle = '#141413';
+    ctx.strokeRect(innerX, innerY, innerW, innerH);
     ctx.lineWidth = 0.6;
-    ctx.strokeStyle = '#78716c';
-    ctx.strokeRect(9, 9, width - 18, height - 18);
-    // Corner rosettes (each must be an isolated subpath to avoid connecting diagonals)
-    ctx.fillStyle = style.borderColor || '#1C1917';
+    ctx.strokeStyle = 'rgba(20, 20, 19, 0.3)';
+    ctx.strokeRect(innerX + 3, innerY + 3, innerW - 6, innerH - 6);
+    ctx.fillStyle = '#141413';
     const drawRosette = (cx: number, cy: number) => {
       ctx.beginPath();
-      ctx.arc(cx, cy, 2.2, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 2.0, 0, Math.PI * 2);
       ctx.fill();
     };
-    drawRosette(10, 10);
-    drawRosette(width - 10, 10);
-    drawRosette(10, height - 10);
-    drawRosette(width - 10, height - 10);
+    drawRosette(innerX + 4, innerY + 4);
+    drawRosette(innerX + innerW - 4, innerY + 4);
+    drawRosette(innerX + 4, innerY + innerH - 4);
+    drawRosette(innerX + innerW - 4, innerY + innerH - 4);
   } else if (style.frameStyle === 'editorial_luxury') {
-    ctx.lineWidth = 0.8;
-    ctx.strokeStyle = '#d6d3d1';
-    ctx.strokeRect(8, 8, width - 16, height - 16);
-    // Corner registration marks
-    ctx.font = '10px monospace';
-    ctx.fillStyle = '#78716c';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('+', 8, 8);
-    ctx.fillText('+', width - 8, 8);
-    ctx.fillText('+', 8, height - 8);
-    ctx.fillText('+', width - 8, height - 8);
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = '#57534e';
+    ctx.strokeRect(innerX, innerY, innerW, innerH);
   } else if (style.frameStyle === 'organic_floral') {
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = style.borderColor || '#065f46';
-    ctx.strokeRect(6, 6, width - 12, height - 12);
-    // Leaf flourishes
-    ctx.fillStyle = style.borderColor || '#065f46';
-    ctx.font = '11px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('❦', 11, 11);
-    ctx.fillText('❦', width - 11, 11);
-    ctx.fillText('❦', 11, height - 11);
-    ctx.fillText('❦', width - 11, height - 11);
+    ctx.lineWidth = 2.0;
+    ctx.strokeStyle = '#064e3b';
+    ctx.strokeRect(innerX, innerY, innerW, innerH);
   } else {
-    // classic_loteria
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = style.borderColor || '#1C1917';
-    ctx.strokeRect(6, 6, width - 12, height - 12);
-    // Diamonds in corners
-    ctx.fillStyle = '#b45309';
-    const drawDiamond = (cx: number, cy: number, sz: number) => {
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - sz);
-      ctx.lineTo(cx + sz, cy);
-      ctx.lineTo(cx, cy + sz);
-      ctx.lineTo(cx - sz, cy);
-      ctx.closePath();
-      ctx.fill();
-    };
-    drawDiamond(12, 12, 4);
-    drawDiamond(width - 12, 12, 4);
-    drawDiamond(12, height - 12, 4);
-    drawDiamond(width - 12, height - 12, 4);
+    // classic_loteria: Pure crisp black line frame (like "LA DAMA")
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = '#141413';
+    ctx.strokeRect(innerX, innerY, innerW, innerH);
   }
 
-  // 4. Draw Card Number (Layer 4 - on top with crisp pill background)
-  ctx.font = 'bold 15px "Cinzel", "Times New Roman", serif';
+  // 6. Draw Card Number inside the black frame (directly on background color, no white patch)
+  const numFontSize = width >= 280 ? 17 : 14;
+  ctx.font = `bold ${numFontSize}px "Cinzel", "Times New Roman", serif`;
   ctx.textBaseline = 'top';
 
   const numText = card.number.toString();
-  const numMetrics = ctx.measureText(numText);
-  const numPadX = 3;
-  const numPadY = 1.5;
-
-  let numX = 14;
-  let numY = 14;
+  let numX = innerX + 9;
+  let numY = innerY + 7;
   if (style.numberPosition === 'top-right') {
-    numX = width - 18;
+    numX = innerX + innerW - 9;
     ctx.textAlign = 'right';
   } else if (style.numberPosition === 'bottom-left') {
-    numY = height - 26;
+    numY = innerY + innerH - numFontSize - 7;
     ctx.textAlign = 'left';
   } else if (style.numberPosition === 'bottom-right') {
-    numX = width - 18;
-    numY = height - 26;
+    numX = innerX + innerW - 9;
+    numY = innerY + innerH - numFontSize - 7;
     ctx.textAlign = 'right';
   } else {
     ctx.textAlign = 'left';
   }
 
-  // Subtle clean pill behind number for guaranteed high contrast
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.90)';
-  const pillX = ctx.textAlign === 'right' ? numX - numMetrics.width - numPadX : numX - numPadX;
-  ctx.fillRect(pillX, numY - numPadY, numMetrics.width + numPadX * 2, 17 + numPadY * 2);
-
-  ctx.fillStyle = style.textColor || '#1C1917';
+  ctx.fillStyle = effectiveTextColor;
   ctx.fillText(numText, numX, numY);
 
-  // 5. Draw Adaptive Name & Tagline (Layer 5 - on top of everything)
-  const baseFontSize = width >= 280 ? 15 : 13;
-  const maxTextWidth = width - 42;
+  // 7. Draw Adaptive Name & Tagline inside the black frame
+  const baseFontSize = width >= 280 ? 16 : 13.5;
+  const maxTextWidth = innerW - 24;
   drawAdaptiveText(
     ctx,
     card.name.toUpperCase(),
@@ -280,12 +286,12 @@ async function drawCardToCanvas(
     maxTextWidth,
     baseFontSize,
     '"Fraunces", "Playfair Display", Georgia, serif',
-    style.textColor || '#1C1917'
+    effectiveTextColor
   );
 
   if (hasTagline && card.tagline) {
     ctx.font = 'italic 8px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#78716c';
+    ctx.fillStyle = effectiveTextColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(card.tagline.trim(), width / 2, taglineCenterY, maxTextWidth);

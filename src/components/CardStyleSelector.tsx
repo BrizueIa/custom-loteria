@@ -74,6 +74,11 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
 
   const frameOptions: Array<{ id: FrameStyle; label: string; desc: string }> = [
     {
+      id: 'classic_loteria',
+      label: t('frame_classic'),
+      desc: t('frame_classic_desc')
+    },
+    {
       id: 'botanical_litho',
       label: t('frame_litho'),
       desc: t('frame_litho_desc')
@@ -82,11 +87,6 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
       id: 'talavera',
       label: t('frame_talavera'),
       desc: t('frame_talavera_desc')
-    },
-    {
-      id: 'classic_loteria',
-      label: t('frame_classic'),
-      desc: t('frame_classic_desc')
     },
     {
       id: 'editorial_luxury',

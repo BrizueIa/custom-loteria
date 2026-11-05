@@ -9,7 +9,7 @@ import { swapCardNumbers, generateBoards } from '../utils/loteriaEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 import { createCleanCardPlaceholder, DEFAULT_CARDS } from '../data/defaultCards';
 import { exportDeckToJson, validateAndParseDeckJson } from '../utils/deckIO';
-import { optimizeImage, isSvgDataUrl } from '../utils/imageOptimizer';
+import { optimizeImage, isSvgDataUrl, extractBackgroundColorFromImage } from '../utils/imageOptimizer';
 import { Images, LayoutGrid, Volume2, Lock, Globe, Download, Upload, QrCode } from 'lucide-react';
 
 interface GeneratorViewProps {
@@ -132,11 +132,14 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
       try {
         const dataUrl = await optimizeImage(file);
         if (dataUrl && newCards[targetIndex]) {
+          const autoBg = await extractBackgroundColorFromImage(dataUrl);
           const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
           newCards[targetIndex] = {
             ...newCards[targetIndex],
             name: cleanName || newCards[targetIndex].name,
-            image: dataUrl
+            image: dataUrl,
+            backgroundColor: autoBg,
+            featherEdges: true
           };
           loadedCount++;
         }
@@ -186,7 +189,8 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
     if (window.confirm(t('clear_all_photos_confirm'))) {
       const cleared = cards.map(c => ({
         ...c,
-        image: createCleanCardPlaceholder(c.name, c.number)
+        image: createCleanCardPlaceholder(c.name, c.number),
+        backgroundColor: '#FAF7F2'
       }));
       onUpdateCards(cleared);
     }
