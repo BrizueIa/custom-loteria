@@ -134,7 +134,8 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
           enabled: true,
           image: dataUrl,
           position: config.logo?.position || (config.numberPosition === 'top-left' ? 'top-right' : 'top-left'),
-          size: config.logo?.size || 'md',
+          size: config.logo?.size || 'sm',
+          scale: config.logo?.scale || 0.11,
           opacity: config.logo?.opacity ?? 1,
         },
       });
@@ -226,10 +227,11 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
     { id: 'bottom-right', label: t('pos_bottom_right') },
   ];
 
-  const logoSizes: Array<{ id: LogoSize; label: string }> = [
-    { id: 'sm', label: t('size_sm') },
-    { id: 'md', label: t('size_md') },
-    { id: 'lg', label: t('size_lg') },
+  const logoSizes: Array<{ id: LogoSize; label: string; scale: number }> = [
+    { id: 'xs', label: t('size_xs'), scale: 0.08 },
+    { id: 'sm', label: t('size_sm'), scale: 0.11 },
+    { id: 'md', label: t('size_md'), scale: 0.15 },
+    { id: 'lg', label: t('size_lg'), scale: 0.20 },
   ];
 
   const cardDimensionPresets: Array<{ id: CardDimensionPreset; label: string; desc: string }> = [
@@ -706,12 +708,24 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
 
                 {/* Size Selector */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                    {t('logo_size')}
-                  </label>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+                    <span>{t('logo_size')}</span>
+                    <span className="font-mono text-emerald-800 font-bold">
+                      {Math.round(
+                        (config.logo?.scale ??
+                          (config.logo?.size === 'xs'
+                            ? 0.08
+                            : config.logo?.size === 'sm'
+                            ? 0.11
+                            : config.logo?.size === 'lg'
+                            ? 0.20
+                            : 0.15)) * 100
+                      )}%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 mb-2">
                     {logoSizes.map((sz) => {
-                      const isSelected = (config.logo?.size || 'md') === sz.id;
+                      const isSelected = (config.logo?.size || 'sm') === sz.id;
                       return (
                         <button
                           key={sz.id}
@@ -726,6 +740,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                                 opacity: 1,
                                 ...(config.logo || {}),
                                 size: sz.id,
+                                scale: sz.scale,
                               },
                             })
                           }
@@ -739,6 +754,46 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Slider for precision sizing */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-stone-400 font-mono">4%</span>
+                    <input
+                      type="range"
+                      min="0.04"
+                      max="0.25"
+                      step="0.01"
+                      value={
+                        config.logo?.scale ??
+                        (config.logo?.size === 'xs'
+                          ? 0.08
+                          : config.logo?.size === 'sm'
+                          ? 0.11
+                          : config.logo?.size === 'lg'
+                          ? 0.20
+                          : 0.15)
+                      }
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        const sz: LogoSize =
+                          val <= 0.09 ? 'xs' : val <= 0.13 ? 'sm' : val <= 0.18 ? 'md' : 'lg';
+                        onChange({
+                          ...config,
+                          logo: {
+                            enabled: true,
+                            image: '',
+                            position: 'top-right',
+                            opacity: 1,
+                            ...(config.logo || {}),
+                            size: sz,
+                            scale: val,
+                          },
+                        });
+                      }}
+                      className="w-full accent-emerald-800 cursor-pointer"
+                    />
+                    <span className="text-[10px] text-stone-400 font-mono">25%</span>
                   </div>
                 </div>
 

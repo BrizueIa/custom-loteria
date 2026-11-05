@@ -250,6 +250,21 @@ describe('pdfGenerator', () => {
       // drawImage should be called for card illustration AND for the logo on each card
       expect(mockCtx.drawImage).toHaveBeenCalled();
       expect(mockCtx.drawImage.mock.calls.length).toBeGreaterThanOrEqual(mockCards.length * 2);
+
+      // Test with custom scale and xs preset
+      const miniLogoStyle: CardStyleConfig = {
+        ...mockStyle,
+        logo: {
+          enabled: true,
+          image: 'data:image/png;base64,mocklogo',
+          position: 'top-left',
+          size: 'xs',
+          scale: 0.08,
+          opacity: 0.8,
+        },
+      };
+      const blobMini = await generateCardsPDF(mockCards, miniLogoStyle, 4);
+      expect(blobMini).toBeInstanceOf(Blob);
     });
 
     it('supports card dimension presets (9 per page, 6 per page, 16 per page, and custom cm)', async () => {

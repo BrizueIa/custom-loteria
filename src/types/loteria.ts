@@ -20,13 +20,14 @@ export type NumberPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-
 export type NamePosition = 'bottom' | 'top';
 
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-export type LogoSize = 'sm' | 'md' | 'lg';
+export type LogoSize = 'xs' | 'sm' | 'md' | 'lg';
 
 export interface CardLogoConfig {
   enabled: boolean;
   image: string; // Base64 data URL
   position: LogoPosition;
   size: LogoSize;
+  scale?: number; // 0.04 to 0.30 (proportional size relative to card width)
   opacity?: number; // 0.1 to 1.0, default 1.0
 }
 

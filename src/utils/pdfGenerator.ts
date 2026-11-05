@@ -263,11 +263,20 @@ async function drawCardToCanvas(
       const lNh = logoImg.naturalHeight || logoImg.height || 1;
       const logoAspect = lNw / lNh;
 
-      const sizeScale = style.logo.size === 'sm' ? 0.16 : style.logo.size === 'lg' ? 0.30 : 0.23;
+      const sizeScale =
+        style.logo.scale !== undefined && style.logo.scale > 0
+          ? style.logo.scale
+          : style.logo.size === 'xs'
+          ? 0.08
+          : style.logo.size === 'sm'
+          ? 0.11
+          : style.logo.size === 'lg'
+          ? 0.20
+          : 0.15;
       const logoW = Math.round(innerW * sizeScale);
       const logoH = Math.round(logoW / logoAspect);
 
-      const cornerPad = Math.max(5, Math.round(innerW * 0.025));
+      const cornerPad = Math.max(4, Math.round(innerW * 0.02));
       let lx = innerX + cornerPad;
       let ly = innerY + cornerPad;
 

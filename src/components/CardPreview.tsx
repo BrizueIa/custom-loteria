@@ -74,21 +74,42 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     }
   };
 
+  const getLogoScale = () => {
+    if (style.logo?.scale !== undefined && style.logo.scale > 0) {
+      return style.logo.scale;
+    }
+    const sz = style.logo?.size || 'sm';
+    switch (sz) {
+      case 'xs':
+        return 0.08;
+      case 'sm':
+        return 0.11;
+      case 'lg':
+        return 0.20;
+      case 'md':
+      default:
+        return 0.15;
+    }
+  };
+
   const getLogoSizeClass = () => {
-    const sz = style.logo?.size || 'md';
+    const sz = style.logo?.size || 'sm';
     if (isBoard) {
+      if (sz === 'xs') return 'w-2 h-2';
       if (sz === 'sm') return 'w-2.5 h-2.5';
-      if (sz === 'lg') return 'w-4.5 h-4.5';
-      return 'w-3.5 h-3.5';
+      if (sz === 'lg') return 'w-4 h-4';
+      return 'w-3 h-3';
     }
     if (isGrid) {
-      if (sz === 'sm') return 'w-4 h-4 sm:w-5 sm:h-5';
-      if (sz === 'lg') return 'w-7 h-7 sm:w-8 sm:h-8';
-      return 'w-5.5 h-5.5 sm:w-6.5 sm:h-6.5';
+      if (sz === 'xs') return 'w-3 h-3';
+      if (sz === 'sm') return 'w-4 h-4';
+      if (sz === 'lg') return 'w-6 h-6';
+      return 'w-5 h-5';
     }
-    if (sz === 'sm') return 'w-8 h-8 sm:w-10 sm:h-10';
-    if (sz === 'lg') return 'w-14 h-14 sm:w-16 sm:h-16';
-    return 'w-11 h-11 sm:w-13 sm:h-13';
+    if (sz === 'xs') return 'w-5 h-5 sm:w-6 sm:h-6';
+    if (sz === 'sm') return 'w-7 h-7 sm:w-8 sm:h-8';
+    if (sz === 'lg') return 'w-12 h-12 sm:w-13 sm:h-13';
+    return 'w-9 h-9 sm:w-10 sm:h-10';
   };
 
   // Dynamic font size so names adapt cleanly without awkward linebreaks
@@ -255,13 +276,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         {/* Optional Logo in selected corner */}
         {style.logo?.enabled && style.logo.image && (
           <div
-            style={{ opacity: style.logo.opacity ?? 1 }}
+            style={{
+              opacity: style.logo.opacity ?? 1,
+              width: `${getLogoScale() * 100}%`,
+              maxWidth: `${getLogoScale() * 100}%`,
+            }}
             className={`absolute ${getLogoPositionClass()} ${getLogoSizeClass()} z-25 pointer-events-none flex items-center justify-center p-0.5`}
           >
             <img
               src={style.logo.image}
               alt="Logo"
-              className="max-w-full max-h-full object-contain"
+              className="w-full h-auto max-h-full object-contain"
             />
           </div>
         )}

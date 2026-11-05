@@ -116,5 +116,25 @@ describe('CardPreview', () => {
     const logoContainer = logoImg.parentElement;
     expect(logoContainer?.className).toContain('bottom-1.5 right-1.5');
     expect(logoContainer?.style.opacity).toBe('0.85');
+    expect(logoContainer?.style.width).toBe('15%');
+  });
+
+  it('renders logo with xs (mini) and custom scale', () => {
+    const styleWithMiniLogo: CardStyleConfig = {
+      ...baseStyle,
+      logo: {
+        enabled: true,
+        image: 'data:image/png;base64,mockLogo',
+        position: 'top-right',
+        size: 'xs',
+        scale: 0.08,
+        opacity: 0.9,
+      },
+    };
+    render(<CardPreview card={mockCard} style={styleWithMiniLogo} />);
+    const logoImg = screen.getByAltText('Logo');
+    const logoContainer = logoImg.parentElement;
+    expect(logoContainer?.className).toContain('top-1.5 right-1.5');
+    expect(logoContainer?.style.width).toBe('8%');
   });
 });
