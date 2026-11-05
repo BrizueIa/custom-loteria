@@ -8,6 +8,7 @@ interface CardsGridViewProps {
   cards: LoteriaCard[];
   cardStyle: CardStyleConfig;
   onSelectCard: (index: number) => void;
+  onUpdateCardName?: (cardId: string, newName: string) => void;
   onBatchUpload: (files: FileList) => void;
   onClearAllImages?: () => void;
   onResetToDefaultDeck?: () => void;
@@ -19,6 +20,7 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
   cards,
   cardStyle,
   onSelectCard,
+  onUpdateCardName,
   onBatchUpload,
   onClearAllImages,
   onResetToDefaultDeck,
@@ -142,30 +144,53 @@ export const CardsGridView: React.FC<CardsGridViewProps> = ({
                 />
               </div>
 
-              {/* Footer: Cover badge OR Quick swap number selector */}
-              <div className="w-full mt-1.5 pt-1 border-t border-stone-100 flex items-center justify-between px-1">
-                {isCover ? (
-                  <span className="w-full text-center text-[10px] sm:text-[11px] font-mono font-extrabold text-amber-900 bg-amber-100/80 border border-amber-300/80 rounded-md py-0.5 uppercase tracking-wide">
-                    {language === 'en' ? 'COVER (NO #)' : 'TAPA (SIN #)'}
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-[10px] sm:text-xs font-mono font-bold text-stone-400">#{card.number}</span>
-                    <select
-                      value={card.number}
-                      onChange={(e) => onSwapNumber(card.id, parseInt(e.target.value, 10))}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[10px] sm:text-xs font-mono font-bold bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-colors cursor-pointer"
-                      title="Cambiar número de carta"
-                    >
-                      {playableCards.map(c => (
-                        <option key={c.number} value={c.number}>
-                          {c.number}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
+              {/* Footer: Editable Number + Editable Name */}
+              <div className="w-full mt-1.5 pt-1 border-t border-stone-100 flex flex-col gap-1 px-0.5">
+                <div className="flex items-center justify-between gap-1 w-full">
+                  {isCover ? (
+                    <span className="text-[10px] font-mono font-extrabold text-amber-900 bg-amber-100/80 border border-amber-300/80 rounded px-1.5 py-0.5 uppercase tracking-wide">
+                      {language === 'en' ? 'COVER' : 'PORTADA'}
+                    </span>
+                  ) : (
+                    <div className="flex items-center">
+                      <select
+                        value={card.number}
+                        onChange={(e) => onSwapNumber(card.id, parseInt(e.target.value, 10))}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] sm:text-[11px] font-mono font-bold bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-colors cursor-pointer"
+                        title="Cambiar número de carta"
+                      >
+                        {playableCards.map(c => (
+                          <option key={c.number} value={c.number}>
+                            #{c.number}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectCard(idx);
+                    }}
+                    className="text-[10px] text-stone-400 hover:text-emerald-700 transition-colors p-0.5 rounded cursor-pointer"
+                    title="Editar foto y detalles"
+                  >
+                    ✏️
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={card.name}
+                  onChange={(e) => onUpdateCardName?.(card.id, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder={isCover ? 'Portada' : 'Nombre'}
+                  className="w-full text-[10px] sm:text-[11px] font-bold text-stone-800 bg-stone-50 hover:bg-white focus:bg-white border border-stone-200 hover:border-stone-300 focus:border-emerald-600 rounded px-1 py-0.5 text-center truncate focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all cursor-text"
+                  title="Editar nombre directamente"
+                />
               </div>
             </div>
           );

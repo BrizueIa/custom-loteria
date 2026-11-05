@@ -39,14 +39,14 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const getNumberClass = () => {
     switch (style.numberPosition) {
       case 'top-right':
-        return isBoard ? 'top-0.5 right-1' : isGrid ? 'top-1 right-1.5' : 'top-1.5 right-2.5';
+        return isBoard ? 'top-0.5 right-1' : isGrid ? 'top-1 right-1' : 'top-1.5 right-2.5';
       case 'bottom-left':
-        return isBoard ? 'bottom-0.5 left-1' : isGrid ? 'bottom-1 left-1.5' : 'bottom-1.5 left-2.5';
+        return isBoard ? 'bottom-0.5 left-1' : isGrid ? 'bottom-1 left-1' : 'bottom-1.5 left-2.5';
       case 'bottom-right':
-        return isBoard ? 'bottom-0.5 right-1' : isGrid ? 'bottom-1 right-1.5' : 'bottom-1.5 right-2.5';
+        return isBoard ? 'bottom-0.5 right-1' : isGrid ? 'bottom-1 right-1' : 'bottom-1.5 right-2.5';
       case 'top-left':
       default:
-        return isBoard ? 'top-0.5 left-1' : isGrid ? 'top-1 left-1.5' : 'top-1.5 left-2.5';
+        return isBoard ? 'top-0.5 left-1' : isGrid ? 'top-1 left-1' : 'top-1.5 left-2.5';
     }
   };
 
@@ -55,7 +55,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       return 'text-[7.5px] font-black leading-none';
     }
     if (isGrid) {
-      return 'text-xs sm:text-sm font-black leading-none';
+      return 'text-[8.5px] sm:text-[10px] font-black leading-none';
     }
     return 'text-base sm:text-lg font-black leading-none';
   };
@@ -69,9 +69,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       if (len > 11) return 'text-[6px] leading-[1.1] tracking-tight';
       return 'text-[7px] leading-tight';
     } else if (isGrid) {
-      if (len > 22) return 'text-[9px] sm:text-[11px] leading-tight tracking-tight';
-      if (len > 15) return 'text-[10px] sm:text-xs leading-tight tracking-tight';
-      return 'text-xs sm:text-sm leading-snug font-extrabold tracking-wide';
+      if (len > 22) return 'text-[6.5px] sm:text-[7.5px] leading-[1.1] tracking-tight';
+      if (len > 15) return 'text-[7.5px] sm:text-[8.5px] leading-[1.1] tracking-tight';
+      if (len > 10) return 'text-[8.5px] sm:text-[9.5px] leading-tight tracking-normal font-bold';
+      return 'text-[9.5px] sm:text-[10.5px] leading-tight font-extrabold tracking-normal';
     } else {
       if (len > 24) return 'text-xs leading-tight tracking-wide';
       if (len > 18) return 'text-sm leading-tight tracking-wide';
@@ -167,7 +168,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       ? isBoard
         ? 'pt-2'
         : isGrid
-        ? 'pt-4 sm:pt-5'
+        ? 'pt-2.5 sm:pt-3'
         : 'pt-6 sm:pt-7'
       : isBoard
       ? 'pt-0.5'
@@ -180,7 +181,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       ? isBoard
         ? 'pb-2'
         : isGrid
-        ? 'pb-4 sm:pb-5'
+        ? 'pb-2.5 sm:pb-3'
         : 'pb-6 sm:pb-7'
       : isBoard
       ? 'pb-0.5'
@@ -234,13 +235,13 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
               isBoard
                 ? 'pt-0.5 pb-0 px-1'
                 : isGrid
-                ? 'pt-1 sm:pt-1.5 pb-0.5 px-2'
+                ? 'pt-0.5 sm:pt-1 pb-0.5 px-1'
                 : 'pt-2 sm:pt-2.5 pb-0.5 px-4'
             }`}
           >
             <h4
               style={{ color: effectiveTextColor }}
-              className={`font-loteria-card font-bold uppercase break-normal whitespace-normal ${getNameFontSize()}`}
+              className={`font-loteria-card font-bold uppercase break-words line-clamp-2 max-w-full text-center ${getNameFontSize()}`}
             >
               {card.name}
             </h4>
@@ -258,7 +259,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         {/* Zone 2: Dedicated Central Illustration Area (never overlapped by number or name) */}
         <div
           className={`flex-1 w-full min-h-0 relative flex items-center justify-center overflow-hidden z-10 ${topNumberClearance} ${bottomNumberClearance} ${
-            isBoard ? 'px-0.5' : isGrid ? 'px-1.5' : 'px-2.5'
+            isBoard ? 'px-0.5' : isGrid ? 'px-0.5' : 'px-2.5'
           }`}
         >
           <img
@@ -280,13 +281,13 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
               isBoard
                 ? 'pt-0 pb-0.5 px-0.5'
                 : isGrid
-                ? 'pt-0.5 pb-1 sm:pb-1.5 px-2'
+                ? 'pt-0 pb-0.5 sm:pb-1 px-1'
                 : 'pt-0.5 pb-2 sm:pb-2.5 px-4'
             }`}
           >
             <h4
               style={{ color: effectiveTextColor }}
-              className={`font-loteria-card font-bold uppercase break-normal whitespace-normal ${getNameFontSize()}`}
+              className={`font-loteria-card font-bold uppercase break-words line-clamp-2 max-w-full text-center ${getNameFontSize()}`}
             >
               {card.name}
             </h4>

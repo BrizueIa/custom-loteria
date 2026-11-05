@@ -535,7 +535,6 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
 
   const currentCard = currentIndex >= 0 ? shuffledDeck[currentIndex] : null;
   const calledCards = shuffledDeck.slice(0, currentIndex + 1);
-  const activeVoicesCatalog = getVoicesCatalog(language);
 
   // Reglas de juego para evitar romper partidas en curso:
   const isDesempateAllowed = hasCalledBuenas;
@@ -830,64 +829,26 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
               </div>
             </div>
 
-            {/* Selector de Voces según el Idioma */}
+            {/* Selector de Voz del Dispositivo */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">
                   {t('caller_voice')}
                 </label>
-                <span className="text-[10px] text-stone-400">{t('tap_to_listen')}</span>
+                <span className="text-[10px] text-stone-400">
+                  {voices.length > 0
+                    ? `${voices.length} ${language === 'en' ? 'voices available' : 'voces detectadas'}`
+                    : language === 'en'
+                    ? 'System synthesizer'
+                    : 'Sintetizador del sistema'}
+                </span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {activeVoicesCatalog.map((v) => {
-                  const isSelected = selectedVoiceId === v.id;
-                  return (
-                    <button
-                      key={v.id}
-                      onClick={() => {
-                        setSelectedVoiceId(v.id);
-                        handleTestVoice(v.id);
-                      }}
-                      className={`text-left p-2.5 rounded-2xl border transition-all ${
-                        isSelected
-                          ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-500/30 shadow-xs'
-                          : 'border-stone-200 hover:border-stone-300 bg-stone-50/60'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-stone-900 leading-tight">{v.name}</span>
-                        {isSelected && <span className="text-[10px] text-amber-700 font-bold">✓</span>}
-                      </div>
-                      <span className="text-[10px] font-semibold text-stone-800 bg-stone-200/70 px-1.5 py-0.5 rounded mt-1 inline-block">
-                        {v.badge}
-                      </span>
-                      <p className="text-[10px] text-stone-500 mt-1 line-clamp-1 leading-tight">{v.desc}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Botón de Prueba */}
-            <button
-              onClick={() => handleTestVoice(selectedVoiceId)}
-              disabled={isTestingVoice}
-              className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-stone-200 transition-colors"
-            >
-              <Volume2 className="w-4 h-4 text-stone-600" />
-              {isTestingVoice ? '...' : language === 'en' ? '🔊 Test Caller Voice (Sample Card)' : '🔊 Probar Voz del Cantador (Ejemplo de Carta)'}
-            </button>
-
-            {/* Voz del sistema si está disponible */}
-            {voices.length > 0 && (
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  {t('device_voice', { count: voices.length })}
-                </label>
+              {voices.length > 0 ? (
                 <select
                   value={selectedVoiceURI}
                   onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-200 text-xs rounded-xl p-2 font-medium"
+                  className="w-full bg-white border border-stone-300 text-xs rounded-xl p-2.5 font-medium text-stone-800 focus:outline-none focus:ring-1 focus:ring-amber-600 shadow-2xs cursor-pointer"
                 >
                   {voices.map((v) => (
                     <option key={v.voiceURI} value={v.voiceURI}>
@@ -895,8 +856,26 @@ export const CantadorView: React.FC<CantadorViewProps> = ({
                     </option>
                   ))}
                 </select>
-              </div>
-            )}
+              ) : (
+                <div className="bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-600">
+                  {language === 'en' ? 'Standard device voice' : 'Voz estándar del dispositivo'}
+                </div>
+              )}
+
+              {/* Botón de Prueba */}
+              <button
+                onClick={() => handleTestVoice()}
+                disabled={isTestingVoice}
+                className="w-full mt-2 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-stone-200 transition-colors cursor-pointer"
+              >
+                <Volume2 className="w-4 h-4 text-stone-600" />
+                {isTestingVoice
+                  ? '...'
+                  : language === 'en'
+                  ? '🔊 Test Voice ("¡Buenas!")'
+                  : '🔊 Probar Voz ("¡Buenas!")'}
+              </button>
+            </div>
 
             {/* Sliders de Tiempo y Velocidad */}
             <div className="space-y-3 pt-1">

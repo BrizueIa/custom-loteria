@@ -101,6 +101,11 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
     onUpdateCards(newCards);
   };
 
+  const handleUpdateCardName = (cardId: string, newName: string) => {
+    const newCards = cards.map(c => (c.id === cardId ? { ...c, name: newName } : c));
+    onUpdateCards(newCards);
+  };
+
   const handleSwapNumber = (cardId: string, newNumber: number) => {
     const swapped = swapCardNumbers(cards, cardId, newNumber);
     onUpdateCards(swapped);
@@ -396,6 +401,7 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
                 setActiveCardIndex(idx);
                 setSubView('swipe');
               }}
+              onUpdateCardName={handleUpdateCardName}
               onBatchUpload={handleBatchUpload}
               onClearAllImages={handleClearAllImages}
               onResetToDefaultDeck={handleResetToDefaultDeck}
