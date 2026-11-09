@@ -198,4 +198,25 @@ describe('CardPreview', () => {
     // On board, it absorbs the yellow board background
     expect(outerCardDiv.style.backgroundColor).toBe('rgb(254, 240, 138)');
   });
+
+  it('renders rounded corners on outer and inner containers when cardCornerRadius is set', () => {
+    const roundedStyle: CardStyleConfig = {
+      ...baseStyle,
+      cardCornerRadius: 'md',
+    };
+    const { container } = render(<CardPreview card={mockCard} style={roundedStyle} />);
+    const outerCardDiv = container.firstChild as HTMLElement;
+    expect(outerCardDiv.className).toContain('rounded-2xl');
+
+    const innerDiv = outerCardDiv.firstChild as HTMLElement;
+    expect(innerDiv.className).toContain('rounded-xl');
+  });
+
+  it('applies proportional padding (4.5%) on board variant when not flush', () => {
+    const { container } = render(
+      <CardPreview card={mockCard} style={baseStyle} variant="board" />
+    );
+    const outerCardDiv = container.firstChild as HTMLElement;
+    expect(outerCardDiv.style.padding).toBe('4.5%');
+  });
 });

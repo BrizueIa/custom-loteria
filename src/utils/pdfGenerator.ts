@@ -83,8 +83,52 @@ function drawAdaptiveText(
 }
 
 /**
+ * Traces a rounded rectangle path on canvas 2D context
+ */
+function traceRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  if (radius <= 0) {
+    if (typeof ctx.rect === 'function') {
+      ctx.rect(x, y, w, h);
+    } else {
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + w, y);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.closePath();
+    }
+    return;
+  }
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  if (typeof ctx.arcTo === 'function') {
+    ctx.arcTo(x + w, y, x + w, y + radius, radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius);
+    ctx.lineTo(x + radius, y + h);
+    ctx.arcTo(x, y + h, x, y + h - radius, radius);
+    ctx.lineTo(x, y + radius);
+    ctx.arcTo(x, y, x + radius, y, radius);
+  } else {
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/**
  * Draws a single card onto canvas context with classic Mexican Loteria layout:
- * - White outer margin around all 4 sides
+ * - White outer margin around all 4 sides (with optional rounded corners)
  * - Crisp black inner frame filled with card's unified background color
  * - 3 non-overlapping internal zones (number clearance, central image with feathered edges, name inside frame)
  */
@@ -96,7 +140,8 @@ async function drawCardToCanvas(
   scaleFactor: number = 3,
   jpegQuality: number = 0.98,
   outerMarginColor?: string,
-  isFlush: boolean = false
+  isFlush: boolean = false,
+  sheetBgColor: string = '#FFFFFF'
 ): Promise<string> {
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(width * scaleFactor);
@@ -108,29 +153,54 @@ async function drawCardToCanvas(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // 1. Outer Margin (Paspartú en los 4 costados: blanco clásico, color de la hoja o personalizado)
+  // Corner radius calculations
+  const cornerRadius = style.cardCornerRadius || 'none';
+  let outerRadiusPx = 0;
+  if (cornerRadius === 'sm') outerRadiusPx = width * 0.035;
+  else if (cornerRadius === 'md') outerRadiusPx = width * 0.06;
+  else if (cornerRadius === 'lg') outerRadiusPx = width * 0.09;
+
+  // 1. Fill base with sheet paper background if corners are rounded
+  if (outerRadiusPx > 0) {
+    ctx.fillStyle = sheetBgColor;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  // Outer Margin (Paspartú en los 4 costados: blanco clásico, color de la hoja o personalizado)
   const marginMode = style.cardOuterMarginMode || 'solid';
   const effectiveOuterBg =
     marginMode === 'match_board'
       ? (outerMarginColor || style.cardOuterMarginColor || '#FFFFFF')
       : (style.cardOuterMarginColor || outerMarginColor || '#FFFFFF');
   ctx.fillStyle = effectiveOuterBg;
-  ctx.fillRect(0, 0, width, height);
+  if (outerRadiusPx > 0) {
+    traceRoundedRect(ctx, 0, 0, width, height, outerRadiusPx);
+    ctx.fill();
+  } else {
+    ctx.fillRect(0, 0, width, height);
+  }
 
   // 2. Inner Framed Area filled with the absorbed card background color
   const effectiveFlush = isFlush || marginMode === 'flush';
-  const inset = effectiveFlush ? Math.max(1, Math.round(width * 0.008)) : Math.max(8, Math.round(width * 0.042));
+  const inset = effectiveFlush ? Math.max(1, Math.round(width * 0.008)) : Math.max(8, Math.round(width * 0.045));
   const innerX = inset;
   const innerY = inset;
   const innerW = width - inset * 2;
   const innerH = height - inset * 2;
+
+  const innerRadiusPx = Math.max(0, outerRadiusPx > 0 ? outerRadiusPx - inset * 0.6 : 0);
 
   const innerBgColor = card.backgroundColor || style.cardBgColor || '#FFFFFF';
   const effectiveTextColor = getContrastingTextColor(innerBgColor, style.textColor);
   const shouldFeather = card.featherEdges !== false && !isSvgDataUrl(card.image);
 
   ctx.fillStyle = innerBgColor;
-  ctx.fillRect(innerX, innerY, innerW, innerH);
+  if (innerRadiusPx > 0) {
+    traceRoundedRect(ctx, innerX, innerY, innerW, innerH, innerRadiusPx);
+    ctx.fill();
+  } else {
+    ctx.fillRect(innerX, innerY, innerW, innerH);
+  }
 
   const hasTagline = Boolean(style.showTaglineOnCard && card.tagline && card.tagline.trim());
   const isCoverCard = card.number === 0 || Boolean(card.isCover);
@@ -227,9 +297,13 @@ async function drawCardToCanvas(
 
   // 5. Draw Inner Frame Border (Línea continua estilo Lotería Mexicana clásica o marco seleccionado)
   const frameBorderColor = style.borderColor || '#141413';
+  ctx.strokeStyle = frameBorderColor;
 
-  if (style.frameStyle === 'talavera') {
-    ctx.strokeStyle = frameBorderColor;
+  if (innerRadiusPx > 0) {
+    ctx.lineWidth = 2.4;
+    traceRoundedRect(ctx, innerX, innerY, innerW, innerH, innerRadiusPx);
+    ctx.stroke();
+  } else if (style.frameStyle === 'talavera') {
     ctx.lineWidth = 2.2;
     ctx.strokeRect(innerX, innerY, innerW, innerH);
     ctx.lineWidth = 0.7;
@@ -237,7 +311,6 @@ async function drawCardToCanvas(
     ctx.strokeRect(innerX + 3.5, innerY + 3.5, innerW - 7, innerH - 7);
   } else if (style.frameStyle === 'botanical_litho') {
     ctx.lineWidth = 2.0;
-    ctx.strokeStyle = frameBorderColor;
     ctx.strokeRect(innerX, innerY, innerW, innerH);
     ctx.lineWidth = 0.6;
     ctx.strokeStyle = 'rgba(20, 20, 19, 0.3)';
@@ -263,7 +336,6 @@ async function drawCardToCanvas(
   } else {
     // classic_loteria: Pure crisp line frame (like "LA DAMA")
     ctx.lineWidth = 2.4;
-    ctx.strokeStyle = frameBorderColor;
     ctx.strokeRect(innerX, innerY, innerW, innerH);
   }
 
@@ -438,6 +510,16 @@ export async function generateCardsPDF(
   const totalCards = cards.length;
   let cardIndex = 0;
 
+  const cornerRadius = style.cardCornerRadius || 'none';
+  const outerRadiusMm =
+    cornerRadius === 'sm'
+      ? cardWidthMm * 0.035
+      : cornerRadius === 'md'
+      ? cardWidthMm * 0.06
+      : cornerRadius === 'lg'
+      ? cardWidthMm * 0.09
+      : 0;
+
   while (cardIndex < totalCards) {
     if (cardIndex > 0) doc.addPage();
 
@@ -454,7 +536,7 @@ export async function generateCardsPDF(
         const baseW = 320;
         const baseH = Math.round(baseW * (cardHeightMm / cardWidthMm));
 
-        const dataUrl = await drawCardToCanvas(card, style, baseW, baseH, scaleFactor, jpegQuality);
+        const dataUrl = await drawCardToCanvas(card, style, baseW, baseH, scaleFactor, jpegQuality, undefined, false, '#FFFFFF');
         doc.addImage(dataUrl, 'JPEG', x, y, cardWidthMm, cardHeightMm, undefined, 'NONE');
 
         // Borde exterior / delimitador de la carta o guía de corte
@@ -463,7 +545,11 @@ export async function generateCardsPDF(
           const borderRgb = hexToRgb(cardBorder);
           doc.setDrawColor(borderRgb.r, borderRgb.g, borderRgb.b);
           doc.setLineWidth(cardBorder === '#141413' ? 0.3 : 0.18);
-          doc.rect(x, y, cardWidthMm, cardHeightMm, 'S');
+          if (outerRadiusMm > 0 && typeof (doc as any).roundedRect === 'function') {
+            (doc as any).roundedRect(x, y, cardWidthMm, cardHeightMm, outerRadiusMm, outerRadiusMm, 'S');
+          } else {
+            doc.rect(x, y, cardWidthMm, cardHeightMm, 'S');
+          }
         }
 
         cardIndex++;
@@ -753,11 +839,20 @@ export async function generateBoardsPDF(
         : (cardStyle.cardOuterMarginColor || boardConfig.cardOuterMarginCustomColor || '#FFFFFF');
     const isFlush = marginMode === 'flush';
 
-    const cardBorderColor =
-      cardStyle.cardOuterBorderColor ??
-      (boardConfig.cardOuterMarginMode === 'white' ? '#D6D3D1' : 'none');
+    // Outer border defaults to subtle gray #D6D3D1 unless explicitly set to 'none'
+    const cardBorderColor = cardStyle.cardOuterBorderColor ?? '#D6D3D1';
     const hasCardBorder = cardBorderColor !== 'none';
     const cardBorderRgb = hasCardBorder ? hexToRgb(cardBorderColor) : null;
+
+    const boardCornerRadius = cardStyle.cardCornerRadius || 'none';
+    const boardCardRadiusMm =
+      boardCornerRadius === 'sm'
+        ? cardRenderW * 0.035
+        : boardCornerRadius === 'md'
+        ? cardRenderW * 0.06
+        : boardCornerRadius === 'lg'
+        ? cardRenderW * 0.09
+        : 0;
 
     for (let r = 0; r < boardConfig.rows; r++) {
       for (let c = 0; c < boardConfig.cols; c++) {
@@ -767,7 +862,7 @@ export async function generateBoardsPDF(
         const cellX = gridX + c * cellWidth + pad;
         const cellY = gridY + r * cellHeight + pad;
 
-        const cacheKey = `${card.id}-${canvasPxW}x${canvasPxH}-${scaleFactor}-${effectiveOuterMarginColor}-${isFlush}`;
+        const cacheKey = `${card.id}-${canvasPxW}x${canvasPxH}-${scaleFactor}-${effectiveOuterMarginColor}-${isFlush}-${boardCornerRadius}-${paperBgColor}`;
         let cardDataUrl = renderedCardCache.get(cacheKey);
         if (!cardDataUrl) {
           cardDataUrl = await drawCardToCanvas(
@@ -778,7 +873,8 @@ export async function generateBoardsPDF(
             scaleFactor,
             jpegQuality,
             effectiveOuterMarginColor,
-            isFlush
+            isFlush,
+            paperBgColor
           );
           renderedCardCache.set(cacheKey, cardDataUrl);
         }
@@ -788,7 +884,11 @@ export async function generateBoardsPDF(
         if (hasCardBorder && cardBorderRgb) {
           doc.setDrawColor(cardBorderRgb.r, cardBorderRgb.g, cardBorderRgb.b);
           doc.setLineWidth(cardBorderColor === '#141413' ? 0.3 : 0.18);
-          doc.rect(cellX, cellY, cardRenderW, cardRenderH, 'S');
+          if (boardCardRadiusMm > 0 && typeof (doc as any).roundedRect === 'function') {
+            (doc as any).roundedRect(cellX, cellY, cardRenderW, cardRenderH, boardCardRadiusMm, boardCardRadiusMm, 'S');
+          } else {
+            doc.rect(cellX, cellY, cardRenderW, cardRenderH, 'S');
+          }
         }
 
         cardCellIdx++;

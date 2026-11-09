@@ -9,6 +9,9 @@ const mockCtx = {
   strokeRect: vi.fn(),
   beginPath: vi.fn(),
   arc: vi.fn(),
+  arcTo: vi.fn(),
+  rect: vi.fn(),
+  clip: vi.fn(),
   moveTo: vi.fn(),
   lineTo: vi.fn(),
   closePath: vi.fn(),
@@ -66,6 +69,7 @@ vi.mock('jspdf', () => {
       setFont = vi.fn();
       setFontSize = vi.fn();
       rect = vi.fn();
+      roundedRect = vi.fn();
       line = vi.fn();
       triangle = vi.fn();
       text = vi.fn();
@@ -366,6 +370,31 @@ describe('pdfGenerator', () => {
       };
       const blob = await generateBoardsPDF(singleBoard, testBoardConfig, customCardStyle);
       expect(blob).toBeInstanceOf(Blob);
+    });
+
+    it('renders rounded cards with roundedRect when cardCornerRadius is set', async () => {
+      const roundedStyle: CardStyleConfig = {
+        ...mockStyle,
+        cardCornerRadius: 'md',
+        cardOuterBorderColor: '#141413',
+      };
+      const blobCards = await generateCardsPDF(mockCards, roundedStyle, 4);
+      expect(blobCards).toBeInstanceOf(Blob);
+
+      const singleBoard: GeneratedBoard[] = [{
+        id: 'board-rounded',
+        index: 1,
+        cards: [mockCards[0]],
+      }];
+      const testBoardConfig: BoardConfig = {
+        rows: 1,
+        cols: 1,
+        allowDuplicates: false,
+        quantity: 1,
+        title: 'TEST ROUNDED',
+      };
+      const blobBoards = await generateBoardsPDF(singleBoard, testBoardConfig, roundedStyle);
+      expect(blobBoards).toBeInstanceOf(Blob);
     });
   });
 });

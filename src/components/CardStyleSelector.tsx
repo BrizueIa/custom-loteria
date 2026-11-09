@@ -338,7 +338,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                 style={config}
                 isEyedropperActive={Boolean(activeEyedropperTarget)}
                 onPickColor={handleCardEyedropperPick}
-                className="w-full h-full shadow-md"
+                className={`w-full h-full ${config.cardOuterBorderColor === 'none' ? 'shadow-2xs' : 'shadow-md'}`}
               />
             </div>
 
@@ -411,7 +411,7 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
               {t('final_preview')}
             </span>
             <div className="w-64 aspect-[3/4] relative">
-              <CardPreview card={activeSampleCard} style={config} className="w-full h-full shadow-lg" />
+              <CardPreview card={activeSampleCard} style={config} className={`w-full h-full ${config.cardOuterBorderColor === 'none' ? 'shadow-2xs' : 'shadow-lg'}`} />
             </div>
             <p className="text-[11px] text-stone-500 text-center mt-3">
               Proporción y marco idénticos al formato de impresión en PDF.
@@ -1299,6 +1299,70 @@ export const CardStyleSelector: React.FC<CardStyleSelectorProps> = ({
                     isEyedropperActive={activeEyedropperTarget === 'cardOuterBorderColor'}
                   />
                 </div>
+              </div>
+
+              {/* Aviso cuando el margen blanco no tiene contorno */}
+              {config.cardOuterBorderColor === 'none' &&
+                config.cardOuterMarginMode !== 'flush' &&
+                isLightColor(config.cardOuterMarginColor || '#FFFFFF') && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm shrink-0">💡</span>
+                      <span className="text-[11px] leading-tight">
+                        {t('white_margin_no_border_warning')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onChange({ ...config, cardOuterBorderColor: '#D6D3D1' })}
+                      className="px-2.5 py-1 bg-amber-800 text-white rounded-lg text-[10px] font-bold shrink-0 hover:bg-amber-900 cursor-pointer shadow-2xs transition-colors"
+                    >
+                      {t('activate_gray_border')}
+                    </button>
+                  </div>
+                )}
+            </div>
+
+            {/* E. Esquinas de la Tarjeta */}
+            <div className="pt-2.5 border-t border-stone-200/60 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600">
+                  {t('card_corner_radius_title')}
+                </label>
+                <span className="text-[10px] font-bold text-emerald-800">
+                  {(config.cardCornerRadius || 'none') === 'none'
+                    ? t('corner_none')
+                    : config.cardCornerRadius === 'sm'
+                    ? t('corner_sm')
+                    : config.cardCornerRadius === 'md'
+                    ? t('corner_md')
+                    : t('corner_lg')}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { id: 'none', label: t('corner_none'), radiusClass: 'rounded-none' },
+                  { id: 'sm', label: t('corner_sm'), radiusClass: 'rounded-xs' },
+                  { id: 'md', label: t('corner_md'), radiusClass: 'rounded-md' },
+                  { id: 'lg', label: t('corner_lg'), radiusClass: 'rounded-xl' },
+                ].map((cr) => {
+                  const isSelected = (config.cardCornerRadius || 'none') === cr.id;
+                  return (
+                    <button
+                      key={cr.id}
+                      type="button"
+                      onClick={() => onChange({ ...config, cardCornerRadius: cr.id as any })}
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                        isSelected
+                          ? 'border-emerald-800 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-800 font-bold shadow-2xs'
+                          : 'border-stone-200 text-stone-700 bg-white hover:border-stone-300'
+                      }`}
+                    >
+                      <div className={`w-5 h-6 border-[1.5px] border-current ${cr.radiusClass} bg-stone-50`} />
+                      <span className="text-[10px] leading-none">{cr.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

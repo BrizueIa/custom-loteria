@@ -40,6 +40,7 @@ export interface CardDimensionsConfig {
 }
 
 export type CardOuterMarginMode = 'solid' | 'match_board' | 'flush' | 'white' | 'custom';
+export type CardCornerRadius = 'none' | 'sm' | 'md' | 'lg';
 
 export interface CardStyleConfig {
   frameStyle: FrameStyle;
@@ -51,6 +52,7 @@ export interface CardStyleConfig {
   cardOuterMarginMode?: CardOuterMarginMode; // 'solid' (color fijo), 'match_board' (fusionado con fondo de tabla), 'flush' (al ras)
   cardOuterMarginColor?: string; // Color del margen exterior / paspartú de la carta, default '#FFFFFF'
   cardOuterBorderColor?: string; // Color de la línea perimetral exterior que delimita la tarjeta: '#D6D3D1', '#141413', 'none', o HEX libre
+  cardCornerRadius?: CardCornerRadius; // 'none' (rectas), 'sm' (suave), 'md' (naipe), 'lg' (redondeado)
   textColor: string;
   fontFamily: 'serif' | 'sans' | 'display';
   logo?: CardLogoConfig;

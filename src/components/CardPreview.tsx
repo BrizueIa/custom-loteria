@@ -42,10 +42,49 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       ? (isBoard ? (outerMarginColor || style.cardOuterMarginColor || '#FFFFFF') : (style.cardOuterMarginColor || '#FFFFFF'))
       : (style.cardOuterMarginColor || outerMarginColor || '#FFFFFF');
 
-  // Outer perimeter border that delimits the card
-  const borderChoice = style.cardOuterBorderColor ?? (isBoard ? 'none' : '#D6D3D1');
+  // Outer perimeter border that delimits the card (default is subtle gray #D6D3D1)
+  const borderChoice = style.cardOuterBorderColor ?? '#D6D3D1';
   const hasOuterBorder = borderChoice !== 'none';
   const effectiveOuterBorderColor = hasOuterBorder ? borderChoice : 'transparent';
+
+  // Corner radius calculation (concentric outer and inner radii)
+  const cornerRadius = style.cardCornerRadius || 'none';
+
+  const getOuterRadiusClass = () => {
+    if (cornerRadius === 'none') return 'rounded-none';
+    if (isBoard) {
+      if (cornerRadius === 'sm') return 'rounded-[2px]';
+      if (cornerRadius === 'md') return 'rounded-[4px]';
+      return 'rounded-[6px]';
+    }
+    if (isGrid) {
+      if (cornerRadius === 'sm') return 'rounded-sm';
+      if (cornerRadius === 'md') return 'rounded-md';
+      return 'rounded-xl';
+    }
+    // full preview
+    if (cornerRadius === 'sm') return 'rounded-lg';
+    if (cornerRadius === 'md') return 'rounded-2xl';
+    return 'rounded-3xl';
+  };
+
+  const getInnerRadiusClass = () => {
+    if (cornerRadius === 'none') return 'rounded-none';
+    if (isBoard) {
+      if (cornerRadius === 'sm') return 'rounded-[1px]';
+      if (cornerRadius === 'md') return 'rounded-[2px]';
+      return 'rounded-[4px]';
+    }
+    if (isGrid) {
+      if (cornerRadius === 'sm') return 'rounded-[2px]';
+      if (cornerRadius === 'md') return 'rounded-sm';
+      return 'rounded-lg';
+    }
+    // full preview
+    if (cornerRadius === 'sm') return 'rounded-md';
+    if (cornerRadius === 'md') return 'rounded-xl';
+    return 'rounded-2xl';
+  };
 
   // Per-card unified background color inside the black frame
   const innerBgColor = card.backgroundColor || style.cardBgColor || '#FFFFFF';
@@ -275,19 +314,20 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       style={{
         backgroundColor: outerBg,
         borderColor: hasOuterBorder ? effectiveOuterBorderColor : undefined,
+        padding: isBoard ? (effectiveFlush ? '0px' : '4.5%') : undefined,
       }}
       className={`relative ${outerBg === '#FFFFFF' ? 'bg-white' : ''} select-none transition-transform duration-150 overflow-hidden ${
         isBoard
           ? effectiveFlush
-            ? `p-0 ${hasOuterBorder ? 'border' : 'border-0'} rounded-none shadow-none`
-            : `p-[2px] ${hasOuterBorder ? 'border' : 'border-0'} rounded-[2px] shadow-none`
+            ? `p-0 ${hasOuterBorder ? 'border' : 'border-0'} ${getOuterRadiusClass()} shadow-none`
+            : `${hasOuterBorder ? 'border' : 'border-0'} ${getOuterRadiusClass()} shadow-none`
           : isGrid
           ? effectiveFlush
-            ? `p-0 rounded-lg ${hasOuterBorder ? 'border' : 'border-0'} shadow-2xs hover:shadow-xs`
-            : `p-1.5 sm:p-2 rounded-lg ${hasOuterBorder ? 'border' : 'border-0'} shadow-2xs hover:shadow-xs`
+            ? `p-0 ${getOuterRadiusClass()} ${hasOuterBorder ? 'border' : 'border-0'} shadow-2xs hover:shadow-xs`
+            : `p-1.5 sm:p-2 ${getOuterRadiusClass()} ${hasOuterBorder ? 'border' : 'border-0'} shadow-2xs hover:shadow-xs`
           : effectiveFlush
-          ? `p-0 rounded-xl ${hasOuterBorder ? 'border' : 'border-0'} shadow-xs`
-          : `p-2.5 sm:p-3.5 rounded-xl ${hasOuterBorder ? 'border' : 'border-0'} shadow-xs`
+          ? `p-0 ${getOuterRadiusClass()} ${hasOuterBorder ? 'border' : 'border-0'} ${hasOuterBorder ? 'shadow-xs' : 'shadow-2xs'}`
+          : `p-2.5 sm:p-3.5 ${getOuterRadiusClass()} ${hasOuterBorder ? 'border' : 'border-0'} ${hasOuterBorder ? 'shadow-xs' : 'shadow-2xs'}`
       } aspect-[3/4] ${isEyedropperActive ? 'cursor-crosshair ring-2 ring-amber-500' : ''} ${className}`}
     >
       {/* Inner Black-Bordered Frame filled with the absorbed card background color */}
@@ -296,7 +336,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
           backgroundColor: innerBgColor,
           borderColor: style.borderColor || undefined,
         }}
-        className={`relative w-full h-full flex flex-col items-center justify-between overflow-hidden ${getInnerFrameClass()}`}
+        className={`relative w-full h-full flex flex-col items-center justify-between overflow-hidden ${getInnerRadiusClass()} ${getInnerFrameClass()}`}
       >
         {renderOptionalInnerAccents()}
 

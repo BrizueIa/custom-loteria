@@ -25,6 +25,7 @@ const DEFAULT_STYLE: CardStyleConfig = {
   cardOuterMarginMode: 'solid',
   cardOuterMarginColor: '#FFFFFF',
   cardOuterBorderColor: '#D6D3D1',
+  cardCornerRadius: 'none',
   textColor: '#141413',
   fontFamily: 'serif'
 };
