@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BoardConfig, LoteriaCard, CardStyleConfig, GeneratedBoard } from '../types/loteria';
-import { generateBoards } from '../utils/loteriaEngine';
+import { BoardConfig, LoteriaCard, CardStyleConfig, GeneratedBoard, BoardDesignBatch } from '../types/loteria';
+import { generateBoards, getEffectiveBoardBatches, resolveBoardBatchStyle } from '../utils/loteriaEngine';
 import { generateCardsPDF, generateBoardsPDF } from '../utils/pdfGenerator';
 import { CardPreview } from './CardPreview';
 import { exportDeckToJson } from '../utils/deckIO';
@@ -55,8 +55,10 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
     });
   }, []);
 
+  const batches = getEffectiveBoardBatches(boardConfig);
   const activeBoards = boards && boards.length > 0 ? boards : generateBoards(cards, boardConfig);
   const currentPreviewBoard = activeBoards[previewBoardIdx] || activeBoards[0];
+  const currentBoardStyle = resolveBoardBatchStyle(currentPreviewBoard, boardConfig, previewBoardIdx);
 
   const handleDownloadCardsPDF = async () => {
     try {
@@ -86,12 +88,33 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `tablas-loteria-${boardConfig.quantity}-tablas-${paperSize}-${pdfQuality}.pdf`;
+      a.download = `tablas-loteria-${activeBoards.length}-tablas-${paperSize}-${pdfQuality}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
       alert('Error al generar PDF de las tablas.');
+    } finally {
+      setIsGeneratingBoardsPDF(false);
+    }
+  };
+
+  const handleDownloadSingleBatchPDF = async (batch: BoardDesignBatch, batchIdx: number) => {
+    try {
+      setIsGeneratingBoardsPDF(true);
+      setPdfProgress(0);
+      const batchBoards = activeBoards.filter(b => b.batchId === batch.id || b.batchIndex === batchIdx);
+      const blob = await generateBoardsPDF(batchBoards, boardConfig, cardStyle, (pct) => setPdfProgress(pct), paperSize, pdfQuality);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cleanName = (batch.name || `lote-${batchIdx + 1}`).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      a.download = `tablas-loteria-${cleanName}-${batchBoards.length}-tablas-${paperSize}-${pdfQuality}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Error al generar PDF del lote.');
     } finally {
       setIsGeneratingBoardsPDF(false);
     }
@@ -211,9 +234,16 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
 
               <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/80">
                 <div className="flex items-center justify-between mb-2 text-[10px] text-stone-600 font-medium">
-                  <span className="font-bold text-stone-800">
-                    {language === 'en' ? 'Board' : 'Tabla'} #{currentPreviewBoard.index} ({currentPreviewBoard.cards.length} {t('cards').toLowerCase()})
-                  </span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-stone-800">
+                      {language === 'en' ? 'Board' : 'Tabla'} #{currentPreviewBoard.index} ({currentPreviewBoard.cards.length} {t('cards').toLowerCase()})
+                    </span>
+                    {batches.length > 1 && (
+                      <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 rounded border border-emerald-200 truncate max-w-[130px]">
+                        {currentBoardStyle.batchName}
+                      </span>
+                    )}
+                  </div>
                   {activeBoards.length > 1 && (
                     <div className="flex items-center gap-1 font-mono">
                       <button
@@ -237,6 +267,34 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
                   )}
                 </div>
 
+                {/* Quick jump to batches in preview if multiple */}
+                {batches.length > 1 && (
+                  <div className="flex items-center gap-1 overflow-x-auto pb-1.5 mb-2 text-[10px] scrollbar-thin">
+                    <span className="text-stone-400 font-medium shrink-0">{language === 'en' ? 'Jump to:' : 'Ir a:'}</span>
+                    {batches.map((b, idx) => {
+                      const firstIdx = activeBoards.findIndex(gb => gb.batchId === b.id || gb.batchIndex === idx);
+                      const isCurrent = currentBoardStyle.batchIndex === idx;
+                      return (
+                        <button
+                          key={b.id || idx}
+                          type="button"
+                          onClick={() => {
+                            if (firstIdx !== -1) setPreviewBoardIdx(firstIdx);
+                          }}
+                          className={`px-2 py-0.5 rounded-full font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+                            isCurrent
+                              ? 'bg-stone-900 text-white shadow-2xs'
+                              : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full border border-stone-300" style={{ backgroundColor: b.boardBgColor || '#FFFFFF' }} />
+                          <span>{b.name || `Lote ${idx + 1}`} (#{firstIdx !== -1 ? firstIdx + 1 : 1})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div
                   className="grid gap-1"
                   style={{
@@ -249,7 +307,7 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
                       card={c}
                       style={cardStyle}
                       variant="board"
-                      outerMarginColor={boardConfig.boardBgColor || '#FFFFFF'}
+                      outerMarginColor={currentBoardStyle.boardBgColor || '#FFFFFF'}
                       className="w-full"
                     />
                   ))}
@@ -302,7 +360,7 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-stone-900 text-sm">
-                {t('pdf_boards_title', { count: boardConfig.quantity })}
+                {t('pdf_boards_title', { count: activeBoards.length })}
               </span>
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             </div>
@@ -333,8 +391,50 @@ export const DownloadPDFView: React.FC<DownloadPDFViewProps> = ({
           <FileDown className="w-4 h-4" />
           {isGeneratingBoardsPDF
             ? t('generating_pdf', { progress: pdfProgress })
-            : t('download_boards_pdf', { count: boardConfig.quantity })}
+            : batches.length > 1
+            ? t('download_all_batches_pdf', { count: activeBoards.length })
+            : t('download_boards_pdf', { count: activeBoards.length })}
         </button>
+
+        {/* Individual batch download buttons if multiple batches exist */}
+        {batches.length > 1 && (
+          <div className="pt-2 border-t border-stone-100 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block">
+              {language === 'en' ? 'Or download by batch:' : 'O descargar por lote individual:'}
+            </span>
+            <div className="grid grid-cols-1 gap-1.5">
+              {batches.map((b, idx) => {
+                const batchBoards = activeBoards.filter(gb => gb.batchId === b.id || gb.batchIndex === idx);
+                const firstNum = batchBoards.length > 0 ? batchBoards[0].index : 1;
+                const lastNum = batchBoards.length > 0 ? batchBoards[batchBoards.length - 1].index : batchBoards.length;
+                return (
+                  <button
+                    key={b.id || idx}
+                    type="button"
+                    disabled={isGeneratingBoardsPDF || batchBoards.length === 0}
+                    onClick={() => handleDownloadSingleBatchPDF(b, idx)}
+                    className="w-full flex items-center justify-between p-2 rounded-xl border border-stone-200 hover:border-stone-300 bg-stone-50 hover:bg-stone-100 text-stone-800 text-xs font-semibold disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="w-4 h-4 rounded border flex items-center justify-center shrink-0 shadow-2xs"
+                        style={{ backgroundColor: b.boardBgColor || '#FFFFFF', borderColor: b.boardBorderColor || '#164E3D' }}
+                      />
+                      <span className="font-bold truncate text-[11px]">{b.name || `Lote ${idx + 1}`}</span>
+                      <span className="text-[10px] text-stone-500">
+                        (#{firstNum}–#{lastNum})
+                      </span>
+                    </div>
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-stone-600 bg-white px-2 py-0.5 rounded border border-stone-200 shrink-0">
+                      <FileDown className="w-3 h-3" />
+                      <span>{batchBoards.length} {t('boards_count')}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Card 3: Respaldo editable Baraja JSON */}

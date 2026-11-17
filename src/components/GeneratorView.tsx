@@ -83,10 +83,23 @@ export const GeneratorView: React.FC<GeneratorViewProps> = ({
   }, [cards]);
 
   const handleUpdateBoardConfig = (newConfig: BoardConfig) => {
+    const oldTotal = (boardConfig.batches && boardConfig.batches.length > 0)
+      ? boardConfig.batches.reduce((sum, b) => sum + (b.quantity || 0), 0)
+      : boardConfig.quantity;
+    const newTotal = (newConfig.batches && newConfig.batches.length > 0)
+      ? newConfig.batches.reduce((sum, b) => sum + (b.quantity || 0), 0)
+      : newConfig.quantity;
+
+    const batchesStructureChanged =
+      (newConfig.batches?.length || 0) !== (boardConfig.batches?.length || 0) ||
+      JSON.stringify(newConfig.batches?.map(b => b.quantity) || []) !==
+        JSON.stringify(boardConfig.batches?.map(b => b.quantity) || []);
+
     const dimensionsChanged =
       newConfig.rows !== boardConfig.rows ||
       newConfig.cols !== boardConfig.cols ||
-      newConfig.quantity !== boardConfig.quantity ||
+      oldTotal !== newTotal ||
+      batchesStructureChanged ||
       newConfig.allowDuplicates !== boardConfig.allowDuplicates ||
       (newConfig.balanceColors ?? true) !== (boardConfig.balanceColors ?? true);
 

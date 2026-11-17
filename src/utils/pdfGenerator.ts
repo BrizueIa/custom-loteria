@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { LoteriaCard, CardStyleConfig, GeneratedBoard, BoardConfig } from '../types/loteria';
 import { getContrastingTextColor, isSvgDataUrl } from './imageOptimizer';
+import { resolveBoardBatchStyle } from './loteriaEngine';
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -582,20 +583,6 @@ export async function generateBoardsPDF(
   const pageHeight = doc.internal.pageSize.getHeight(); // 279.4 mm
 
   const totalBoards = boards.length;
-  const frameStyle = boardConfig.boardFrameStyle || 'traditional_gallo';
-  const borderColor = boardConfig.boardBorderColor || '#164E3D';
-  const rgb = hexToRgb(borderColor);
-
-  const paperBgColor = boardConfig.boardBgColor || '#FFFFFF';
-  const paperRgb = hexToRgb(paperBgColor);
-
-  const textColorHex = boardConfig.boardTextColor || borderColor;
-  const textRgb = hexToRgb(textColorHex);
-  const hasCustomText = Boolean(boardConfig.boardTextColor);
-
-  const title = (boardConfig.title || 'LOTERÍA MEXICANA').toUpperCase().trim();
-  const subtitle = (boardConfig.subtitle || '').trim();
-  const showNumber = Boolean(boardConfig.showBoardNumber);
 
   // Proporción y medidas según preset o personalizado
   const sizingPreset = boardConfig.boardDimensions?.preset || 'traditional';
@@ -631,16 +618,6 @@ export async function generateBoardsPDF(
   const frameX = (pageWidth - frameW) / 2;
   const frameY = (pageHeight - frameH) / 2;
 
-  const hasSub = subtitle.length > 0;
-  const headerHeight = hasSub ? 20 : showNumber ? 17 : 14;
-
-  // Helper para dibujar rombos de imprenta tradicional
-  const drawDiamond = (cx: number, cy: number, sz: number) => {
-    doc.setFillColor(rgb.r, rgb.g, rgb.b);
-    doc.triangle(cx, cy - sz, cx + sz, cy, cx - sz, cy, 'F');
-    doc.triangle(cx, cy + sz, cx + sz, cy, cx - sz, cy, 'F');
-  };
-
   // Cache rendered card data URLs so up to 200 boards only render the 54 unique cards once
   const renderedCardCache = new Map<string, string>();
 
@@ -648,6 +625,32 @@ export async function generateBoardsPDF(
     if (bIdx > 0) doc.addPage();
 
     const board = boards[bIdx];
+    const resolvedStyle = resolveBoardBatchStyle(board, boardConfig, bIdx);
+
+    const frameStyle = resolvedStyle.boardFrameStyle || 'traditional_gallo';
+    const borderColor = resolvedStyle.boardBorderColor || '#164E3D';
+    const rgb = hexToRgb(borderColor);
+
+    const paperBgColor = resolvedStyle.boardBgColor || '#FFFFFF';
+    const paperRgb = hexToRgb(paperBgColor);
+
+    const textColorHex = resolvedStyle.boardTextColor || borderColor;
+    const textRgb = hexToRgb(textColorHex);
+    const hasCustomText = Boolean(resolvedStyle.boardTextColor && resolvedStyle.boardTextColor !== borderColor);
+
+    const title = (resolvedStyle.title || 'LOTERÍA MEXICANA').toUpperCase().trim();
+    const subtitle = (resolvedStyle.subtitle || '').trim();
+    const showNumber = Boolean(resolvedStyle.showBoardNumber);
+
+    const hasSub = subtitle.length > 0;
+    const headerHeight = hasSub ? 20 : showNumber ? 17 : 14;
+
+    // Helper para dibujar rombos de imprenta tradicional
+    const drawDiamond = (cx: number, cy: number, sz: number) => {
+      doc.setFillColor(rgb.r, rgb.g, rgb.b);
+      doc.triangle(cx, cy - sz, cx + sz, cy, cx - sz, cy, 'F');
+      doc.triangle(cx, cy + sz, cx + sz, cy, cx - sz, cy, 'F');
+    };
 
     // Relleno de fondo de la hoja del tablero
     doc.setFillColor(paperRgb.r, paperRgb.g, paperRgb.b);

@@ -396,5 +396,55 @@ describe('pdfGenerator', () => {
       const blobBoards = await generateBoardsPDF(singleBoard, testBoardConfig, roundedStyle);
       expect(blobBoards).toBeInstanceOf(Blob);
     });
+
+    it('renders multiple boards across different design batches in a single PDF', async () => {
+      const boards: GeneratedBoard[] = [
+        {
+          id: 'board-1',
+          index: 1,
+          batchId: 'batch-white',
+          batchIndex: 0,
+          cards: [mockCards[0]],
+        },
+        {
+          id: 'board-2',
+          index: 2,
+          batchId: 'batch-green',
+          batchIndex: 1,
+          cards: [mockCards[1] || mockCards[0]],
+        }
+      ];
+
+      const multiBatchConfig: BoardConfig = {
+        rows: 1,
+        cols: 1,
+        allowDuplicates: false,
+        quantity: 2,
+        title: 'DEFAULT TITLE',
+        batches: [
+          {
+            id: 'batch-white',
+            name: 'Lote Blanco',
+            quantity: 1,
+            title: 'TABLA BLANCA',
+            boardBgColor: '#FFFFFF',
+            boardBorderColor: '#164E3D',
+            boardFrameStyle: 'traditional_gallo',
+          },
+          {
+            id: 'batch-green',
+            name: 'Lote Verde',
+            quantity: 1,
+            title: 'TABLA VERDE',
+            boardBgColor: '#DCFCE7',
+            boardBorderColor: '#14532D',
+            boardFrameStyle: 'clean_minimal',
+          }
+        ]
+      };
+
+      const blob = await generateBoardsPDF(boards, multiBatchConfig, mockStyle);
+      expect(blob).toBeInstanceOf(Blob);
+    });
   });
 });

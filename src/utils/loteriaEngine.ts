@@ -1,4 +1,110 @@
-import { LoteriaCard, BoardConfig, GeneratedBoard } from '../types/loteria';
+import { LoteriaCard, BoardConfig, GeneratedBoard, BoardDesignBatch, BoardFrameStyle } from '../types/loteria';
+
+/**
+ * Normalizes batches from BoardConfig, guaranteeing at least one valid batch.
+ */
+export function getEffectiveBoardBatches(config: BoardConfig): BoardDesignBatch[] {
+  if (config.batches && config.batches.length > 0) {
+    return config.batches.map((b, i) => ({
+      id: b.id || `batch-${i + 1}`,
+      name: b.name || `Lote ${i + 1}`,
+      quantity: Math.max(1, b.quantity || 1),
+      title: b.title ?? config.title ?? 'LOTERÍA',
+      subtitle: b.subtitle ?? config.subtitle,
+      showBoardNumber: b.showBoardNumber ?? config.showBoardNumber,
+      boardFrameStyle: b.boardFrameStyle ?? config.boardFrameStyle ?? 'traditional_gallo',
+      boardBorderColor: b.boardBorderColor ?? config.boardBorderColor ?? '#164E3D',
+      boardBgColor: b.boardBgColor ?? config.boardBgColor ?? '#FFFFFF',
+      boardTextColor: b.boardTextColor ?? config.boardTextColor,
+    }));
+  }
+
+  return [{
+    id: 'batch-1',
+    name: 'Lote 1',
+    quantity: Math.max(1, config.quantity || 20),
+    title: config.title || 'LOTERÍA',
+    subtitle: config.subtitle,
+    showBoardNumber: config.showBoardNumber,
+    boardFrameStyle: config.boardFrameStyle || 'traditional_gallo',
+    boardBorderColor: config.boardBorderColor || '#164E3D',
+    boardBgColor: config.boardBgColor || '#FFFFFF',
+    boardTextColor: config.boardTextColor,
+  }];
+}
+
+export interface ResolvedBoardBatchStyle {
+  batchId: string;
+  batchIndex: number;
+  batchName: string;
+  quantity: number;
+  title: string;
+  subtitle?: string;
+  showBoardNumber?: boolean;
+  boardFrameStyle: BoardFrameStyle;
+  boardBorderColor: string;
+  boardBgColor: string;
+  boardTextColor: string;
+}
+
+/**
+ * Resolves the effective design properties for a given board based on its batch metadata.
+ */
+export function resolveBoardBatchStyle(
+  board: GeneratedBoard | undefined,
+  config: BoardConfig,
+  boardListIndex?: number
+): ResolvedBoardBatchStyle {
+  const batches = getEffectiveBoardBatches(config);
+  let matchedBatch: BoardDesignBatch | undefined;
+  let batchIndex = 0;
+
+  if (board?.batchId) {
+    const idx = batches.findIndex(b => b.id === board.batchId);
+    if (idx !== -1) {
+      matchedBatch = batches[idx];
+      batchIndex = idx;
+    }
+  } else if (board?.batchIndex !== undefined && batches[board.batchIndex]) {
+    matchedBatch = batches[board.batchIndex];
+    batchIndex = board.batchIndex;
+  }
+
+  if (!matchedBatch) {
+    const targetIdx = boardListIndex !== undefined ? boardListIndex : (board?.index ? board.index - 1 : 0);
+    let accum = 0;
+    for (let i = 0; i < batches.length; i++) {
+      accum += batches[i].quantity;
+      if (targetIdx < accum) {
+        matchedBatch = batches[i];
+        batchIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (!matchedBatch) {
+    matchedBatch = batches[0];
+    batchIndex = 0;
+  }
+
+  const borderColor = matchedBatch.boardBorderColor || config.boardBorderColor || '#164E3D';
+  const textColor = matchedBatch.boardTextColor || config.boardTextColor || borderColor;
+
+  return {
+    batchId: matchedBatch.id,
+    batchIndex,
+    batchName: matchedBatch.name || `Lote ${batchIndex + 1}`,
+    quantity: matchedBatch.quantity,
+    title: matchedBatch.title ?? config.title ?? 'LOTERÍA',
+    subtitle: matchedBatch.subtitle ?? config.subtitle,
+    showBoardNumber: matchedBatch.showBoardNumber ?? config.showBoardNumber,
+    boardFrameStyle: matchedBatch.boardFrameStyle ?? config.boardFrameStyle ?? 'traditional_gallo',
+    boardBorderColor: borderColor,
+    boardBgColor: matchedBatch.boardBgColor || config.boardBgColor || '#FFFFFF',
+    boardTextColor: textColor,
+  };
+}
 
 /**
  * Fisher-Yates array shuffle (creates a new shuffled copy)
@@ -269,10 +375,13 @@ export function generateBoards(
   const softColorCap = Math.max(1, Math.floor(cellsPerBoard / 4));
   const hardColorCap = Math.max(2, Math.ceil(cellsPerBoard / 3.2));
 
-  let attempts = 0;
-  const maxAttempts = config.quantity * 200;
+  const batches = getEffectiveBoardBatches(config);
+  const totalTargetBoards = batches.reduce((sum, b) => sum + Math.max(1, b.quantity), 0);
 
-  while (generatedBoards.length < config.quantity && attempts < maxAttempts) {
+  let attempts = 0;
+  const maxAttempts = Math.max(totalTargetBoards * 250, 5000);
+
+  while (generatedBoards.length < totalTargetBoards && attempts < maxAttempts) {
     attempts++;
     let boardCards: LoteriaCard[] = [];
 
@@ -385,10 +494,25 @@ export function generateBoards(
         cardFrequency[c.id] = (cardFrequency[c.id] || 0) + 1;
       });
 
+      // Determine batchId and batchIndex
+      let currentBatchId = batches[0].id;
+      let currentBatchIndex = 0;
+      let cumulative = 0;
+      for (let b = 0; b < batches.length; b++) {
+        cumulative += batches[b].quantity;
+        if (generatedBoards.length < cumulative) {
+          currentBatchId = batches[b].id;
+          currentBatchIndex = b;
+          break;
+        }
+      }
+
       generatedBoards.push({
         id: `board-${generatedBoards.length + 1}`,
         index: generatedBoards.length + 1,
-        cards: boardCards
+        cards: boardCards,
+        batchId: currentBatchId,
+        batchIndex: currentBatchIndex,
       });
     }
   }

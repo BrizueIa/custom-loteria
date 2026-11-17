@@ -74,6 +74,19 @@ export interface BoardDimensionsConfig {
   heightCm?: number;
 }
 
+export interface BoardDesignBatch {
+  id: string;
+  name?: string;
+  quantity: number;
+  title?: string;
+  subtitle?: string;
+  showBoardNumber?: boolean;
+  boardFrameStyle?: BoardFrameStyle;
+  boardBorderColor?: string;
+  boardBgColor?: string;
+  boardTextColor?: string;
+}
+
 export interface BoardConfig {
   rows: number;
   cols: number;
@@ -90,12 +103,15 @@ export interface BoardConfig {
   boardDimensions?: BoardDimensionsConfig;
   cardOuterMarginMode?: CardOuterMarginMode; // Default: 'match_board'
   cardOuterMarginCustomColor?: string;
+  batches?: BoardDesignBatch[];
 }
 
 export interface GeneratedBoard {
   id: string;
   index: number;
   cards: LoteriaCard[];
+  batchId?: string;
+  batchIndex?: number;
 }
 
 export type AppTab = 'generator' | 'game';

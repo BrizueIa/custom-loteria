@@ -4,9 +4,11 @@ import {
   swapCardNumbers,
   generateBoards,
   getCardColorGroup,
-  arrangeCardsWithColorDispersion
+  arrangeCardsWithColorDispersion,
+  getEffectiveBoardBatches,
+  resolveBoardBatchStyle
 } from '../loteriaEngine';
-import { LoteriaCard, BoardConfig } from '../../types/loteria';
+import { LoteriaCard, BoardConfig, BoardDesignBatch } from '../../types/loteria';
 
 describe('loteriaEngine', () => {
   const mockDeck: LoteriaCard[] = Array.from({ length: 54 }, (_, i) => ({
@@ -221,6 +223,238 @@ describe('loteriaEngine', () => {
       expect(getCardColorGroup('#FFFFFF')).toBe('neutral');
       expect(getCardColorGroup(undefined)).toBe('neutral');
       expect(arrangeCardsWithColorDispersion([], 0, 0)).toEqual([]);
+    });
+
+    it('generates multi-batch boards with tagged batchId, batchIndex, and global uniqueness', () => {
+      const batch1: BoardDesignBatch = {
+        id: 'batch-white',
+        name: 'Blancas',
+        quantity: 3,
+        boardBgColor: '#FFFFFF',
+        boardBorderColor: '#164E3D',
+        title: 'LOTE BLANCO',
+      };
+      const batch2: BoardDesignBatch = {
+        id: 'batch-green',
+        name: 'Verdes',
+        quantity: 2,
+        boardBgColor: '#22C55E',
+        boardBorderColor: '#14532D',
+        title: 'LOTE VERDE',
+      };
+
+      const multiBatchConfig: BoardConfig = {
+        ...standardConfig,
+        quantity: 1, // should be superseded by batches sum (3 + 2 = 5)
+        batches: [batch1, batch2],
+      };
+
+      const boards = generateBoards(mockDeck, multiBatchConfig);
+      expect(boards).toHaveLength(5);
+
+      // Verify batch assignment and contiguous indexing
+      expect(boards[0].batchId).toBe('batch-white');
+      expect(boards[0].batchIndex).toBe(0);
+      expect(boards[0].index).toBe(1);
+
+      expect(boards[1].batchId).toBe('batch-white');
+      expect(boards[1].batchIndex).toBe(0);
+      expect(boards[1].index).toBe(2);
+
+      expect(boards[2].batchId).toBe('batch-white');
+      expect(boards[2].batchIndex).toBe(0);
+      expect(boards[2].index).toBe(3);
+
+      expect(boards[3].batchId).toBe('batch-green');
+      expect(boards[3].batchIndex).toBe(1);
+      expect(boards[3].index).toBe(4);
+
+      expect(boards[4].batchId).toBe('batch-green');
+      expect(boards[4].batchIndex).toBe(1);
+      expect(boards[4].index).toBe(5);
+
+      // Verify all 5 combinations are globally unique
+      const combinations = new Set<string>();
+      boards.forEach(b => {
+        const sig = b.cards.map(c => c.id).join('-');
+        expect(combinations.has(sig)).toBe(false);
+        combinations.add(sig);
+      });
+    });
+
+    it('supports generating 60 white boards + 60 green boards (120 total) without duplication', () => {
+      const config120: BoardConfig = {
+        rows: 4,
+        cols: 4,
+        allowDuplicates: false,
+        quantity: 20,
+        title: 'LOTERÍA 120',
+        batches: [
+          {
+            id: 'batch-white-60',
+            name: 'Hojas Blancas',
+            quantity: 60,
+            boardBgColor: '#FFFFFF',
+          },
+          {
+            id: 'batch-green-60',
+            name: 'Hojas Verdes',
+            quantity: 60,
+            boardBgColor: '#DCFCE7',
+          }
+        ]
+      };
+
+      const boards = generateBoards(mockDeck, config120);
+      expect(boards).toHaveLength(120);
+
+      const signatures = new Set<string>();
+      boards.forEach((board, idx) => {
+        expect(board.index).toBe(idx + 1);
+        if (idx < 60) {
+          expect(board.batchId).toBe('batch-white-60');
+          expect(board.batchIndex).toBe(0);
+        } else {
+          expect(board.batchId).toBe('batch-green-60');
+          expect(board.batchIndex).toBe(1);
+        }
+        const sig = board.cards.map(c => c.id).join('-');
+        expect(signatures.has(sig)).toBe(false);
+        signatures.add(sig);
+      });
+      expect(signatures.size).toBe(120);
+    });
+  });
+
+  describe('getEffectiveBoardBatches', () => {
+    it('returns a single default batch when batches is undefined or empty', () => {
+      const config: BoardConfig = {
+        rows: 4,
+        cols: 4,
+        allowDuplicates: false,
+        quantity: 25,
+        title: 'MI LOTERÍA',
+        boardBgColor: '#FFFBEB',
+        boardBorderColor: '#B45309',
+        boardFrameStyle: 'clean_minimal',
+      };
+
+      const batches = getEffectiveBoardBatches(config);
+      expect(batches).toHaveLength(1);
+      expect(batches[0].id).toBe('batch-1');
+      expect(batches[0].quantity).toBe(25);
+      expect(batches[0].title).toBe('MI LOTERÍA');
+      expect(batches[0].boardBgColor).toBe('#FFFBEB');
+      expect(batches[0].boardBorderColor).toBe('#B45309');
+      expect(batches[0].boardFrameStyle).toBe('clean_minimal');
+    });
+
+    it('normalizes provided batches and falls back to config values for omitted fields', () => {
+      const config: BoardConfig = {
+        rows: 4,
+        cols: 4,
+        allowDuplicates: false,
+        quantity: 10,
+        title: 'DEFAULT TITLE',
+        boardBgColor: '#FFFFFF',
+        boardBorderColor: '#164E3D',
+        batches: [
+          {
+            id: 'b-1',
+            quantity: 30,
+            // title omitted, should inherit DEFAULT TITLE
+            boardBgColor: '#FFFFFF',
+          },
+          {
+            id: 'b-2',
+            quantity: 30,
+            title: 'TITULO VERDE',
+            boardBgColor: '#10B981',
+          }
+        ]
+      };
+
+      const batches = getEffectiveBoardBatches(config);
+      expect(batches).toHaveLength(2);
+      expect(batches[0].title).toBe('DEFAULT TITLE');
+      expect(batches[0].boardBorderColor).toBe('#164E3D');
+      expect(batches[1].title).toBe('TITULO VERDE');
+      expect(batches[1].boardBgColor).toBe('#10B981');
+    });
+  });
+
+  describe('resolveBoardBatchStyle', () => {
+    const configWithBatches: BoardConfig = {
+      rows: 4,
+      cols: 4,
+      allowDuplicates: false,
+      quantity: 10,
+      title: 'ROOT TITLE',
+      boardBgColor: '#FFFFFF',
+      boardBorderColor: '#164E3D',
+      batches: [
+        {
+          id: 'batch-white',
+          name: 'Blancas',
+          quantity: 2,
+          boardBgColor: '#FFFFFF',
+          title: 'BLANCAS',
+        },
+        {
+          id: 'batch-green',
+          name: 'Verdes',
+          quantity: 2,
+          boardBgColor: '#22C55E',
+          title: 'VERDES',
+        }
+      ]
+    };
+
+    it('resolves style by board.batchId directly', () => {
+      const board = {
+        id: 'board-test',
+        index: 1,
+        cards: [],
+        batchId: 'batch-green',
+      };
+      const resolved = resolveBoardBatchStyle(board, configWithBatches);
+      expect(resolved.batchId).toBe('batch-green');
+      expect(resolved.batchIndex).toBe(1);
+      expect(resolved.boardBgColor).toBe('#22C55E');
+      expect(resolved.title).toBe('VERDES');
+    });
+
+    it('resolves style by board.batchIndex directly when batchId not matched', () => {
+      const board = {
+        id: 'board-test',
+        index: 1,
+        cards: [],
+        batchIndex: 1,
+      };
+      const resolved = resolveBoardBatchStyle(board, configWithBatches);
+      expect(resolved.batchIndex).toBe(1);
+      expect(resolved.boardBgColor).toBe('#22C55E');
+    });
+
+    it('resolves style from board.index cumulative ranges when batchId/batchIndex are missing', () => {
+      // batch 0 spans index 1..2 (qty 2)
+      // batch 1 spans index 3..4 (qty 2)
+      const board1 = { id: 'b1', index: 1, cards: [] };
+      const board3 = { id: 'b3', index: 3, cards: [] };
+
+      const style1 = resolveBoardBatchStyle(board1, configWithBatches);
+      expect(style1.batchId).toBe('batch-white');
+      expect(style1.batchIndex).toBe(0);
+
+      const style3 = resolveBoardBatchStyle(board3, configWithBatches);
+      expect(style3.batchId).toBe('batch-green');
+      expect(style3.batchIndex).toBe(1);
+    });
+
+    it('falls back gracefully to first batch if board is undefined', () => {
+      const resolved = resolveBoardBatchStyle(undefined, configWithBatches);
+      expect(resolved.batchIndex).toBe(0);
+      expect(resolved.boardBgColor).toBe('#FFFFFF');
     });
   });
 });

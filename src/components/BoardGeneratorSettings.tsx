@@ -6,8 +6,9 @@ import {
   GeneratedBoard,
   BoardFrameStyle,
   BoardDimensionPreset,
+  BoardDesignBatch,
 } from '../types/loteria';
-import { generateBoards } from '../utils/loteriaEngine';
+import { generateBoards, getEffectiveBoardBatches, resolveBoardBatchStyle } from '../utils/loteriaEngine';
 import { CardPreview } from './CardPreview';
 import {
   ArrowLeft,
@@ -103,6 +104,11 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     }
   };
 
+  const batches = getEffectiveBoardBatches(config);
+  const [activeBatchIndex, setActiveBatchIndex] = useState<number>(0);
+  const safeActiveBatchIndex = Math.min(activeBatchIndex, Math.max(0, batches.length - 1));
+  const activeBatch = batches[safeActiveBatchIndex] || batches[0];
+
   const [previewBoardIndex, setPreviewBoardIndex] = useState<number>(0);
 
   // Top header collapsible state
@@ -119,11 +125,150 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   );
 
   const [customGridMode, setCustomGridMode] = useState<boolean>(false);
-  const [customTextColor, setCustomTextColor] = useState<string>(config.boardTextColor || config.boardBorderColor || '#164E3D');
-  const [isCustomTextColor, setIsCustomTextColor] = useState<boolean>(Boolean(config.boardTextColor && config.boardTextColor !== config.boardBorderColor));
+  const [customTextColor, setCustomTextColor] = useState<string>(
+    activeBatch.boardTextColor || activeBatch.boardBorderColor || '#164E3D'
+  );
+  const [isCustomTextColor, setIsCustomTextColor] = useState<boolean>(
+    Boolean(activeBatch.boardTextColor && activeBatch.boardTextColor !== activeBatch.boardBorderColor)
+  );
 
   type BoardEyedropperTarget = 'boardBorderColor' | 'boardTextColor' | 'boardBgColor' | null;
   const [activeEyedropperTarget, setActiveEyedropperTarget] = useState<BoardEyedropperTarget>(null);
+
+  const handleUpdateActiveBatch = (patch: Partial<BoardDesignBatch>, shouldRegenerate = false) => {
+    const currentBatches = getEffectiveBoardBatches(config);
+    const updatedBatches = currentBatches.map((b, idx) => {
+      if (idx === safeActiveBatchIndex) {
+        return { ...b, ...patch };
+      }
+      return b;
+    });
+
+    const totalQuantity = updatedBatches.reduce((sum, b) => sum + (b.quantity || 0), 0);
+    const updatedActive = updatedBatches[safeActiveBatchIndex];
+
+    const updatedConfig: BoardConfig = {
+      ...config,
+      batches: updatedBatches,
+      quantity: totalQuantity,
+      title: updatedActive.title ?? config.title ?? 'LOTERÍA',
+      subtitle: updatedActive.subtitle ?? config.subtitle,
+      showBoardNumber: updatedActive.showBoardNumber ?? config.showBoardNumber,
+      boardFrameStyle: updatedActive.boardFrameStyle ?? config.boardFrameStyle,
+      boardBorderColor: updatedActive.boardBorderColor ?? config.boardBorderColor,
+      boardBgColor: updatedActive.boardBgColor ?? config.boardBgColor,
+      boardTextColor: updatedActive.boardTextColor ?? config.boardTextColor,
+    };
+
+    onChangeConfig(updatedConfig);
+    if (shouldRegenerate) {
+      try {
+        const newBoards = generateBoards(cards, updatedConfig);
+        updateBoards(newBoards);
+      } catch (err: any) {
+        alert(err.message);
+      }
+    }
+  };
+
+  const handleAddBatch = () => {
+    const currentBatches = getEffectiveBoardBatches(config);
+    const nextNum = currentBatches.length + 1;
+    const palettePreset = BOARD_FRAME_COLOR_PALETTES[(nextNum - 1) % BOARD_FRAME_COLOR_PALETTES.length].hex;
+    const paperPreset = BOARD_PAPER_PALETTES[(nextNum - 1) % BOARD_PAPER_PALETTES.length].hex;
+
+    const newBatch: BoardDesignBatch = {
+      id: `batch-${Date.now()}-${nextNum}`,
+      name: `Lote ${nextNum}`,
+      quantity: 60,
+      title: config.title || 'LOTERÍA MEXICANA',
+      subtitle: config.subtitle,
+      showBoardNumber: config.showBoardNumber ?? false,
+      boardFrameStyle: config.boardFrameStyle || 'traditional_gallo',
+      boardBorderColor: palettePreset,
+      boardBgColor: paperPreset,
+      boardTextColor: palettePreset,
+    };
+
+    const updatedBatches = [...currentBatches, newBatch];
+    const totalQuantity = updatedBatches.reduce((sum, b) => sum + b.quantity, 0);
+
+    const updatedConfig: BoardConfig = {
+      ...config,
+      batches: updatedBatches,
+      quantity: totalQuantity,
+    };
+
+    onChangeConfig(updatedConfig);
+    try {
+      const newBoards = generateBoards(cards, updatedConfig);
+      updateBoards(newBoards);
+      const newIdx = updatedBatches.length - 1;
+      setActiveBatchIndex(newIdx);
+      const firstBoardOfNewBatch = newBoards.findIndex(
+        b => b.batchId === newBatch.id || b.batchIndex === newIdx
+      );
+      if (firstBoardOfNewBatch !== -1) {
+        setPreviewBoardIndex(firstBoardOfNewBatch);
+      }
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleDeleteBatch = (indexToDelete: number) => {
+    const currentBatches = getEffectiveBoardBatches(config);
+    if (currentBatches.length <= 1) return;
+    const batchToDelete = currentBatches[indexToDelete];
+    const confirmMsg = language === 'en'
+      ? `Delete ${batchToDelete.name || 'this batch'}?`
+      : `¿Eliminar ${batchToDelete.name || 'este lote'}?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    const updatedBatches = currentBatches.filter((_, idx) => idx !== indexToDelete);
+    const totalQuantity = updatedBatches.reduce((sum, b) => sum + b.quantity, 0);
+    const nextActive = Math.max(0, Math.min(safeActiveBatchIndex, updatedBatches.length - 1));
+    setActiveBatchIndex(nextActive);
+
+    const updatedConfig: BoardConfig = {
+      ...config,
+      batches: updatedBatches,
+      quantity: totalQuantity,
+    };
+
+    onChangeConfig(updatedConfig);
+    try {
+      const newBoards = generateBoards(cards, updatedConfig);
+      updateBoards(newBoards);
+      setPreviewBoardIndex(0);
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleSelectActiveBatch = (idx: number) => {
+    setActiveBatchIndex(idx);
+    const targetBatch = batches[idx];
+    if (targetBatch) {
+      const firstIdx = generatedBoards.findIndex(
+        b => b.batchId === targetBatch.id || b.batchIndex === idx
+      );
+      if (firstIdx !== -1) {
+        setPreviewBoardIndex(firstIdx);
+      }
+    }
+  };
+
+  const handlePreviewBoardChange = (newIndex: number) => {
+    setPreviewBoardIndex(newIndex);
+    const targetBoard = generatedBoards[newIndex];
+    if (targetBoard) {
+      const style = resolveBoardBatchStyle(targetBoard, config, newIndex);
+      if (style.batchIndex !== safeActiveBatchIndex) {
+        setActiveBatchIndex(style.batchIndex);
+      }
+    }
+  };
 
   const handleBoardEyedropperPick = (hex: string) => {
     if (!activeEyedropperTarget) return;
@@ -132,7 +277,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     } else if (activeEyedropperTarget === 'boardTextColor') {
       setIsCustomTextColor(true);
       setCustomTextColor(hex);
-      onChangeConfig({ ...config, boardTextColor: hex });
+      handleUpdateActiveBatch({ boardTextColor: hex });
     } else if (activeEyedropperTarget === 'boardBgColor') {
       handleSelectBoardPaperColor(hex);
     }
@@ -146,7 +291,6 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
     } else {
       setOpenSection(s);
     }
-    // Any manual click on a section header disables auto-advancing (enters exploration mode)
     setAutoGuidedStep(null);
   };
 
@@ -160,29 +304,27 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   };
 
   const handleSelectBoardFrame = (frameId: BoardFrameStyle) => {
-    onChangeConfig({ ...config, boardFrameStyle: frameId });
+    handleUpdateActiveBatch({ boardFrameStyle: frameId });
     if (autoGuidedStep === 'frame') {
       setOpenSection('color');
       setAutoGuidedStep('color');
     }
-    // In exploration mode, section remains open for live preview
   };
 
   const handleSelectBoardColor = (hex: string) => {
-    const updated: BoardConfig = { ...config, boardBorderColor: hex };
+    const patch: Partial<BoardDesignBatch> = { boardBorderColor: hex };
     if (!isCustomTextColor) {
-      updated.boardTextColor = hex;
+      patch.boardTextColor = hex;
     }
-    onChangeConfig(updated);
+    handleUpdateActiveBatch(patch);
     if (autoGuidedStep === 'color') {
       setOpenSection('paper');
       setAutoGuidedStep('paper');
     }
-    // In exploration mode, section remains open for live preview
   };
 
   const handleSelectBoardPaperColor = (hex: string) => {
-    onChangeConfig({ ...config, boardBgColor: hex });
+    handleUpdateActiveBatch({ boardBgColor: hex });
     if (autoGuidedStep === 'paper') {
       setOpenSection('grid');
       setAutoGuidedStep('grid');
@@ -202,7 +344,6 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
       setAutoGuidedStep(null);
       onCompleteInitialTour?.();
     }
-    // In exploration mode, section remains open for live preview
   };
 
   const handleCustomGridChange = (rows: number, cols: number) => {
@@ -270,10 +411,22 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
   };
 
   const currentPreviewBoard = generatedBoards[previewBoardIndex] || generatedBoards[0];
-  const activePaperBgColor = config.boardBgColor || '#FFFFFF';
-  const activeFrameStyle = config.boardFrameStyle || 'traditional_gallo';
-  const activeBorderColor = config.boardBorderColor || '#164E3D';
-  const activeTextColor = config.boardTextColor || activeBorderColor;
+  const previewBatchStyle = resolveBoardBatchStyle(currentPreviewBoard, config, previewBoardIndex);
+  const previewPaperBgColor = previewBatchStyle.boardBgColor || '#FFFFFF';
+  const previewFrameStyle = previewBatchStyle.boardFrameStyle || 'traditional_gallo';
+  const previewBorderColor = previewBatchStyle.boardBorderColor || '#164E3D';
+  const previewTextColor = previewBatchStyle.boardTextColor || previewBorderColor;
+  const previewTitle = previewBatchStyle.title || t('board_title_placeholder');
+  const previewSubtitle = previewBatchStyle.subtitle;
+  const previewShowNumber = previewBatchStyle.showBoardNumber;
+  const isPreviewCustomTextColor = Boolean(
+    previewBatchStyle.boardTextColor && previewBatchStyle.boardTextColor !== previewBorderColor
+  );
+
+  const activePaperBgColor = activeBatch.boardBgColor || '#FFFFFF';
+  const activeFrameStyle = activeBatch.boardFrameStyle || 'traditional_gallo';
+  const activeBorderColor = activeBatch.boardBorderColor || '#164E3D';
+  const activeTextColor = activeBatch.boardTextColor || activeBorderColor;
 
   const activePalette =
     BOARD_FRAME_COLOR_PALETTES.find((p) => p.hex.toLowerCase() === activeBorderColor.toLowerCase()) || {
@@ -380,14 +533,21 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
         <div className="lg:col-span-6 xl:col-span-7 lg:sticky lg:top-4 flex flex-col items-center">
           <div className="w-full bg-white rounded-2xl border border-stone-200/90 p-3 shadow-2xs flex flex-col items-center">
             {/* Navigation Bar for Boards */}
-        <div className="w-full flex items-center justify-between mb-2 px-1 text-xs">
-          <span className="font-mono text-stone-500 uppercase tracking-widest text-[10px] font-semibold">
-            {t('board_preview')}
-          </span>
+        <div className="w-full flex items-center justify-between mb-1.5 px-1 text-xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-mono text-stone-500 uppercase tracking-widest text-[10px] font-semibold">
+              {t('board_preview')}
+            </span>
+            {batches.length > 1 && (
+              <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 rounded border border-emerald-200 truncate max-w-[130px]">
+                {previewBatchStyle.batchName}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <button
               disabled={previewBoardIndex <= 0}
-              onClick={() => setPreviewBoardIndex(previewBoardIndex - 1)}
+              onClick={() => handlePreviewBoardChange(previewBoardIndex - 1)}
               className="p-1 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-md disabled:opacity-30 cursor-pointer transition-colors"
               title="Tabla anterior"
             >
@@ -398,7 +558,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             </span>
             <button
               disabled={previewBoardIndex >= generatedBoards.length - 1}
-              onClick={() => setPreviewBoardIndex(previewBoardIndex + 1)}
+              onClick={() => handlePreviewBoardChange(previewBoardIndex + 1)}
               className="p-1 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-md disabled:opacity-30 cursor-pointer transition-colors"
               title="Siguiente tabla"
             >
@@ -406,6 +566,37 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Quick jump to batch buttons if multiple batches */}
+        {batches.length > 1 && (
+          <div className="w-full flex items-center gap-1 overflow-x-auto pb-1.5 mb-1 text-[10px] scrollbar-thin">
+            <span className="text-stone-400 font-semibold shrink-0 mr-0.5">{language === 'en' ? 'Jump to:' : 'Ir a:'}</span>
+            {batches.map((b, idx) => {
+              const firstBoardIndex = generatedBoards.findIndex(gb => gb.batchId === b.id || gb.batchIndex === idx);
+              const isCurrent = previewBatchStyle.batchIndex === idx;
+              return (
+                <button
+                  key={b.id || idx}
+                  type="button"
+                  onClick={() => {
+                    if (firstBoardIndex !== -1) {
+                      setPreviewBoardIndex(firstBoardIndex);
+                      setActiveBatchIndex(idx);
+                    }
+                  }}
+                  className={`px-2 py-0.5 rounded-full font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+                    isCurrent
+                      ? 'bg-stone-900 text-white shadow-2xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full border border-stone-300" style={{ backgroundColor: b.boardBgColor || '#FFFFFF' }} />
+                  <span>{b.name || `Lote ${idx + 1}`} (#{firstBoardIndex !== -1 ? firstBoardIndex + 1 : 1})</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Active Eyedropper indicator banner */}
         {activeEyedropperTarget && (
@@ -434,75 +625,75 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             <div
               className="w-full shadow-md transition-all relative overflow-hidden rounded-xs"
               style={{
-                backgroundColor: activePaperBgColor,
+                backgroundColor: previewPaperBgColor,
                 aspectRatio: `${getBoardDimensionsRatio()}`,
-                borderColor: activeFrameStyle !== 'none' ? activeBorderColor : '#E5E7EB',
-                borderWidth: activeFrameStyle === 'none' ? '1px' : activeFrameStyle === 'traditional_gallo' ? '3px' : '2px',
-                borderStyle: activeFrameStyle === 'none' ? 'dashed' : 'solid',
-                padding: activeFrameStyle === 'traditional_gallo' ? '3px' : activeFrameStyle === 'festive_banner' ? '0px' : '5px',
+                borderColor: previewFrameStyle !== 'none' ? previewBorderColor : '#E5E7EB',
+                borderWidth: previewFrameStyle === 'none' ? '1px' : previewFrameStyle === 'traditional_gallo' ? '3px' : '2px',
+                borderStyle: previewFrameStyle === 'none' ? 'dashed' : 'solid',
+                padding: previewFrameStyle === 'traditional_gallo' ? '3px' : previewFrameStyle === 'festive_banner' ? '0px' : '5px',
               }}
             >
               {/* Inner wrapper for traditional gallo / talavera */}
               <div
                 className={`relative h-full flex flex-col ${
-                  activeFrameStyle === 'traditional_gallo'
+                  previewFrameStyle === 'traditional_gallo'
                     ? 'p-1.5 border'
-                    : activeFrameStyle === 'festive_banner'
+                    : previewFrameStyle === 'festive_banner'
                     ? ''
-                    : activeFrameStyle === 'talavera_frame'
+                    : previewFrameStyle === 'talavera_frame'
                     ? 'p-1.5 border'
-                    : activeFrameStyle === 'clean_minimal'
+                    : previewFrameStyle === 'clean_minimal'
                     ? 'p-1'
                     : 'p-1'
                 }`}
                 style={{
                   borderColor:
-                    activeFrameStyle === 'traditional_gallo' || activeFrameStyle === 'talavera_frame'
-                      ? activeBorderColor
+                    previewFrameStyle === 'traditional_gallo' || previewFrameStyle === 'talavera_frame'
+                      ? previewBorderColor
                       : 'transparent',
                 }}
               >
                 {/* Traditional corner diamond ornaments */}
-                {activeFrameStyle === 'traditional_gallo' && (
+                {previewFrameStyle === 'traditional_gallo' && (
                   <>
-                    <span className="absolute -top-1 -left-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -top-1 -right-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -bottom-1 -left-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
-                    <span className="absolute -bottom-1 -right-1 w-2 h-2 rotate-45" style={{ backgroundColor: activeBorderColor }} />
+                    <span className="absolute -top-1 -left-1 w-2 h-2 rotate-45" style={{ backgroundColor: previewBorderColor }} />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rotate-45" style={{ backgroundColor: previewBorderColor }} />
+                    <span className="absolute -bottom-1 -left-1 w-2 h-2 rotate-45" style={{ backgroundColor: previewBorderColor }} />
+                    <span className="absolute -bottom-1 -right-1 w-2 h-2 rotate-45" style={{ backgroundColor: previewBorderColor }} />
                   </>
                 )}
 
                 {/* Talavera corner bracket squares */}
-                {activeFrameStyle === 'talavera_frame' && (
+                {previewFrameStyle === 'talavera_frame' && (
                   <>
-                    <span className="absolute top-0 left-0 w-2 h-2 border-r border-b" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute top-0 right-0 w-2 h-2 border-l border-b" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute bottom-0 left-0 w-2 h-2 border-r border-t" style={{ borderColor: activeBorderColor }} />
-                    <span className="absolute bottom-0 right-0 w-2 h-2 border-l border-t" style={{ borderColor: activeBorderColor }} />
+                    <span className="absolute top-0 left-0 w-2 h-2 border-r border-b" style={{ borderColor: previewBorderColor }} />
+                    <span className="absolute top-0 right-0 w-2 h-2 border-l border-b" style={{ borderColor: previewBorderColor }} />
+                    <span className="absolute bottom-0 left-0 w-2 h-2 border-r border-t" style={{ borderColor: previewBorderColor }} />
+                    <span className="absolute bottom-0 right-0 w-2 h-2 border-l border-t" style={{ borderColor: previewBorderColor }} />
                   </>
                 )}
 
                 {/* Header Layout */}
-                {activeFrameStyle === 'festive_banner' ? (
+                {previewFrameStyle === 'festive_banner' ? (
                   <div
                     className="text-center py-1.5 px-2 mb-1 transition-colors shrink-0"
-                    style={{ backgroundColor: activeBorderColor }}
+                    style={{ backgroundColor: previewBorderColor }}
                   >
                     <h2
                       className="font-loteria-title text-xs font-black uppercase tracking-wider text-white"
-                      style={{ color: isCustomTextColor ? activeTextColor : '#FFFFFF' }}
+                      style={{ color: isPreviewCustomTextColor ? previewTextColor : '#FFFFFF' }}
                     >
-                      {config.title || t('board_title_placeholder')}
+                      {previewTitle}
                     </h2>
-                    {config.subtitle && (
+                    {previewSubtitle && (
                       <p
                         className="text-[9px] italic font-medium leading-none mt-0.5"
-                        style={{ color: isCustomTextColor ? activeTextColor : '#FEF3C7', opacity: 0.9 }}
+                        style={{ color: isPreviewCustomTextColor ? previewTextColor : '#FEF3C7', opacity: 0.9 }}
                       >
-                        {config.subtitle}
+                        {previewSubtitle}
                       </p>
                     )}
-                    {config.showBoardNumber && (
+                    {previewShowNumber && (
                       <span className="inline-block mt-0.5 font-mono text-[7px] text-white/90 uppercase tracking-widest bg-black/20 px-1 py-0.2 rounded-full leading-none">
                         {t('board_prefix')} #{currentPreviewBoard.index}
                       </span>
@@ -511,32 +702,32 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                 ) : (
                   <div
                     className={`text-center pb-1 mb-1 shrink-0 ${
-                      activeFrameStyle === 'none' ? 'border-b border-stone-200' : 'border-b'
+                      previewFrameStyle === 'none' ? 'border-b border-stone-200' : 'border-b'
                     }`}
                     style={{
-                      borderColor: activeFrameStyle !== 'none' ? activeBorderColor : undefined,
+                      borderColor: previewFrameStyle !== 'none' ? previewBorderColor : undefined,
                     }}
                   >
                     <h2
                       className="font-loteria-title text-xs font-black uppercase tracking-wider transition-colors"
                       style={{
-                        color: activeFrameStyle !== 'none' ? activeTextColor : '#1C1917',
+                        color: previewFrameStyle !== 'none' ? previewTextColor : '#1C1917',
                       }}
                     >
-                      {config.title || t('board_title_placeholder')}
+                      {previewTitle}
                     </h2>
-                    {config.subtitle && (
+                    {previewSubtitle && (
                       <p
                         className="text-[9px] italic font-medium leading-none mt-0.5"
-                        style={{ color: activeTextColor, opacity: 0.85 }}
+                        style={{ color: previewTextColor, opacity: 0.85 }}
                       >
-                        {config.subtitle}
+                        {previewSubtitle}
                       </p>
                     )}
-                    {config.showBoardNumber && (
+                    {previewShowNumber && (
                       <span
                         className="inline-block mt-0.5 font-mono text-[8px] uppercase tracking-widest leading-none"
-                        style={{ color: activeTextColor, opacity: 0.75 }}
+                        style={{ color: previewTextColor, opacity: 0.75 }}
                       >
                         {t('board_prefix')} #{currentPreviewBoard.index}
                       </span>
@@ -546,7 +737,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
 
                 {/* Grid Layout inside preview */}
                 <div
-                  className={`grid gap-0.5 flex-1 ${activeFrameStyle === 'festive_banner' ? 'p-1' : ''}`}
+                  className={`grid gap-0.5 flex-1 ${previewFrameStyle === 'festive_banner' ? 'p-1' : ''}`}
                   style={{
                     gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`
                   }}
@@ -557,7 +748,7 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
                         card={card}
                         style={cardStyle}
                         isCompactTable={true}
-                        outerMarginColor={activePaperBgColor}
+                        outerMarginColor={previewPaperBgColor}
                         isEyedropperActive={Boolean(activeEyedropperTarget)}
                         onPickColor={handleBoardEyedropperPick}
                         className="w-full h-full"
@@ -591,6 +782,89 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
 
     {/* Right Column: Controls and Options */}
     <div className="lg:col-span-6 xl:col-span-5 space-y-3">
+      {/* 0. Batch / Multi-Design Manager */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-3 shadow-2xs space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-4 h-4 text-emerald-800 shrink-0" />
+            <span className="text-xs font-bold text-stone-900">
+              {t('design_batches')}
+            </span>
+            <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full border border-emerald-200">
+              {batches.length} {batches.length === 1 ? (language === 'en' ? 'batch' : 'lote') : (language === 'en' ? 'batches' : 'lotes')}
+            </span>
+          </div>
+          <span className="text-[11px] font-mono font-bold text-stone-600">
+            {language === 'en' ? 'Total:' : 'Total:'} {config.quantity} {t('boards_count')}
+          </span>
+        </div>
+
+        <p className="text-[11px] text-stone-500 leading-snug">
+          {t('design_batches_desc')}
+        </p>
+
+        {/* Batches Pill / Card Selector */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+          {batches.map((b, idx) => {
+            const isSelected = safeActiveBatchIndex === idx;
+            const paperHex = b.boardBgColor || '#FFFFFF';
+            const borderHex = b.boardBorderColor || '#164E3D';
+            return (
+              <div
+                key={b.id || idx}
+                className={`flex items-center gap-1.5 p-1.5 pr-2 rounded-xl border transition-all cursor-pointer shrink-0 ${
+                  isSelected
+                    ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
+                    : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200'
+                }`}
+                onClick={() => handleSelectActiveBatch(idx)}
+              >
+                {/* Swatch */}
+                <div
+                  className="w-5 h-5 rounded-md border flex items-center justify-center shrink-0 shadow-2xs"
+                  style={{ backgroundColor: paperHex, borderColor: borderHex }}
+                >
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: borderHex }} />
+                </div>
+                <div className="text-left">
+                  <p className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-white' : 'text-stone-900'}`}>
+                    {b.name || `Lote ${idx + 1}`}
+                  </p>
+                  <p className={`text-[9px] ${isSelected ? 'text-stone-300' : 'text-stone-500'}`}>
+                    {b.quantity} {t('boards_count')}
+                  </p>
+                </div>
+                {batches.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteBatch(idx);
+                    }}
+                    title={language === 'en' ? 'Delete batch' : 'Eliminar lote'}
+                    className={`p-1 rounded-md ml-1 hover:bg-red-500 hover:text-white transition-colors cursor-pointer ${
+                      isSelected ? 'text-stone-400' : 'text-stone-400 hover:text-white'
+                    }`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={handleAddBatch}
+            className="flex items-center gap-1 px-2.5 py-2 rounded-xl border border-dashed border-stone-300 hover:border-emerald-600 bg-emerald-50/50 hover:bg-emerald-50 text-emerald-800 text-[11px] font-bold transition-all shrink-0 cursor-pointer"
+            title={language === 'en' ? 'Add another design batch' : 'Agregar otro lote con nuevo diseño'}
+          >
+            <span className="text-sm leading-none">+</span>
+            <span>{t('add_batch')}</span>
+          </button>
+        </div>
+      </div>
+
       {/* 3. Section 1: Encabezado (Colapsable con botón listo o clic en barra) */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden transition-all">
         <button
@@ -601,12 +875,12 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           <div className="flex items-center gap-2 min-w-0">
             <Type className="w-4 h-4 text-stone-600 shrink-0" />
             <span className="text-xs font-bold text-stone-900">
-              1. {t('board_title_label')}
+              1. {t('board_title_label')} {batches.length > 1 ? `(${activeBatch.name || `Lote ${safeActiveBatchIndex + 1}`})` : ''}
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[11px] font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md truncate max-w-[140px]">
-              {config.title || t('board_title_placeholder')}
+              {activeBatch.title || t('board_title_placeholder')}
             </span>
             {openSection === 'header' ? (
               <ChevronUp className="w-4 h-4 text-stone-400" />
@@ -618,14 +892,29 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
 
         {openSection === 'header' && (
           <div className="p-3 pt-1 border-t border-stone-100 space-y-2.5 bg-stone-50/40">
+            {batches.length > 1 && (
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
+                  {t('batch_name_label')}
+                </label>
+                <input
+                  type="text"
+                  value={activeBatch.name || ''}
+                  onChange={(e) => handleUpdateActiveBatch({ name: e.target.value })}
+                  className="w-full px-3 py-1.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900 bg-white"
+                  placeholder={t('batch_name_placeholder')}
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-600 mb-1">
                 {t('board_title_label')}
               </label>
               <input
                 type="text"
-                value={config.title}
-                onChange={(e) => onChangeConfig({ ...config, title: e.target.value })}
+                value={activeBatch.title}
+                onChange={(e) => handleUpdateActiveBatch({ title: e.target.value })}
                 className="w-full px-3 py-1.5 rounded-xl border border-stone-300 font-loteria-title text-sm font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900 bg-white"
                 placeholder={t('board_title_placeholder')}
               />
@@ -637,8 +926,8 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               </label>
               <input
                 type="text"
-                value={config.subtitle || ''}
-                onChange={(e) => onChangeConfig({ ...config, subtitle: e.target.value })}
+                value={activeBatch.subtitle || ''}
+                onChange={(e) => handleUpdateActiveBatch({ subtitle: e.target.value })}
                 className="w-full px-3 py-1.5 rounded-xl border border-stone-300 text-xs text-stone-800 focus:outline-none focus:ring-1 focus:ring-stone-900 bg-white"
                 placeholder={t('board_subtitle_placeholder')}
               />
@@ -655,8 +944,8 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
               </div>
               <input
                 type="checkbox"
-                checked={config.showBoardNumber ?? false}
-                onChange={(e) => onChangeConfig({ ...config, showBoardNumber: e.target.checked })}
+                checked={activeBatch.showBoardNumber ?? false}
+                onChange={(e) => handleUpdateActiveBatch({ showBoardNumber: e.target.checked })}
                 className="mt-0.5 w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
               />
             </div>
@@ -1419,12 +1708,23 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-stone-600 shrink-0" />
             <span className="text-xs font-bold text-stone-900">
-              7. {t('board_quantity')}
+              7. {t('board_quantity')} {batches.length > 1 ? `(${activeBatch.name || `Lote ${safeActiveBatchIndex + 1}`})` : ''}
             </span>
           </div>
-          <span className="font-mono font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded text-xs">
-            {config.quantity} {t('boards_count')}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={activeBatch.quantity}
+              onChange={(e) => {
+                const val = Math.max(1, Math.min(200, parseInt(e.target.value, 10) || 1));
+                handleUpdateActiveBatch({ quantity: val }, true);
+              }}
+              className="w-16 px-2 py-0.5 text-xs font-mono font-bold text-stone-900 bg-stone-100 border border-stone-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-stone-900"
+            />
+            <span className="text-xs text-stone-500 font-semibold">{t('boards_count')}</span>
+          </div>
         </div>
 
         <div className="space-y-1">
@@ -1432,8 +1732,8 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             type="range"
             min={1}
             max={200}
-            value={config.quantity}
-            onChange={(e) => onChangeConfig({ ...config, quantity: parseInt(e.target.value, 10) })}
+            value={activeBatch.quantity}
+            onChange={(e) => handleUpdateActiveBatch({ quantity: parseInt(e.target.value, 10) }, true)}
             className="w-full accent-stone-800 cursor-pointer"
           />
           <div className="flex justify-between text-[10px] text-stone-400 font-mono">
@@ -1444,6 +1744,15 @@ export const BoardGeneratorSettings: React.FC<BoardGeneratorSettingsProps> = ({
             <span>200 tablas</span>
           </div>
         </div>
+
+        {batches.length > 1 && (
+          <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 flex items-center justify-between text-xs font-semibold">
+            <span>{t('all_batches_total')}:</span>
+            <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-800">
+              {config.quantity} {t('boards_count')}
+            </span>
+          </div>
+        )}
 
         {/* Always-visible Color Balance & Dispersion toggle */}
         <div className="p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/70 flex items-center justify-between gap-2">
