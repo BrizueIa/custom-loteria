@@ -128,6 +128,47 @@ function traceRoundedRect(
 }
 
 /**
+ * Inserts a card image into the PDF, applying a vector rounded-rectangle clip path
+ * when corner radius > 0 so corners never bleed rectangular pixels onto colored board backgrounds.
+ */
+function addClippedCardImage(
+  doc: jsPDF,
+  dataUrl: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radiusMm: number,
+  alias?: string
+) {
+  const d = doc as unknown as {
+    saveGraphicsState?: () => void;
+    restoreGraphicsState?: () => void;
+    roundedRect?: (x: number, y: number, w: number, h: number, rx: number, ry: number, style: string | null) => void;
+    clip?: () => void;
+    discardPath?: () => void;
+  };
+  const canClip =
+    radiusMm > 0 &&
+    typeof d.saveGraphicsState === 'function' &&
+    typeof d.roundedRect === 'function' &&
+    typeof d.clip === 'function' &&
+    typeof d.discardPath === 'function' &&
+    typeof d.restoreGraphicsState === 'function';
+
+  if (canClip) {
+    d.saveGraphicsState!();
+    d.roundedRect!(x, y, w, h, radiusMm, radiusMm, null);
+    d.clip!();
+    d.discardPath!();
+    doc.addImage(dataUrl, 'JPEG', x, y, w, h, alias, 'NONE');
+    d.restoreGraphicsState!();
+  } else {
+    doc.addImage(dataUrl, 'JPEG', x, y, w, h, alias, 'NONE');
+  }
+}
+
+/**
  * Draws a single card onto canvas context with classic Mexican Loteria layout:
  * - White outer margin around all 4 sides (with optional rounded corners)
  * - Crisp black inner frame filled with card's unified background color
@@ -169,27 +210,30 @@ async function drawCardToCanvas(
 
   // Outer Margin (Paspartú en los 4 costados: blanco clásico, color de la hoja o personalizado)
   const marginMode = style.cardOuterMarginMode || 'solid';
-  const effectiveOuterBg =
-    marginMode === 'match_board'
-      ? (outerMarginColor || style.cardOuterMarginColor || '#FFFFFF')
-      : (style.cardOuterMarginColor || outerMarginColor || '#FFFFFF');
-  ctx.fillStyle = effectiveOuterBg;
-  if (outerRadiusPx > 0) {
-    traceRoundedRect(ctx, 0, 0, width, height, outerRadiusPx);
-    ctx.fill();
-  } else {
-    ctx.fillRect(0, 0, width, height);
+  const effectiveFlush = isFlush || marginMode === 'flush';
+
+  if (!effectiveFlush) {
+    const effectiveOuterBg = outerMarginColor || style.cardOuterMarginColor || '#FFFFFF';
+    ctx.fillStyle = effectiveOuterBg;
+    if (outerRadiusPx > 0) {
+      traceRoundedRect(ctx, 0, 0, width, height, outerRadiusPx);
+      ctx.fill();
+    } else {
+      ctx.fillRect(0, 0, width, height);
+    }
   }
 
   // 2. Inner Framed Area filled with the absorbed card background color
-  const effectiveFlush = isFlush || marginMode === 'flush';
-  const inset = effectiveFlush ? Math.max(1, Math.round(width * 0.008)) : Math.max(8, Math.round(width * 0.045));
+  const inset = effectiveFlush ? 1.2 : Math.max(8, Math.round(width * 0.045));
   const innerX = inset;
   const innerY = inset;
   const innerW = width - inset * 2;
   const innerH = height - inset * 2;
 
-  const innerRadiusPx = Math.max(0, outerRadiusPx > 0 ? outerRadiusPx - inset * 0.6 : 0);
+  const innerRadiusPx =
+    outerRadiusPx > 0
+      ? Math.max(0, effectiveFlush ? outerRadiusPx - inset : outerRadiusPx - inset * 0.6)
+      : 0;
 
   const innerBgColor = card.backgroundColor || style.cardBgColor || '#FFFFFF';
   const effectiveTextColor = getContrastingTextColor(innerBgColor, style.textColor);
@@ -538,7 +582,7 @@ export async function generateCardsPDF(
         const baseH = Math.round(baseW * (cardHeightMm / cardWidthMm));
 
         const dataUrl = await drawCardToCanvas(card, style, baseW, baseH, scaleFactor, jpegQuality, undefined, false, '#FFFFFF');
-        doc.addImage(dataUrl, 'JPEG', x, y, cardWidthMm, cardHeightMm, undefined, 'NONE');
+        addClippedCardImage(doc, dataUrl, x, y, cardWidthMm, cardHeightMm, outerRadiusMm);
 
         // Borde exterior / delimitador de la carta o guía de corte
         const cardBorder = style.cardOuterBorderColor ?? '#D6D3D1';
@@ -881,7 +925,16 @@ export async function generateBoardsPDF(
           );
           renderedCardCache.set(cacheKey, cardDataUrl);
         }
-        doc.addImage(cardDataUrl, 'JPEG', cellX, cellY, cardRenderW, cardRenderH, card.id, 'NONE');
+        addClippedCardImage(
+          doc,
+          cardDataUrl,
+          cellX,
+          cellY,
+          cardRenderW,
+          cardRenderH,
+          boardCardRadiusMm,
+          cacheKey
+        );
 
         // Borde exterior delimitador de cada carta en la tabla
         if (hasCardBorder && cardBorderRgb) {

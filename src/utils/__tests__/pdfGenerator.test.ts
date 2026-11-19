@@ -51,6 +51,7 @@ class MockImage {
 (globalThis as any).Image = MockImage;
 
 // Mock jsPDF
+let lastMockDoc: any = null;
 vi.mock('jspdf', () => {
   return {
     default: class MockJsPDF {
@@ -62,6 +63,10 @@ vi.mock('jspdf', () => {
       };
       addPage = vi.fn();
       addImage = vi.fn();
+      saveGraphicsState = vi.fn();
+      restoreGraphicsState = vi.fn();
+      clip = vi.fn();
+      discardPath = vi.fn();
       setDrawColor = vi.fn();
       setFillColor = vi.fn();
       setTextColor = vi.fn();
@@ -74,6 +79,9 @@ vi.mock('jspdf', () => {
       triangle = vi.fn();
       text = vi.fn();
       output = vi.fn(() => new Blob(['mock-pdf'], { type: 'application/pdf' }));
+      constructor() {
+        lastMockDoc = this;
+      }
     }
   };
 });
@@ -445,6 +453,122 @@ describe('pdfGenerator', () => {
 
       const blob = await generateBoardsPDF(boards, multiBatchConfig, mockStyle);
       expect(blob).toBeInstanceOf(Blob);
+    });
+
+    it('uses distinct jsPDF image aliases across batches with different background colors (prevents white corners on green boards)', async () => {
+      const sharedCard: LoteriaCard = { id: 'card-46', number: 46, name: 'EL POTUS BRASIL', image: 'data:image/svg' };
+      const boards: GeneratedBoard[] = [
+        { id: 'b-white', index: 1, batchId: 'batch-white', batchIndex: 0, cards: [sharedCard] },
+        { id: 'b-green', index: 2, batchId: 'batch-green', batchIndex: 1, cards: [sharedCard] },
+      ];
+      const config: BoardConfig = {
+        rows: 1,
+        cols: 1,
+        allowDuplicates: false,
+        quantity: 2,
+        title: 'LOTERIA',
+        batches: [
+          { id: 'batch-white', quantity: 1, boardBgColor: '#FFFFFF', boardBorderColor: '#164E3D' },
+          { id: 'batch-green', quantity: 1, boardBgColor: '#8CCBB1', boardBorderColor: '#141413' },
+        ],
+      };
+
+      await generateBoardsPDF(boards, config, {
+        ...mockStyle,
+        cardCornerRadius: 'md',
+        cardOuterMarginMode: 'solid',
+        cardOuterMarginColor: '#FFFFFF',
+      });
+
+      expect(lastMockDoc).not.toBeNull();
+      expect(lastMockDoc.addImage).toHaveBeenCalledTimes(2);
+      const aliasWhite = lastMockDoc.addImage.mock.calls[0][6];
+      const aliasGreen = lastMockDoc.addImage.mock.calls[1][6];
+      expect(aliasWhite).not.toBe(aliasGreen);
+      expect(aliasWhite).toContain('#FFFFFF');
+      expect(aliasGreen).toContain('#8CCBB1');
+    });
+
+    it('applies vector rounded-rect clip path when cardCornerRadius is set, and skips clip when none', async () => {
+      const singleBoard: GeneratedBoard[] = [{ id: 'b1', index: 1, cards: [mockCards[0]] }];
+      const singleConfig: BoardConfig = {
+        rows: 1,
+        cols: 1,
+        allowDuplicates: false,
+        quantity: 1,
+        title: 'TEST CLIP',
+      };
+
+      await generateBoardsPDF(singleBoard, singleConfig, {
+        ...mockStyle,
+        cardCornerRadius: 'md',
+      });
+
+      expect(lastMockDoc.saveGraphicsState).toHaveBeenCalledTimes(1);
+      expect(lastMockDoc.roundedRect).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+        null
+      );
+      expect(lastMockDoc.clip).toHaveBeenCalledTimes(1);
+      expect(lastMockDoc.discardPath).toHaveBeenCalledTimes(1);
+      expect(lastMockDoc.restoreGraphicsState).toHaveBeenCalledTimes(1);
+
+      await generateCardsPDF([mockCards[0]], { ...mockStyle, cardCornerRadius: 'sm' }, 4);
+      expect(lastMockDoc.saveGraphicsState).toHaveBeenCalledTimes(1);
+      expect(lastMockDoc.clip).toHaveBeenCalledTimes(1);
+      expect(lastMockDoc.restoreGraphicsState).toHaveBeenCalledTimes(1);
+
+      await generateBoardsPDF(singleBoard, singleConfig, {
+        ...mockStyle,
+        cardCornerRadius: 'none',
+      });
+      expect(lastMockDoc.saveGraphicsState).not.toHaveBeenCalled();
+      expect(lastMockDoc.clip).not.toHaveBeenCalled();
+    });
+
+    it('skips outer white margin fill in flush mode so colored boards have no white halo', async () => {
+      const fillStyles: string[] = [];
+      const origFillRect = mockCtx.fillRect;
+      mockCtx.fillRect = vi.fn((...args: any[]) => {
+        fillStyles.push(mockCtx.fillStyle);
+        return origFillRect(...args);
+      });
+
+      try {
+        const cardWithPinkBg: LoteriaCard = {
+          id: 'c-pink',
+          number: 46,
+          name: 'POTUS',
+          image: 'data:image/svg',
+          backgroundColor: '#FF85B3',
+        };
+        const singleBoard: GeneratedBoard[] = [{ id: 'b1', index: 1, cards: [cardWithPinkBg] }];
+        const greenBoardConfig: BoardConfig = {
+          rows: 1,
+          cols: 1,
+          allowDuplicates: false,
+          quantity: 1,
+          title: 'FLUSH TEST',
+          boardBgColor: '#8CCBB1',
+          cardOuterMarginMode: 'flush',
+        };
+
+        await generateBoardsPDF(singleBoard, greenBoardConfig, {
+          ...mockStyle,
+          cardOuterMarginMode: 'flush',
+          cardCornerRadius: 'md',
+        });
+
+        expect(fillStyles).toContain('#8CCBB1');
+        expect(fillStyles).not.toContain('#FFFFFF');
+      } finally {
+        mockCtx.fillRect = origFillRect;
+      }
     });
   });
 });
